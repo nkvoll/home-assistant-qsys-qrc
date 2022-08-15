@@ -13,10 +13,13 @@ class Hub:
     def subscribe_component_control(self, listener, filter):
         self._listeners_component_control.append((listener, filter))
 
-    def _fire_on_component_control(self, component, control):
+    async def _fire_on_component_control(self, component, control):
         for (listener, filter) in self._listeners_component_control:
             if filter(component, control):
-                listener(self, component, control)
+                if asyncio.iscoroutine(listener):
+                    await listener(self, component, control)
+                else:
+                    listener(self, component, control)
 
     def subscribe_component_control_changes(
         self, listener, component_name, control_name
@@ -32,8 +35,10 @@ class Hub:
         for listener in self._listeners_component_control_changes.get(
             (component_name, control_name), []
         ):
-            print("on changed", change, listener)
-            await listener(self, change)
+            if asyncio.iscoroutine(listener):
+                await listener(self, change)
+            else:
+                listener(self, change)
 
     async def run_poll(self):
         while True:
@@ -57,7 +62,7 @@ class Hub:
                     )
 
                     for control in controls["result"]["Controls"]:
-                        self._fire_on_component_control(component, control)
+                        await self._fire_on_component_control(component, control)
 
                 while True:
                     poll_result = await cg.poll()

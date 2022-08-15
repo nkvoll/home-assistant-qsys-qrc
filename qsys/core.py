@@ -134,6 +134,8 @@ class ComponentAPI:
     async def get_controls(self, name):
         return await self._core._call("Component.GetControls", params={"Name": name})
 
+    async def set(self, name, controls):
+        return await self._core._call("Component.Set", params={"Name": name, 'Controls': controls})
 
 class ChangeGroupAPI:
     def __init__(self, core: Core, id_: int):
