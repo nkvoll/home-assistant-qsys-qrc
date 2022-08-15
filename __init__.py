@@ -9,6 +9,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry
 
+from .hub import Hub
 from .qsys import core
 from .const import DOMAIN
 
@@ -27,10 +28,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # hass.data[DOMAIN][entry.entry_id] = MyApi(...)
 
     c = core.Core(entry.data["host"])
+    hub = Hub(c)
     core_runner_task = asyncio.create_task(c.run_until_stopped())
     entry.async_on_unload(core_runner_task.cancel)
     hass.data.setdefault(DOMAIN, dict())
-    hass.data[DOMAIN][entry.entry_id] = c
+    hass.data[DOMAIN][entry.entry_id] = hub
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
@@ -44,6 +46,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         model="Core",
     )
     devices[entry.entry_id] = device_entry
+
+    entry.async_on_unload(asyncio.create_task(hub.run_poll()).cancel)
 
     return True
 
