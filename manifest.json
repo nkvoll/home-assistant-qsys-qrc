@@ -1,0 +1,15 @@
+{
+  "domain": "qsys",
+  "name": "Q-Sys QRC",
+  "config_flow": true,
+  "documentation": "https://www.home-assistant.io/integrations/qsys",
+  "requirements": [],
+  "ssdp": [],
+  "zeroconf": [],
+  "homekit": {},
+  "dependencies": [],
+  "codeowners": [
+    "@nkvoll"
+  ],
+  "iot_class": "local_polling"
+}
