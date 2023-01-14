@@ -73,7 +73,7 @@ class ChangeGroupPoller:
                 while True:
                     # TODO: find a way to only poll if there are components to poll
                     poll_result = await self.cg.poll()
-                    _LOGGER.info("poll: %s", poll_result)
+                    _LOGGER.debug("poll result: %s", poll_result)
 
                     for change in poll_result["result"]["Changes"]:
                         await self._fire_on_component_control_change(change)

@@ -34,6 +34,7 @@ async def async_setup_entry(
         poller = changegroup.ChangeGroupPoller(core, f"{__name__.rsplit('.', 1)[-1]}_platform")
 
         # TODO: this is a little hard to reload at the moment, do via listener instead?
+        # TODO: timeouts for remote calls like these?
         components = await core.component().get_components()
         component_by_name = {}
         for component in components["result"]:
@@ -85,4 +86,4 @@ class QRCMediaPlayerEntity(QSysComponentBase, SensorEntity):
 
     async def on_changed(self, core, change):
         #self._attr_native_value = change.get(self.attribute)
-        print("media player", self.component, "control changed", change)
+        _LOGGER.warning("media player control changed: %s", change)

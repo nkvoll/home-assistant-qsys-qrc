@@ -1,10 +1,13 @@
 import asyncio
+from asyncio import exceptions as aioexceptions
 import json
 import logging
 
 _LOGGER = logging.getLogger(__name__)
 
 DELIMITER = b"\0"
+
+PORT = 1710
 
 error_codes = {
     -32700: "Parse error. Invalid JSON was received by the server.",
@@ -59,9 +62,14 @@ class Core:
                 self._connected.set_result(True)
                 await self._read_forever()
             except EOFError as eof:
-                _LOGGER.exception("eof", eof)
+                _LOGGER.warning("eof", eof)
+            except aioexceptions.TimeoutError as te:
+                if self._connected.done():
+                    _LOGGER.warning("timeouterror while reading from remote [%s:%d]", self._host, PORT)
+                else:
+                    _LOGGER.warning("timeouterror while connecting to remote [%s:%d]", self._host, PORT)
             except Exception as e:
-                _LOGGER.exception("generic exception", repr(e), e)
+                _LOGGER.exception("generic exception: %s", repr(e))
             finally:
                 if self._writer:
                     self._writer.close()
@@ -71,7 +79,7 @@ class Core:
     async def connect(self):
         _LOGGER.info("connecting")
         # TODO: make limit configurable
-        opening = asyncio.open_connection(self._host, 1710, limit=5 * 1024 * 1024)
+        opening = asyncio.open_connection(self._host, PORT, limit=5 * 1024 * 1024)
         self._reader, self._writer = await asyncio.wait_for(opening, 5)
         _LOGGER.info("connected")
 
