@@ -1,12 +1,13 @@
 """Constants for the Q-Sys QRC integration."""
 
-DOMAIN = "qsys"
+DOMAIN = "qsys_qrc"
 
 CONF_CORES = "cores"
 CONF_PLATFORMS = "platforms"
 CONF_SWITCH_PLATFORM = "switch"
 CONF_NUMBER_PLATFORM = "number"
 CONF_TEXT_PLATFORM = "text"
+CONF_SENSOR_PLATFORM = "sensor"
 
 CONF_CORE_NAME = "core_name"
 

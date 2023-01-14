@@ -1,17 +1,17 @@
 import asyncio
 import logging
 
-from .qsys import core
+from .qsys import qrc
 
 _LOGGER = logging.getLogger(__name__)
 
 
 class ChangeGroupPoller:
-    def __init__(self, c: core.Core, cg: core.ChangeGroupAPI):
-        self.core = c
+    def __init__(self, core: qrc.Core, cg: qrc.ChangeGroupAPI):
+        self.core = core
         self.cg = cg
         self._listeners_component_control = []
-        self._listeners_component_control_changes = dict()
+        self._listeners_component_control_changes = {}
 
     def subscribe_component_control(self, listener, filter):
         self._listeners_component_control.append((listener, filter))

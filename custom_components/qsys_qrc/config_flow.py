@@ -12,7 +12,7 @@ from homeassistant.data_entry_flow import FlowResult
 from homeassistant.exceptions import HomeAssistantError
 
 from .const import *
-from .qsys import core
+from .qsys import qrc
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -40,7 +40,7 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
     #     your_validate_func, data["username"], data["password"]
     # )
 
-    c = core.Core(data[CONF_HOST])
+    c = qrc.Core(data[CONF_HOST])
     task = asyncio.create_task(c.run_until_stopped())
     try:
         await asyncio.wait_for(c.wait_until_running(), timeout=10)
@@ -82,7 +82,8 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         try:
             info = await validate_input(self.hass, user_input)
-        except CannotConnect | TimeoutError:
+            # TODO: handle timeouterror?
+        except CannotConnect:
             errors["base"] = "cannot_connect"
         except InvalidAuth:
             errors["base"] = "invalid_auth"

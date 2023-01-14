@@ -13,7 +13,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from . import changegroup
 from .common import QSysSensorBase, id_for_component_control
 from .const import *
-from .qsys import core as qsyscore
+from .qsys import qrc
 
 
 async def async_setup_entry(
@@ -24,9 +24,9 @@ async def async_setup_entry(
     """Set up text entities."""
 
     # TODO: remove restored entities that are no longer used?
-    core: qsyscore.Core
+    core: qrc.Core
     for core_name, core in hass.data[DOMAIN].get(CONF_CORES, {}).items():
-        entities = dict()
+        entities = {}
         # can platform name be more dynamic than this?
         cg = core.change_group("text_domain")
         poller = changegroup.ChangeGroupPoller(core, cg)

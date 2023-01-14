@@ -2,7 +2,7 @@ import re
 
 from homeassistant.helpers import entity
 
-from .qsys import core as qsyscore
+from .qsys import qrc
 
 
 def id_for_component_control(component, control):
@@ -15,7 +15,7 @@ camelpattern = re.compile(r"(?<!^)(?=[A-Z])")
 class QSysSensorBase(entity.Entity):
     _attr_should_poll = False
 
-    def __init__(self, core: qsyscore.Core, unique_id, component, control) -> None:
+    def __init__(self, core: qrc.Core, unique_id, component, control) -> None:
         super().__init__()
         self.core = core
         self._attr_unique_id = unique_id

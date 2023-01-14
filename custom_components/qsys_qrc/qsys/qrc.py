@@ -79,7 +79,7 @@ class Core:
         self._writer.write(json.dumps(data).encode("utf8"))
         self._writer.write(DELIMITER)
 
-    async def _call(self, method, params=None):
+    async def call(self, method, params=None):
         params = {} if params is None else params
 
         future = asyncio.Future()
@@ -109,10 +109,10 @@ class Core:
                 future.set_result(data)
 
     async def noop(self):
-        return await self._call("NoOp")
+        return await self.call("NoOp")
 
     async def logon(self, username, password):
-        return await self._call(
+        return await self.call(
             "Logon", params={"User": username, "Password": password}
         )
 
@@ -128,16 +128,16 @@ class ComponentAPI:
         self._core = core
 
     async def get_components(self):
-        return await self._core._call("Component.GetComponents")
+        return await self._core.call("Component.GetComponents")
 
     async def get_controls(self, name):
-        return await self._core._call("Component.GetControls", params={"Name": name})
+        return await self._core.call("Component.GetControls", params={"Name": name})
 
     async def get(self, name, controls):
-        return await self._core._call("Component.Get", params={"Name": name, "Controls": controls})
+        return await self._core.call("Component.Get", params={"Name": name, "Controls": controls})
 
     async def set(self, name, controls):
-        return await self._core._call("Component.Set", params={"Name": name, "Controls": controls})
+        return await self._core.call("Component.Set", params={"Name": name, "Controls": controls})
 
 
 class ChangeGroupAPI:
@@ -146,71 +146,10 @@ class ChangeGroupAPI:
         self.id = id_
 
     async def add_component_control(self, component):
-        return await self._core._call(
+        return await self._core.call(
             "ChangeGroup.AddComponentControl",
             params={"Id": self.id, "Component": component},
         )
 
     async def poll(self):
-        return await self._core._call("ChangeGroup.Poll", {"Id": self.id})
-
-
-async def main():
-    core = Core("192.168.1.73")
-    task = asyncio.create_task(core.run_until_stopped())
-
-    _LOGGER.info("noop: %s", await core.noop())
-
-    _LOGGER.info("logon: %s", await core.logon("foo", "bar"))
-
-    componentapi = core.component()
-    components = await componentapi.get_components()
-    _LOGGER.info(
-        "components: %s",
-        [component["Name"] for component in components["result"]],
-    )
-
-    import sys
-
-    _LOGGER.info("component controls %s", await core.component().get_controls(sys.argv[1]))
-
-    sys.exit(1)
-
-    while True:
-        try:
-            cg = core.change_group("foo")
-            for component in components["result"]:
-                controls = await componentapi.get_controls(component["Name"])
-                _LOGGER.info(
-                    "controls for %s: %s",
-                    component["Name"],
-                    [control["Name"] for control in controls["result"]["Controls"]],
-                )
-
-                _LOGGER.info(
-                    "add component control: %s",
-                    await cg.add_component_control(
-                        {
-                            "Name": component["Name"],
-                            "Controls": [
-                                {"Name": control["Name"]}
-                                for control in controls["result"]["Controls"]
-                            ],
-                        }
-                    ),
-                )
-
-            while True:
-                _LOGGER.info("poll: %s", await cg.poll())
-                await asyncio.sleep(1)
-        except QRCError as e:
-            if e.error["code"] == 6:
-                _LOGGER.error("lost server side change group")
-            continue
-
-    await task
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
-    asyncio.run_forever()
+        return await self._core.call("ChangeGroup.Poll", {"Id": self.id})

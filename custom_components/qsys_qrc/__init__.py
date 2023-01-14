@@ -13,17 +13,14 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.typing import ConfigType
 
 from .const import *
-from .qsys import core as qsyscore
+from .qsys import qrc
 
-# TODO List the platforms that you want to support.
-# For your initial PR, limit it to 1 platform.
-# PLATFORMS: list[Platform] = [Platform.LIGHT]
-# PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.SWITCH, Platform.NUMBER, Platform.TEXT]
-PLATFORMS: list[Platform] = [Platform.SWITCH, Platform.NUMBER, Platform.TEXT]
+
+PLATFORMS: list[Platform] = [Platform.NUMBER, Platform.SENSOR, Platform.SWITCH, Platform.TEXT]
 
 _LOGGER = logging.getLogger(__name__)
 
-devices = dict()
+devices = {}
 
 CONFIG_SCHEMA = vol.Schema({
     DOMAIN: vol.Schema({
@@ -31,13 +28,6 @@ CONFIG_SCHEMA = vol.Schema({
             {
                 vol.basestring: vol.Schema({
                     vol.Optional(CONF_PLATFORMS): vol.Schema({
-                        CONF_SWITCH_PLATFORM: vol.Schema([
-                            vol.Schema({
-                                vol.Optional(CONF_ENTITY_ID, default=None): vol.Any(None, str),
-                                vol.Required(CONF_COMPONENT): str,
-                                vol.Required(CONF_CONTROL): str,
-                            })
-                        ]),
                         CONF_NUMBER_PLATFORM: vol.Schema([
                             vol.Schema({
                                 vol.Optional(CONF_ENTITY_ID, default=None): vol.Any(None, str),
@@ -51,7 +41,28 @@ CONFIG_SCHEMA = vol.Schema({
                                 vol.Optional(CONF_NUMBER_CHANGE_TEMPLATE, default=None): vol.Any(None, str),
                                 vol.Optional(CONF_NUMBER_VALUE_TEMPLATE, default=None): vol.Any(None, str),
                             })
-                        ])
+                        ]),
+                        CONF_SENSOR_PLATFORM: vol.Schema([
+                            vol.Schema({
+                                vol.Optional(CONF_ENTITY_ID, default=None): vol.Any(None, str),
+                                vol.Required(CONF_COMPONENT): str,
+                                vol.Required(CONF_CONTROL): str,
+                            })
+                        ]),
+                        CONF_SWITCH_PLATFORM: vol.Schema([
+                            vol.Schema({
+                                vol.Optional(CONF_ENTITY_ID, default=None): vol.Any(None, str),
+                                vol.Required(CONF_COMPONENT): str,
+                                vol.Required(CONF_CONTROL): str,
+                            })
+                        ]),
+                        CONF_TEXT_PLATFORM: vol.Schema([
+                            vol.Schema({
+                                vol.Optional(CONF_ENTITY_ID, default=None): vol.Any(None, str),
+                                vol.Required(CONF_COMPONENT): str,
+                                vol.Required(CONF_CONTROL): str,
+                            })
+                        ]),
                     })
                 })
             }
@@ -77,12 +88,12 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             if not device:
                 continue
 
-            core: qsyscore.Core = hass.data[DOMAIN][CONF_CORES].get(device.name)
+            core: qrc.Core = hass.data[DOMAIN][CONF_CORES].get(device.name)
 
             method = call.data.get(CALL_METHOD_NAME)
             params = call.data.get(CALL_METHOD_PARAMS)
 
-            _LOGGER.info("call response: %s", await core._call(method, params))
+            _LOGGER.info("call response: %s", await core.call(method, params))
 
     hass.services.async_register(DOMAIN, "call_method", handle_call_method)
 
@@ -95,10 +106,10 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Q-Sys QRC from a config entry."""
-    c = qsyscore.Core(entry.data[CONF_HOST])
+    c = qrc.Core(entry.data[CONF_HOST])
     core_runner_task = asyncio.create_task(c.run_until_stopped())
     entry.async_on_unload(lambda: core_runner_task.cancel() and None)
-    hass.data.setdefault(DOMAIN, dict())
+    hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][CONF_CORES][entry.data[CONF_CORE_NAME]] = c
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)

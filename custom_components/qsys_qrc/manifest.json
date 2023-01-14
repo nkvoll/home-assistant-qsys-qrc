@@ -1,5 +1,5 @@
 {
-  "domain": "qsys",
+  "domain": "qsys_qrc",
   "name": "Q-Sys QRC",
   "config_flow": true,
   "documentation": "https://www.home-assistant.io/integrations/qsys",
