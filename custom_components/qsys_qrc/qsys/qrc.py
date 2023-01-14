@@ -16,7 +16,7 @@ error_codes = {
     3: "Bad Page Request - could not create the requested Page Request",
     4: "Missing file",
     5: "Change Groups exhausted",
-    6: "Unknown change croup",
+    6: "Unknown change group",
     7: "Unknown component name",
     8: "Unknown control",
     9: "Illegal mixer channel index",
@@ -45,6 +45,9 @@ class Core:
 
     async def wait_until_running(self):
         await self._running
+
+    async def wait_until_connected(self):
+        await self._connected
 
     async def run_until_stopped(self):
         self._running.set_result(True)

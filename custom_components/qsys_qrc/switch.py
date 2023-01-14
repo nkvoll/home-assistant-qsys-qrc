@@ -12,7 +12,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import changegroup
-from .common import (QSysSensorBase, id_for_component_control)
+from .common import (QSysComponentControlBase, id_for_component_control)
 from .const import *
 from .qsys import qrc
 
@@ -30,9 +30,7 @@ async def async_setup_entry(
     core: qrc.Core
     for core_name, core in hass.data[DOMAIN].get(CONF_CORES, {}).items():
         entities = {}
-        # can platform name be more dynamic than this?
-        cg = core.change_group("switch_domain")
-        poller = changegroup.ChangeGroupPoller(core, cg)
+        poller = changegroup.ChangeGroupPoller(core, f"{__name__.rsplit('.', 1)[-1]}_platform")
 
         for switch_config in hass.data[DOMAIN] \
                 .get(CONF_CONFIG, {}) \
@@ -44,7 +42,7 @@ async def async_setup_entry(
             control_name = switch_config[CONF_CONTROL]
 
             # need to fetch component and control config first?
-            control_switch_entity = ControlSwitch(
+            control_switch_entity = QRCSwitchEntity(
                 core,
                 switch_config[CONF_ENTITY_ID] or id_for_component_control(
                     switch_config[CONF_COMPONENT], switch_config[CONF_CONTROL],
@@ -57,23 +55,16 @@ async def async_setup_entry(
                 entities[control_switch_entity.unique_id] = control_switch_entity
                 async_add_entities([control_switch_entity])
 
-                poller.subscribe_component_control_changes(
-                    control_switch_entity.on_changed, component_name, control_name,
+                await poller.subscribe_component_control_changes(
+                    control_switch_entity.on_core_change, component_name, control_name,
                 )
 
-            await cg.add_component_control({
-                "Name": component_name,
-                "Controls": [
-                    {"Name": control_name}
-                ],
-            })
-
         if len(entities) > 0:
-            polling = asyncio.create_task(poller.run_poll())
+            polling = asyncio.create_task(poller.run_while_core_running())
             entry.async_on_unload(lambda: polling.cancel() and None)
 
 
-class ControlSwitch(QSysSensorBase, SwitchEntity):
+class QRCSwitchEntity(QSysComponentControlBase, SwitchEntity):
     def __init__(self, core, unique_id, component, control) -> None:
         super().__init__(core, unique_id, component, control)
 

@@ -10,11 +10,11 @@ from homeassistant.components.number import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import template, entity, device_registry
+from homeassistant.helpers import template
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import changegroup
-from .common import (QSysSensorBase, id_for_component_control)
+from .common import (QSysComponentControlBase, id_for_component_control)
 from .const import *
 from .qsys import qrc
 
@@ -31,9 +31,7 @@ async def async_setup_entry(
     for core_name, core in hass.data[DOMAIN].get(CONF_CORES, {}).items():
         entities = {}
 
-        # can platform name be more dynamic than this?
-        cg = core.change_group("number_domain")
-        poller = changegroup.ChangeGroupPoller(core, cg)
+        poller = changegroup.ChangeGroupPoller(core, f"{__name__.rsplit('.', 1)[-1]}_platform")
 
         for number_config in hass.data[DOMAIN] \
                 .get(CONF_CONFIG, {}) \
@@ -44,7 +42,7 @@ async def async_setup_entry(
             component_name = number_config[CONF_COMPONENT]
             control_name = number_config[CONF_CONTROL]
 
-            # need to fetch component and control config first?
+            # need to fetch component and control config first? at least if we want to default min/max etc
 
             change_template = number_config[CONF_NUMBER_CHANGE_TEMPLATE]
             if change_template:
@@ -54,7 +52,7 @@ async def async_setup_entry(
             if value_template:
                 value_template = template.Template(value_template, hass)
 
-            control_number_entity = ControlNumber(
+            control_number_entity = QRCNumberEntity(
                 core,
                 number_config[CONF_ENTITY_ID] or id_for_component_control(
                     number_config[CONF_COMPONENT],
@@ -74,23 +72,16 @@ async def async_setup_entry(
                 entities[control_number_entity.unique_id] = control_number_entity
                 async_add_entities([control_number_entity])
 
-                poller.subscribe_component_control_changes(
-                    control_number_entity.on_changed, component_name, control_name,
+                await poller.subscribe_component_control_changes(
+                    control_number_entity.on_core_change, component_name, control_name,
                 )
 
-            await cg.add_component_control({
-                "Name": component_name,
-                "Controls": [
-                    {"Name": control_name}
-                ],
-            })
-
         if len(entities) > 0:
-            polling = asyncio.create_task(poller.run_poll())
+            polling = asyncio.create_task(poller.run_while_core_running())
             entry.async_on_unload(lambda: polling.cancel() and None)
 
 
-class ControlNumber(QSysSensorBase, NumberEntity):
+class QRCNumberEntity(QSysComponentControlBase, NumberEntity):
     def __init__(
             self, core, unique_id, component, control,
             min_value: float, max_value: float, step: float, mode: number.NumberMode,
@@ -108,7 +99,7 @@ class ControlNumber(QSysSensorBase, NumberEntity):
     #    res = await self.core.component().get(self.component, [{"Name": self.control}])
     #    _LOGGER.info("maybe update: %s", res)
 
-    async def on_control_changed(self, hub, change):
+    async def on_control_changed(self, core, change):
         value = change["Value"]
         if self._change_template:
             value = self._change_template.async_render(dict(change=change, value=value, math=math, round=round))

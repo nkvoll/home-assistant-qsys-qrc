@@ -3,20 +3,25 @@ import re
 from homeassistant.helpers import entity
 
 from .qsys import qrc
+from .const import DOMAIN
 
 
 # TODO: consider entity.async_generate_entity_id
 def id_for_component_control(component, control):
-    return f"{component}_{control}"
+    return f"{DOMAIN}_{component}_{control}"
 
 
-camelpattern = re.compile(r"(?<!^)(?=[A-Z])")
+def id_for_component(component):
+    return f"{DOMAIN}_{component}"
 
 
-class QSysSensorBase(entity.Entity):
+_camel_pattern = re.compile(r"(?<!^)(?=[A-Z])")
+
+
+class QSysComponentBase(entity.Entity):
     _attr_should_poll = False
 
-    def __init__(self, core: qrc.Core, unique_id, component, control) -> None:
+    def __init__(self, core: qrc.Core, unique_id, component) -> None:
         super().__init__()
         self.core = core
         self._attr_unique_id = unique_id
@@ -26,12 +31,17 @@ class QSysSensorBase(entity.Entity):
         self._attr_extra_state_attributes = extra_attrs
 
         self.component = component
+
+
+class QSysComponentControlBase(QSysComponentBase):
+    def __init__(self, core: qrc.Core, unique_id, component, control) -> None:
+        super().__init__(core, unique_id, component)
         self.control = control
 
-    async def on_changed(self, core, change):
+    async def on_core_change(self, core, change):
         extra_attrs = {}
         for k, v in change.items():
-            extra_attrs[camelpattern.sub("_", k).lower()] = v
+            extra_attrs[_camel_pattern.sub("_", k).lower()] = v
         self._attr_extra_state_attributes.update(extra_attrs)
 
         await self.on_control_changed(core, change)

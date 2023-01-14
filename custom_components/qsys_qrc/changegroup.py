@@ -7,11 +7,12 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class ChangeGroupPoller:
-    def __init__(self, core: qrc.Core, cg: qrc.ChangeGroupAPI):
+    def __init__(self, core: qrc.Core, change_group_name):
         self.core = core
-        self.cg = cg
         self._listeners_component_control = []
         self._listeners_component_control_changes = {}
+        self._change_group_name = change_group_name
+        self.cg = None
 
     def subscribe_component_control(self, listener, filter):
         self._listeners_component_control.append((listener, filter))
@@ -24,12 +25,20 @@ class ChangeGroupPoller:
                 else:
                     listener(self, component, control)
 
-    def subscribe_component_control_changes(
+    async def subscribe_component_control_changes(
             self, listener, component_name, control_name
     ):
         self._listeners_component_control_changes.setdefault(
             (component_name, control_name), []
         ).append(listener)
+
+        if self.cg:
+            await self.cg.add_component_control({
+                "Name": component_name,
+                "Controls": [
+                    {"Name": control_name}
+                ],
+            })
 
     async def _fire_on_component_control_change(self, change):
         component_name = change["Component"]
@@ -43,9 +52,24 @@ class ChangeGroupPoller:
             else:
                 listener(self, change)
 
-    async def run_poll(self):
+    async def run_while_core_running(self):
         while True:
             try:
+                # TODO: run_while_core_is_running?
+                _LOGGER.info("waiting for core to connect")
+                await self.core.wait_until_connected()
+
+                # recreate change group
+                self.cg = self.core.change_group(self._change_group_name)
+
+                for ((component_name, control_name), listeners) in self._listeners_component_control_changes.items():
+                    await self.cg.add_component_control({
+                        "Name": component_name,
+                        "Controls": [
+                            {"Name": control_name}
+                        ],
+                    })
+
                 while True:
                     # TODO: find a way to only poll if there are components to poll
                     poll_result = await self.cg.poll()

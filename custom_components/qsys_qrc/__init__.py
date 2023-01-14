@@ -16,7 +16,7 @@ from .const import *
 from .qsys import qrc
 
 
-PLATFORMS: list[Platform] = [Platform.NUMBER, Platform.SENSOR, Platform.SWITCH, Platform.TEXT]
+PLATFORMS: list[Platform] = [Platform.NUMBER, Platform.SENSOR, Platform.SWITCH, Platform.TEXT, Platform.MEDIA_PLAYER]
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -28,6 +28,12 @@ CONFIG_SCHEMA = vol.Schema({
             {
                 vol.basestring: vol.Schema({
                     vol.Optional(CONF_PLATFORMS): vol.Schema({
+                        CONF_MEDIA_PLAYER_PLATFORM: vol.Schema([
+                            vol.Schema({
+                                vol.Optional(CONF_ENTITY_ID, default=None): vol.Any(None, str),
+                                vol.Required(CONF_COMPONENT): str,
+                            })
+                        ]),
                         CONF_NUMBER_PLATFORM: vol.Schema([
                             vol.Schema({
                                 vol.Optional(CONF_ENTITY_ID, default=None): vol.Any(None, str),
@@ -47,6 +53,7 @@ CONFIG_SCHEMA = vol.Schema({
                                 vol.Optional(CONF_ENTITY_ID, default=None): vol.Any(None, str),
                                 vol.Required(CONF_COMPONENT): str,
                                 vol.Required(CONF_CONTROL): str,
+                                vol.Optional(CONF_SENSOR_ATTRIBUTE, default="String"): str,
                             })
                         ]),
                         CONF_SWITCH_PLATFORM: vol.Schema([
@@ -112,8 +119,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][CONF_CORES][entry.data[CONF_CORE_NAME]] = c
 
-    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-
     registry = dr.async_get(hass)
     # TODO: reconcile with docs https://developers.home-assistant.io/docs/device_registry_index
     # TODO: use name_by_user?
@@ -125,6 +130,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         model="Core",
     )
     devices[entry.entry_id] = device_entry
+
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     # polling = asyncio.create_task(h.run_poll())
     # entry.async_on_unload(lambda: polling.cancel() and None)

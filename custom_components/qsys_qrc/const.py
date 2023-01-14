@@ -8,6 +8,7 @@ CONF_SWITCH_PLATFORM = "switch"
 CONF_NUMBER_PLATFORM = "number"
 CONF_TEXT_PLATFORM = "text"
 CONF_SENSOR_PLATFORM = "sensor"
+CONF_MEDIA_PLAYER_PLATFORM = "media_player"
 
 CONF_CORE_NAME = "core_name"
 
@@ -33,3 +34,5 @@ CONF_ENTITY_ID = "name"
 CALL_CORE_NAME = "core"
 CALL_METHOD_NAME = "method"
 CALL_METHOD_PARAMS = "params"
+
+CONF_SENSOR_ATTRIBUTE = "attribute"
