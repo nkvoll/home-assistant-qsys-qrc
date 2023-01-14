@@ -10,7 +10,7 @@ from homeassistant.components.number import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import template
+from homeassistant.helpers import template, entity, device_registry
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import changegroup
@@ -53,11 +53,15 @@ async def async_setup_entry(
                 value_template = template.Template(value_template, hass)
 
             control_number_entity = QRCNumberEntity(
+                hass,
+                core_name,
                 core,
-                number_config[CONF_ENTITY_ID] or id_for_component_control(
+                id_for_component_control(
+                    core_name,
                     number_config[CONF_COMPONENT],
                     number_config[CONF_CONTROL]
                 ),
+                number_config.get(CONF_ENTITY_NAME, None),
                 component_name,
                 control_name,
                 number_config[CONF_NUMBER_MIN_VALUE],
@@ -83,11 +87,11 @@ async def async_setup_entry(
 
 class QRCNumberEntity(QSysComponentControlBase, NumberEntity):
     def __init__(
-            self, core, unique_id, component, control,
+            self, hass, core_name, core, unique_id, entity_name, component, control,
             min_value: float, max_value: float, step: float, mode: number.NumberMode,
             change_template: template.Template, value_template: template.Template,
     ) -> None:
-        super().__init__(core, unique_id, component, control)
+        super().__init__(hass, core_name, core, unique_id, entity_name, component, control)
         self._attr_native_min_value = min_value
         self._attr_native_max_value = max_value
         self._attr_native_step = step
@@ -100,6 +104,7 @@ class QRCNumberEntity(QSysComponentControlBase, NumberEntity):
     #    _LOGGER.info("maybe update: %s", res)
 
     async def on_control_changed(self, core, change):
+        # TODO: figure out value vs native_value. Is that a better place for the conversion?
         value = change["Value"]
         if self._change_template:
             value = self._change_template.async_render(dict(change=change, value=value, math=math, round=round))

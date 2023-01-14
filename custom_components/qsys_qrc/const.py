@@ -29,7 +29,7 @@ CONF_NUMBER_MODE = "mode"
 CONF_NUMBER_CHANGE_TEMPLATE = "change_template"
 CONF_NUMBER_VALUE_TEMPLATE = "value_template"
 
-CONF_ENTITY_ID = "name"
+CONF_ENTITY_NAME = "name"
 
 CALL_CORE_NAME = "core"
 CALL_METHOD_NAME = "method"

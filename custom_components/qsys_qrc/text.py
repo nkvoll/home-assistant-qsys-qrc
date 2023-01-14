@@ -8,6 +8,7 @@ from homeassistant.components.text import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity, device_registry
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import changegroup
@@ -40,10 +41,13 @@ async def async_setup_entry(
 
             # need to fetch component and control config first?
             control_text_entity = QRCTextEntity(
+                hass,
+                core_name,
                 core,
-                text_config[CONF_ENTITY_ID] or id_for_component_control(
-                    text_config[CONF_COMPONENT], text_config[CONF_CONTROL],
+                id_for_component_control(
+                    core_name, text_config[CONF_COMPONENT], text_config[CONF_CONTROL],
                 ),
+                text_config.get(CONF_ENTITY_NAME, None),
                 component_name,
                 control_name,
             )
@@ -62,8 +66,8 @@ async def async_setup_entry(
 
 
 class QRCTextEntity(QSysComponentControlBase, TextEntity):
-    def __init__(self, core, unique_id, component, control) -> None:
-        super().__init__(core, unique_id, component, control)
+    def __init__(self, hass, core_name, core, unique_id, entity_name, component, control) -> None:
+        super().__init__(hass, core_name, core, unique_id, entity_name, component, control)
 
     async def on_control_changed(self, core, change):
         self._attr_native_value = change["String"]

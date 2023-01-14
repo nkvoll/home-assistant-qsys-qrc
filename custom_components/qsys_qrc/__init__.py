@@ -30,13 +30,13 @@ CONFIG_SCHEMA = vol.Schema({
                     vol.Optional(CONF_PLATFORMS): vol.Schema({
                         CONF_MEDIA_PLAYER_PLATFORM: vol.Schema([
                             vol.Schema({
-                                vol.Optional(CONF_ENTITY_ID, default=None): vol.Any(None, str),
+                                vol.Optional(CONF_ENTITY_NAME, default=None): vol.Any(None, str),
                                 vol.Required(CONF_COMPONENT): str,
                             })
                         ]),
                         CONF_NUMBER_PLATFORM: vol.Schema([
                             vol.Schema({
-                                vol.Optional(CONF_ENTITY_ID, default=None): vol.Any(None, str),
+                                vol.Optional(CONF_ENTITY_NAME, default=None): vol.Any(None, str),
                                 vol.Required(CONF_COMPONENT): str,
                                 vol.Required(CONF_CONTROL): str,
                                 vol.Optional(CONF_NUMBER_MIN_VALUE, default=0.0): vol.Coerce(float),
@@ -50,7 +50,7 @@ CONFIG_SCHEMA = vol.Schema({
                         ]),
                         CONF_SENSOR_PLATFORM: vol.Schema([
                             vol.Schema({
-                                vol.Optional(CONF_ENTITY_ID, default=None): vol.Any(None, str),
+                                vol.Optional(CONF_ENTITY_NAME, default=None): vol.Any(None, str),
                                 vol.Required(CONF_COMPONENT): str,
                                 vol.Required(CONF_CONTROL): str,
                                 vol.Optional(CONF_SENSOR_ATTRIBUTE, default="String"): str,
@@ -58,14 +58,14 @@ CONFIG_SCHEMA = vol.Schema({
                         ]),
                         CONF_SWITCH_PLATFORM: vol.Schema([
                             vol.Schema({
-                                vol.Optional(CONF_ENTITY_ID, default=None): vol.Any(None, str),
+                                vol.Optional(CONF_ENTITY_NAME, default=None): vol.Any(None, str),
                                 vol.Required(CONF_COMPONENT): str,
                                 vol.Required(CONF_CONTROL): str,
                             })
                         ]),
                         CONF_TEXT_PLATFORM: vol.Schema([
                             vol.Schema({
-                                vol.Optional(CONF_ENTITY_ID, default=None): vol.Any(None, str),
+                                vol.Optional(CONF_ENTITY_NAME, default=None): vol.Any(None, str),
                                 vol.Required(CONF_COMPONENT): str,
                                 vol.Required(CONF_CONTROL): str,
                             })

@@ -1,18 +1,19 @@
 import re
 
-from homeassistant.helpers import entity
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity, device_registry
 
 from .qsys import qrc
 from .const import DOMAIN
 
 
 # TODO: consider entity.async_generate_entity_id
-def id_for_component_control(component, control):
-    return f"{DOMAIN}_{component}_{control}"
+def id_for_component_control(core_name, component, control):
+    return f"{core_name}_{component}_{control}"
 
 
-def id_for_component(component):
-    return f"{DOMAIN}_{component}"
+def id_for_component(core_name, component):
+    return f"{core_name}_{component}"
 
 
 _camel_pattern = re.compile(r"(?<!^)(?=[A-Z])")
@@ -21,7 +22,13 @@ _camel_pattern = re.compile(r"(?<!^)(?=[A-Z])")
 class QSysComponentBase(entity.Entity):
     _attr_should_poll = False
 
-    def __init__(self, core: qrc.Core, unique_id, component) -> None:
+    def __init__(
+            self,
+            hass: HomeAssistant,
+            core_name: str, core: qrc.Core,
+            unique_id: str, entity_name: str,
+            component: str
+    ) -> None:
         super().__init__()
         self.core = core
         self._attr_unique_id = unique_id
@@ -32,10 +39,23 @@ class QSysComponentBase(entity.Entity):
 
         self.component = component
 
+        core_device_entry = device_registry.async_get(hass).async_get_device({(DOMAIN, core_name)})
+        self._attr_device_info = entity.DeviceInfo(
+            identifiers=core_device_entry.identifiers,
+        )
+
+        self._attr_name = entity_name
+
 
 class QSysComponentControlBase(QSysComponentBase):
-    def __init__(self, core: qrc.Core, unique_id, component, control) -> None:
-        super().__init__(core, unique_id, component)
+    def __init__(
+            self,
+            hass: HomeAssistant,
+            core_name: str, core: qrc.Core,
+            unique_id: str, entity_name: str,
+            component: str, control: str
+    ) -> None:
+        super().__init__(hass, core_name, core, unique_id, entity_name, component)
         self.control = control
 
     async def on_core_change(self, core, change):

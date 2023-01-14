@@ -10,6 +10,7 @@ from homeassistant.components.sensor import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import PlatformNotReady
+from homeassistant.helpers import entity, device_registry
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import changegroup
@@ -54,8 +55,13 @@ async def async_setup_entry(
             component_type = component["Type"]
             if component_type == "URL_receiver":
                 media_player_entity = QRCMediaPlayerEntity(
+                    hass,
+                    core_name,
                     core,
-                    media_player_config[CONF_ENTITY_ID] or id_for_component(media_player_config[CONF_COMPONENT]),
+                    id_for_component(
+                        core_name, media_player_config[CONF_COMPONENT]
+                    ),
+                    media_player_config.get(CONF_ENTITY_NAME, None),
                     component_name,
                 )
             else:
@@ -81,8 +87,8 @@ async def async_setup_entry(
 
 
 class QRCMediaPlayerEntity(QSysComponentBase, SensorEntity):
-    def __init__(self, core, unique_id, component) -> None:
-        super().__init__(core, unique_id, component)
+    def __init__(self, hass, core_name, core, unique_id, entity_name, component) -> None:
+        super().__init__(hass, core_name, core, unique_id, entity_name, component)
 
     async def on_changed(self, core, change):
         #self._attr_native_value = change.get(self.attribute)

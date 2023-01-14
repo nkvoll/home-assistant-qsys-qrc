@@ -8,6 +8,7 @@ from homeassistant.components.sensor import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity, device_registry
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import changegroup
@@ -41,10 +42,13 @@ async def async_setup_entry(
 
             # need to fetch component and control config first?
             control_sensor_entity = QRCComponentControlEntity(
+                hass,
+                core_name,
                 core,
-                sensor_config[CONF_ENTITY_ID] or id_for_component_control(
-                    sensor_config[CONF_COMPONENT], sensor_config[CONF_CONTROL],
+                id_for_component_control(
+                    core_name, sensor_config[CONF_COMPONENT], sensor_config[CONF_CONTROL],
                 ),
+                sensor_config.get(CONF_ENTITY_NAME, None),
                 component_name,
                 control_name,
                 attribute
@@ -64,8 +68,8 @@ async def async_setup_entry(
 
 
 class QRCComponentControlEntity(QSysComponentControlBase, SensorEntity):
-    def __init__(self, core, unique_id, component, control, attribute) -> None:
-        super().__init__(core, unique_id, component, control)
+    def __init__(self, hass, core_name, core, unique_id, entity_name, component, control, attribute) -> None:
+        super().__init__(hass, core_name, core, unique_id, entity_name, component, control)
         self.attribute = attribute
 
     async def on_control_changed(self, core, change):

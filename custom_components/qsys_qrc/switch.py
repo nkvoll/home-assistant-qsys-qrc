@@ -9,6 +9,7 @@ from homeassistant.components.switch import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity, device_registry
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import changegroup
@@ -43,10 +44,13 @@ async def async_setup_entry(
 
             # need to fetch component and control config first?
             control_switch_entity = QRCSwitchEntity(
+                hass,
+                core_name,
                 core,
-                switch_config[CONF_ENTITY_ID] or id_for_component_control(
-                    switch_config[CONF_COMPONENT], switch_config[CONF_CONTROL],
+                id_for_component_control(
+                    core_name, switch_config[CONF_COMPONENT], switch_config[CONF_CONTROL],
                 ),
+                switch_config.get(CONF_ENTITY_NAME, None),
                 component_name,
                 control_name,
             )
@@ -65,8 +69,8 @@ async def async_setup_entry(
 
 
 class QRCSwitchEntity(QSysComponentControlBase, SwitchEntity):
-    def __init__(self, core, unique_id, component, control) -> None:
-        super().__init__(core, unique_id, component, control)
+    def __init__(self, hass, core_name, core, unique_id, entity_name, component, control) -> None:
+        super().__init__(hass, core_name, core, unique_id, entity_name, component, control)
 
     async def on_control_changed(self, core, change):
         val = change["Value"]
