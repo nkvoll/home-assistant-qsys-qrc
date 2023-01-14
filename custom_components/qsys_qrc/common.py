@@ -3,8 +3,8 @@ import re
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity, device_registry
 
-from .qsys import qrc
 from .const import DOMAIN
+from .qsys import qrc
 
 
 # TODO: consider entity.async_generate_entity_id

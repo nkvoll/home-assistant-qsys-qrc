@@ -9,13 +9,13 @@ from homeassistant.components.switch import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import entity, device_registry
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import changegroup
 from .common import (QSysComponentControlBase, id_for_component_control)
 from .const import *
 from .qsys import qrc
+
 
 _LOGGER = logging.getLogger(__name__)
 

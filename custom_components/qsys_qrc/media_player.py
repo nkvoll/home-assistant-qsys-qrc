@@ -10,7 +10,6 @@ from homeassistant.components.sensor import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import PlatformNotReady
-from homeassistant.helpers import entity, device_registry
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import changegroup
@@ -18,7 +17,9 @@ from .common import QSysComponentBase, id_for_component
 from .const import *
 from .qsys import qrc
 
+
 _LOGGER = logging.getLogger(__name__)
+
 
 async def async_setup_entry(
         hass: HomeAssistant,
@@ -91,5 +92,5 @@ class QRCMediaPlayerEntity(QSysComponentBase, SensorEntity):
         super().__init__(hass, core_name, core, unique_id, entity_name, component)
 
     async def on_changed(self, core, change):
-        #self._attr_native_value = change.get(self.attribute)
+        # self._attr_native_value = change.get(self.attribute)
         _LOGGER.warning("media player control changed: %s", change)
