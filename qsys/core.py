@@ -1,9 +1,8 @@
 import asyncio
-import copyreg
-import socket
 import json
-from time import sleep
+import logging
 
+_LOGGER = logging.getLogger(__name__)
 
 DELIMITER = b"\0"
 
@@ -51,27 +50,27 @@ class Core:
         self._running.set_result(True)
 
         while True:
-            print("run loop iteration")
+            _LOGGER.info("run loop iteration")
             try:
                 await self.connect()
                 self._connected.set_result(True)
                 await self._read_forever()
             except EOFError as eof:
-                print("eof", eof)
+                _LOGGER.exception("eof", eof)
             except Exception as e:
-                print("generic exception", repr(e), e)
+                _LOGGER.exception("generic exception", repr(e), e)
             finally:
-                print("finally")
                 if self._writer:
                     self._writer.close()
                 if self._connected.done():
                     self._connected = asyncio.Future()
 
     async def connect(self):
-        print("connecting")
-        opening = asyncio.open_connection(self._host, 1710)
+        _LOGGER.info("connecting")
+        # TODO: make limit configurable
+        opening = asyncio.open_connection(self._host, 1710, limit=5 * 1024 * 1024)
         self._reader, self._writer = await asyncio.wait_for(opening, 5)
-        print("connected")
+        _LOGGER.info("connected")
 
     async def _send(self, data):
         await self._running
@@ -99,7 +98,7 @@ class Core:
             if "id" in data:
                 await self._process_response(data)
             else:
-                print("received non-response", data)
+                _LOGGER.info("received non-response: %s", data)
 
     async def _process_response(self, data):
         future = self._pending.pop(data["id"], None)
@@ -134,8 +133,12 @@ class ComponentAPI:
     async def get_controls(self, name):
         return await self._core._call("Component.GetControls", params={"Name": name})
 
+    async def get(self, name, controls):
+        return await self._core._call("Component.Get", params={"Name": name, "Controls": controls})
+
     async def set(self, name, controls):
-        return await self._core._call("Component.Set", params={"Name": name, 'Controls': controls})
+        return await self._core._call("Component.Set", params={"Name": name, "Controls": controls})
+
 
 class ChangeGroupAPI:
     def __init__(self, core: Core, id_: int):
@@ -156,20 +159,20 @@ async def main():
     core = Core("192.168.1.73")
     task = asyncio.create_task(core.run_until_stopped())
 
-    print("noop", await core.noop())
+    _LOGGER.info("noop: %s", await core.noop())
 
-    print("logon", await core.logon("foo", "bar"))
+    _LOGGER.info("logon: %s", await core.logon("foo", "bar"))
 
     componentapi = core.component()
     components = await componentapi.get_components()
-    print(
-        "components",
+    _LOGGER.info(
+        "components: %s",
         [component["Name"] for component in components["result"]],
     )
 
     import sys
 
-    print(await core.component().get_controls(sys.argv[1]))
+    _LOGGER.info("component controls %s", await core.component().get_controls(sys.argv[1]))
 
     sys.exit(1)
 
@@ -178,14 +181,14 @@ async def main():
             cg = core.change_group("foo")
             for component in components["result"]:
                 controls = await componentapi.get_controls(component["Name"])
-                print(
-                    "controls for",
+                _LOGGER.info(
+                    "controls for %s: %s",
                     component["Name"],
                     [control["Name"] for control in controls["result"]["Controls"]],
                 )
 
-                print(
-                    "add component control",
+                _LOGGER.info(
+                    "add component control: %s",
                     await cg.add_component_control(
                         {
                             "Name": component["Name"],
@@ -198,11 +201,11 @@ async def main():
                 )
 
             while True:
-                print("poll", await cg.poll())
+                _LOGGER.info("poll: %s", await cg.poll())
                 await asyncio.sleep(1)
         except QRCError as e:
             if e.error["code"] == 6:
-                print("lost server side change group")
+                _LOGGER.error("lost server side change group")
             continue
 
     await task

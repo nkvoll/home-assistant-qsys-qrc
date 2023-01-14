@@ -6,14 +6,12 @@ import logging
 from typing import Any
 
 import voluptuous as vol
-
-from homeassistant import config_entries
+from homeassistant import config_entries, data_entry_flow
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.exceptions import HomeAssistantError
 
-from .const import DOMAIN
-
+from .const import *
 from .qsys import core
 
 _LOGGER = logging.getLogger(__name__)
@@ -21,9 +19,10 @@ _LOGGER = logging.getLogger(__name__)
 # TODO adjust the data schema to the data that you need
 STEP_USER_DATA_SCHEMA = vol.Schema(
     {
-        vol.Required("host"): str,
-        vol.Required("username"): str,
-        vol.Required("password"): str,
+        vol.Required(CONF_CORE_NAME): str,
+        vol.Required(CONF_HOST): str,
+        vol.Required(CONF_USERNAME): str,
+        vol.Required(CONF_PASSWORD): str,
     }
 )
 
@@ -41,12 +40,12 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
     #     your_validate_func, data["username"], data["password"]
     # )
 
-    c = core.Core(data["host"])
+    c = core.Core(data[CONF_HOST])
     task = asyncio.create_task(c.run_until_stopped())
     try:
         await asyncio.wait_for(c.wait_until_running(), timeout=10)
         res = await asyncio.wait_for(
-            c.logon(data["username"], data["password"]), timeout=10
+            c.logon(data[CONF_USERNAME], data[CONF_PASSWORD]), timeout=10
         )
         if not res.get("result", False):
             raise InvalidAuth
@@ -59,7 +58,7 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
     # InvalidAuth
 
     # Return info that you want to store in the config entry.
-    return {"title": f"qrc {data['host']}"}
+    return {"title": f"qrc {data[CONF_CORE_NAME]}"}
 
 
 class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -68,7 +67,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 1
 
     async def async_step_user(
-        self, user_input: dict[str, Any] | None = None
+            self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         """Handle the initial step."""
         if user_input is None:
@@ -78,9 +77,12 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         errors = {}
 
+        if user_input[CONF_CORE_NAME] in self.hass.data[DOMAIN][CONF_CORES]:
+            raise data_entry_flow.AbortFlow("already_configured")
+
         try:
             info = await validate_input(self.hass, user_input)
-        except CannotConnect:
+        except CannotConnect | TimeoutError:
             errors["base"] = "cannot_connect"
         except InvalidAuth:
             errors["base"] = "invalid_auth"

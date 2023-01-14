@@ -1,0 +1,35 @@
+# Service ID
+call_method:
+  name: Call QRC Method
+  description: Invokes a method on the Core using QRC.
+  # If the service accepts entity IDs, target allows the user to specify entities by entity, device, or area. If `target` is specified, `entity_id` should not be defined in the `fields` map. By default it shows only targets matching entities from the same domain as the service, but if further customization is required, target supports the entity, device, and area selectors (https://www.home-assistant.io/docs/blueprint/selectors/). Entity selector parameters will automatically be applied to device and area, and device selector parameters will automatically be applied to area.
+  target:
+    device:
+      name: Core to use
+      required: True
+      selector:
+        device:
+          integration: qsys
+  # Different fields that your service accepts
+  fields:
+    method:
+      name: Method
+      description: Name of the method to invoke
+      required: True
+      example: Component.Set
+      selector:
+        text:
+    params:
+      name: Parameters
+      description: Parameters to the method
+      example: |
+        name: my apm
+        controls:
+        - name: ent.xfade.gain
+          value: -100.0
+          ramp: 2.0
+      default: { }
+      selector:
+        object:
+
+
