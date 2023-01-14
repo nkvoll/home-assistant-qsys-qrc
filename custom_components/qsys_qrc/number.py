@@ -10,7 +10,7 @@ from homeassistant.components.number import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import template
+from homeassistant.helpers import template, entity, device_registry
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import changegroup
@@ -30,6 +30,7 @@ async def async_setup_entry(
     core: qrc.Core
     for core_name, core in hass.data[DOMAIN].get(CONF_CORES, {}).items():
         entities = {}
+
         # can platform name be more dynamic than this?
         cg = core.change_group("number_domain")
         poller = changegroup.ChangeGroupPoller(core, cg)
@@ -53,7 +54,7 @@ async def async_setup_entry(
             if value_template:
                 value_template = template.Template(value_template, hass)
 
-            entity = ControlNumber(
+            control_number_entity = ControlNumber(
                 core,
                 number_config[CONF_ENTITY_ID] or id_for_component_control(
                     number_config[CONF_COMPONENT],
@@ -69,12 +70,12 @@ async def async_setup_entry(
                 value_template,
             )
 
-            if entity.unique_id not in entities:
-                entities[entity.unique_id] = entity
-                async_add_entities([entity])
+            if control_number_entity.unique_id not in entities:
+                entities[control_number_entity.unique_id] = control_number_entity
+                async_add_entities([control_number_entity])
 
                 poller.subscribe_component_control_changes(
-                    entity.on_changed, component_name, control_name,
+                    control_number_entity.on_changed, component_name, control_name,
                 )
 
             await cg.add_component_control({

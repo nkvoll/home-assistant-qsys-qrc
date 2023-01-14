@@ -44,7 +44,7 @@ async def async_setup_entry(
             control_name = switch_config[CONF_CONTROL]
 
             # need to fetch component and control config first?
-            entity = ControlSwitch(
+            control_switch_entity = ControlSwitch(
                 core,
                 switch_config[CONF_ENTITY_ID] or id_for_component_control(
                     switch_config[CONF_COMPONENT], switch_config[CONF_CONTROL],
@@ -53,12 +53,12 @@ async def async_setup_entry(
                 control_name,
             )
 
-            if entity.unique_id not in entities:
-                entities[entity.unique_id] = entity
-                async_add_entities([entity])
+            if control_switch_entity.unique_id not in entities:
+                entities[control_switch_entity.unique_id] = control_switch_entity
+                async_add_entities([control_switch_entity])
 
                 poller.subscribe_component_control_changes(
-                    entity.on_changed, component_name, control_name,
+                    control_switch_entity.on_changed, component_name, control_name,
                 )
 
             await cg.add_component_control({

@@ -41,7 +41,7 @@ async def async_setup_entry(
             control_name = text_config[CONF_CONTROL]
 
             # need to fetch component and control config first?
-            entity = ControlText(
+            control_text_entity = ControlText(
                 core,
                 text_config[CONF_ENTITY_ID] or id_for_component_control(
                     text_config[CONF_COMPONENT], text_config[CONF_CONTROL],
@@ -50,12 +50,12 @@ async def async_setup_entry(
                 control_name,
             )
 
-            if entity.unique_id not in entities:
-                entities[entity.unique_id] = entity
-                async_add_entities([entity])
+            if control_text_entity.unique_id not in entities:
+                entities[control_text_entity.unique_id] = control_text_entity
+                async_add_entities([control_text_entity])
 
                 poller.subscribe_component_control_changes(
-                    entity.on_changed, component_name, control_name,
+                    control_text_entity.on_changed, component_name, control_name,
                 )
 
             await cg.add_component_control({

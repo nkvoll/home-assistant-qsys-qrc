@@ -57,8 +57,7 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
     # If the authentication is wrong:
     # InvalidAuth
 
-    # Return info that you want to store in the config entry.
-    return {"title": f"qrc {data[CONF_CORE_NAME]}"}
+    return data
 
 
 class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -91,7 +90,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             _LOGGER.exception("Unexpected exception")
             errors["base"] = "unknown"
         else:
-            return self.async_create_entry(title=info["title"], data=user_input)
+            return self.async_create_entry(title=f"Q-Sys QRC: {info[CONF_CORE_NAME]}", data=user_input)
 
         return self.async_show_form(
             step_id="user", data_schema=STEP_USER_DATA_SCHEMA, errors=errors

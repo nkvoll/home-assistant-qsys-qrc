@@ -5,6 +5,7 @@ from homeassistant.helpers import entity
 from .qsys import qrc
 
 
+# TODO: consider entity.async_generate_entity_id
 def id_for_component_control(component, control):
     return f"{component}_{control}"
 
