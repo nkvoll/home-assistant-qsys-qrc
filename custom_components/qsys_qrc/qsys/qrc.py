@@ -3,7 +3,6 @@ import json
 import logging
 from asyncio import exceptions as aioexceptions
 
-
 _LOGGER = logging.getLogger(__name__)
 
 DELIMITER = b"\0"

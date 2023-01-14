@@ -15,7 +15,6 @@ from homeassistant.helpers.typing import ConfigType
 from .const import *
 from .qsys import qrc
 
-
 PLATFORMS: list[Platform] = [Platform.NUMBER, Platform.SENSOR, Platform.SWITCH, Platform.TEXT, Platform.MEDIA_PLAYER]
 
 _LOGGER = logging.getLogger(__name__)

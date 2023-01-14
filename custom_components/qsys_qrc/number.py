@@ -5,16 +5,14 @@ import asyncio
 import math
 
 from homeassistant.components import number
-from homeassistant.components.number import (
-    NumberEntity,
-)
+from homeassistant.components.number import NumberEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import template
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import changegroup
-from .common import (QSysComponentControlBase, id_for_component_control)
+from .common import QSysComponentControlBase, id_for_component_control
 from .const import *
 from .qsys import qrc
 

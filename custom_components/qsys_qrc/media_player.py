@@ -4,9 +4,7 @@ from __future__ import annotations
 import asyncio
 import logging
 
-from homeassistant.components.sensor import (
-    SensorEntity,
-)
+from homeassistant.components.sensor import SensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import PlatformNotReady
@@ -16,7 +14,6 @@ from . import changegroup
 from .common import QSysComponentBase, id_for_component
 from .const import *
 from .qsys import qrc
-
 
 _LOGGER = logging.getLogger(__name__)
 

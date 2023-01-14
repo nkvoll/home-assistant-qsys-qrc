@@ -3,7 +3,6 @@ import logging
 
 from .qsys import qrc
 
-
 _LOGGER = logging.getLogger(__name__)
 
 

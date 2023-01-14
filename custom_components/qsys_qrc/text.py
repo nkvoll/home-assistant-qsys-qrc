@@ -3,9 +3,7 @@ from __future__ import annotations
 
 import asyncio
 
-from homeassistant.components.text import (
-    TextEntity,
-)
+from homeassistant.components.text import TextEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback

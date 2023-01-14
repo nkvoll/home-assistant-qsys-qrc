@@ -4,18 +4,15 @@ from __future__ import annotations
 import asyncio
 import logging
 
-from homeassistant.components.switch import (
-    SwitchEntity,
-)
+from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import changegroup
-from .common import (QSysComponentControlBase, id_for_component_control)
+from .common import QSysComponentControlBase, id_for_component_control
 from .const import *
 from .qsys import qrc
-
 
 _LOGGER = logging.getLogger(__name__)
 

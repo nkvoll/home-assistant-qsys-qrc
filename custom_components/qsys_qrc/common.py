@@ -1,7 +1,7 @@
 import re
 
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import entity, device_registry
+from homeassistant.helpers import device_registry, entity
 
 from .const import DOMAIN
 from .qsys import qrc

@@ -14,7 +14,6 @@ from homeassistant.exceptions import HomeAssistantError
 from .const import *
 from .qsys import qrc
 
-
 _LOGGER = logging.getLogger(__name__)
 
 # TODO adjust the data schema to the data that you need
