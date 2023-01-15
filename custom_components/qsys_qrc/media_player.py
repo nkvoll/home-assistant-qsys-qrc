@@ -22,6 +22,8 @@ from .qsys import qrc
 
 _LOGGER = logging.getLogger(__name__)
 
+position_0db = 0.83333331
+
 
 async def async_setup_entry(
         hass: HomeAssistant,
@@ -145,7 +147,7 @@ class QRCMediaPlayerEntity(QSysComponentBase, MediaPlayerEntity):
             self._attr_media_title = value
 
         elif name == "channel.1.gain" or name == "channel.2.gain":
-            self._attr_volume_level = change["Position"]
+            self._attr_volume_level = max(1.0, change["Position"] / position_0db)
 
         elif name == "channel.1.mute" or name == "channel.2.mute":
             self._attr_is_volume_muted = value == 1.0
@@ -185,8 +187,8 @@ class QRCMediaPlayerEntity(QSysComponentBase, MediaPlayerEntity):
 
     async def async_set_volume_level(self, volume: float) -> None:
         await self.core.component().set(self.component, [
-            {"Name": "channel.1.gain", "Position": volume},
-            {"Name": "channel.2.gain", "Position": volume},
+            {"Name": "channel.1.gain", "Position": volume * position_0db},
+            {"Name": "channel.2.gain", "Position": volume * position_0db},
         ])
 
     async def async_browse_media(

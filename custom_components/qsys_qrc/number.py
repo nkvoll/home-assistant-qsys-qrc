@@ -140,7 +140,7 @@ class QRCNumberEntity(QSysComponentControlBase, NumberEntity):
             value = self._change_template.async_render(dict(change=change, value=value, math=math, round=round))
 
         value = round(value, self._round_decimals)
-        self._attr_native_value = value
+        self._attr_native_value = max(value, self._attr_native_max_value)
 
     async def async_set_native_value(self, value: float) -> None:
         """Update the current value."""
