@@ -5,7 +5,7 @@ import asyncio
 import logging
 
 import voluptuous as vol
-from homeassistant.components import number
+from homeassistant.components import media_player, number, sensor, switch, text
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, ServiceCall
@@ -30,12 +30,17 @@ CONFIG_SCHEMA = vol.Schema({
                         CONF_MEDIA_PLAYER_PLATFORM: vol.Schema([
                             vol.Schema({
                                 vol.Optional(CONF_ENTITY_NAME, default=None): vol.Any(None, str),
+                                vol.Optional(CONF_DEVICE_CLASS, default=None,):
+                                    vol.Any(None, media_player.MediaPlayerDeviceClass),
                                 vol.Required(CONF_COMPONENT): str,
                             })
                         ]),
                         CONF_NUMBER_PLATFORM: vol.Schema([
                             vol.Schema({
                                 vol.Optional(CONF_ENTITY_NAME, default=None): vol.Any(None, str),
+                                vol.Optional(CONF_DEVICE_CLASS, default=None):
+                                    vol.Any(None, number.DEVICE_CLASSES_SCHEMA),
+                                vol.Optional(CONF_UNIT_OF_MEASUREMENT, default=None): vol.Any(None, str),
                                 vol.Required(CONF_COMPONENT): str,
                                 vol.Required(CONF_CONTROL): str,
                                 vol.Optional(CONF_NUMBER_USE_POSITION, default=False): bool,
@@ -52,6 +57,10 @@ CONFIG_SCHEMA = vol.Schema({
                         CONF_SENSOR_PLATFORM: vol.Schema([
                             vol.Schema({
                                 vol.Optional(CONF_ENTITY_NAME, default=None): vol.Any(None, str),
+                                vol.Optional(CONF_DEVICE_CLASS, default=None):
+                                    vol.Any(None, sensor.DEVICE_CLASSES_SCHEMA),
+                                vol.Optional(CONF_STATE_CLASS, default=None): vol.Any(None, sensor.STATE_CLASSES_SCHEMA),
+                                vol.Optional(CONF_UNIT_OF_MEASUREMENT, default=None): vol.Any(None, str),
                                 vol.Required(CONF_COMPONENT): str,
                                 vol.Required(CONF_CONTROL): str,
                                 vol.Optional(CONF_SENSOR_ATTRIBUTE, default="String"): str,
@@ -60,6 +69,8 @@ CONFIG_SCHEMA = vol.Schema({
                         CONF_SWITCH_PLATFORM: vol.Schema([
                             vol.Schema({
                                 vol.Optional(CONF_ENTITY_NAME, default=None): vol.Any(None, str),
+                                vol.Optional(CONF_DEVICE_CLASS, default=None):
+                                    vol.Any(None, switch.DEVICE_CLASSES_SCHEMA),
                                 vol.Required(CONF_COMPONENT): str,
                                 vol.Required(CONF_CONTROL): str,
                             })
@@ -69,6 +80,10 @@ CONFIG_SCHEMA = vol.Schema({
                                 vol.Optional(CONF_ENTITY_NAME, default=None): vol.Any(None, str),
                                 vol.Required(CONF_COMPONENT): str,
                                 vol.Required(CONF_CONTROL): str,
+                                vol.Optional(CONF_TEXT_MODE, default=None): vol.Any(None, text.TextMode),
+                                vol.Optional(CONF_TEXT_MIN_LENGTH, default=None): vol.Any(None, int),
+                                vol.Optional(CONF_TEXT_MAX_LENGTH, default=None): vol.Any(None, int),
+                                vol.Optional(CONF_TEXT_PATTERN, default=None): vol.Any(None, str),
                             })
                         ]),
                     })

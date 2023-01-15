@@ -21,6 +21,10 @@ CONF_CONFIG = "config"
 CONF_COMPONENT = "component"
 CONF_CONTROL = "control"
 
+CONF_DEVICE_CLASS = "device_class"
+CONF_UNIT_OF_MEASUREMENT = "unit_of_measurement"
+CONF_STATE_CLASS = "state_class"
+
 CONF_NUMBER_USE_POSITION = "use_position"
 CONF_NUMBER_MIN_VALUE = "min"
 CONF_NUMBER_MAX_VALUE = "max"
@@ -30,6 +34,11 @@ CONF_NUMBER_MODE = "mode"
 
 CONF_NUMBER_CHANGE_TEMPLATE = "change_template"
 CONF_NUMBER_VALUE_TEMPLATE = "value_template"
+
+CONF_TEXT_MODE = "mode"
+CONF_TEXT_MIN_LENGTH = "min"
+CONF_TEXT_MAX_LENGTH = "max"
+CONF_TEXT_PATTERN = "pattern"
 
 CONF_ENTITY_NAME = "name"
 

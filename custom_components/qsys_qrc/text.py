@@ -47,6 +47,10 @@ async def async_setup_entry(
                 text_config.get(CONF_ENTITY_NAME, None),
                 component_name,
                 control_name,
+                text_config[CONF_TEXT_MODE],
+                text_config[CONF_TEXT_MIN_LENGTH],
+                text_config[CONF_TEXT_MAX_LENGTH],
+                text_config[CONF_TEXT_PATTERN],
             )
 
             if control_text_entity.unique_id not in entities:
@@ -68,8 +72,18 @@ async def async_setup_entry(
 
 
 class QRCTextEntity(QSysComponentControlBase, TextEntity):
-    def __init__(self, hass, core_name, core, unique_id, entity_name, component, control) -> None:
+    def __init__(
+            self, hass, core_name, core, unique_id, entity_name, component, control,
+            mode, min_length, max_length, pattern,
+    ) -> None:
         super().__init__(hass, core_name, core, unique_id, entity_name, component, control)
+
+        self._attr_mode = mode
+        if min_length is not None:
+            self._attr_native_min = min_length
+        if max_length is not None:
+            self._attr_native_max = max_length
+        self._attr_pattern = pattern
 
     async def on_control_changed(self, core, change):
         self._attr_native_value = change["String"]

@@ -50,6 +50,7 @@ async def async_setup_entry(
                 switch_config.get(CONF_ENTITY_NAME, None),
                 component_name,
                 control_name,
+                switch_config[CONF_DEVICE_CLASS],
             )
 
             if control_switch_entity.unique_id not in entities:
@@ -71,8 +72,10 @@ async def async_setup_entry(
 
 
 class QRCSwitchEntity(QSysComponentControlBase, SwitchEntity):
-    def __init__(self, hass, core_name, core, unique_id, entity_name, component, control) -> None:
+    def __init__(self, hass, core_name, core, unique_id, entity_name, component, control, device_class) -> None:
         super().__init__(hass, core_name, core, unique_id, entity_name, component, control)
+
+        self._attr_device_class = device_class
 
     async def on_control_changed(self, core, change):
         val = change["Value"]

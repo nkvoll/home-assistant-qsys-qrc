@@ -80,6 +80,7 @@ async def async_setup_entry_safe(
                     ),
                     media_player_config.get(CONF_ENTITY_NAME, None),
                     component_name,
+                    media_player_config[CONF_DEVICE_CLASS],
                 )
             elif component_type == "audio_file_player":
                 media_player_entity = QRCAudioFilePlayerEntity(
@@ -91,6 +92,7 @@ async def async_setup_entry_safe(
                     ),
                     media_player_config.get(CONF_ENTITY_NAME, None),
                     component_name,
+                    media_player_config[CONF_DEVICE_CLASS],
                 )
             else:
                 msg = f"Component has invalid type for media player: {component_type}"
@@ -134,8 +136,10 @@ class QRCUrlReceiverEntity(QSysComponentBase, MediaPlayerEntity):
             | MediaPlayerEntityFeature.BROWSE_MEDIA
     )
 
-    def __init__(self, hass, core_name, core, unique_id, entity_name, component) -> None:
+    def __init__(self, hass, core_name, core, unique_id, entity_name, component, device_class) -> None:
         super().__init__(hass, core_name, core, unique_id, entity_name, component)
+
+        self._attr_device_class = device_class
 
         self._qsys_state = {}
 
@@ -159,7 +163,7 @@ class QRCUrlReceiverEntity(QSysComponentBase, MediaPlayerEntity):
             self._attr_media_title = value
 
         elif name == "channel.1.gain" or name == "channel.2.gain":
-            self._attr_volume_level = max(1.0, change["Position"] / position_0db)
+            self._attr_volume_level = max(0.0, min(1.0, change["Position"] / position_0db))
 
         elif name == "channel.1.mute" or name == "channel.2.mute":
             self._attr_is_volume_muted = value == 1.0
@@ -248,8 +252,10 @@ class QRCAudioFilePlayerEntity(QSysComponentBase, MediaPlayerEntity):
             | MediaPlayerEntityFeature.BROWSE_MEDIA
     )
 
-    def __init__(self, hass, core_name, core, unique_id, entity_name, component) -> None:
+    def __init__(self, hass, core_name, core, unique_id, entity_name, component, device_class) -> None:
         super().__init__(hass, core_name, core, unique_id, entity_name, component)
+
+        self._attr_device_class = device_class
 
         self._qsys_state = {}
 
@@ -274,7 +280,7 @@ class QRCAudioFilePlayerEntity(QSysComponentBase, MediaPlayerEntity):
             self._attr_media_title = value
 
         elif name == "gain":
-            self._attr_volume_level = max(1.0, change["Position"] / position_0db)
+            self._attr_volume_level = max(0.0, min(1.0, change["Position"] / position_0db))
 
         elif name == "mute" or name == "mute":
             self._attr_is_volume_muted = value == 1.0
@@ -303,6 +309,7 @@ class QRCAudioFilePlayerEntity(QSysComponentBase, MediaPlayerEntity):
             self._attr_state = MediaPlayerState.IDLE
         else:
             # TODO: include "status" field values?
+            self._attr_state = MediaPlayerState.ON
             return
 
     async def async_media_play(self) -> None:

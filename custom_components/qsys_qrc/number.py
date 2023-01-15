@@ -77,6 +77,8 @@ async def async_setup_entry(
                 number_config[CONF_NUMBER_MODE],
                 change_template,
                 value_template,
+                number_config[CONF_DEVICE_CLASS],
+                number_config[CONF_UNIT_OF_MEASUREMENT],
             )
 
             if control_number_entity.unique_id not in entities:
@@ -103,8 +105,13 @@ class QRCNumberEntity(QSysComponentControlBase, NumberEntity):
             use_position: bool, position_upper_limit: float,
             min_value: float, max_value: float, step: float, mode: number.NumberMode,
             change_template: template.Template, value_template: template.Template,
+            device_class, unit_of_measurement
     ) -> None:
         super().__init__(hass, core_name, core, unique_id, entity_name, component, control)
+
+        self._attr_device_class = device_class
+        self._attr_native_unit_of_measurement = unit_of_measurement
+
         self._use_position = use_position
         self._position_upper_limit = position_upper_limit
 
@@ -140,7 +147,7 @@ class QRCNumberEntity(QSysComponentControlBase, NumberEntity):
             value = self._change_template.async_render(dict(change=change, value=value, math=math, round=round))
 
         value = round(value, self._round_decimals)
-        self._attr_native_value = max(value, self._attr_native_max_value)
+        self._attr_native_value = max(self._attr_native_min_value, min(value, self._attr_native_max_value))
 
     async def async_set_native_value(self, value: float) -> None:
         """Update the current value."""

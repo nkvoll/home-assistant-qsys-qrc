@@ -48,7 +48,10 @@ async def async_setup_entry(
                 sensor_config.get(CONF_ENTITY_NAME, None),
                 component_name,
                 control_name,
-                attribute
+                attribute,
+                sensor_config[CONF_DEVICE_CLASS],
+                sensor_config[CONF_UNIT_OF_MEASUREMENT],
+                sensor_config[CONF_STATE_CLASS],
             )
 
             if control_sensor_entity.unique_id not in entities:
@@ -70,9 +73,17 @@ async def async_setup_entry(
 
 
 class QRCComponentControlEntity(QSysComponentControlBase, SensorEntity):
-    def __init__(self, hass, core_name, core, unique_id, entity_name, component, control, attribute) -> None:
+    def __init__(
+            self, hass, core_name, core, unique_id, entity_name, component, control, attribute,
+            device_class, unit_of_measurement, state_class,
+    ) -> None:
         super().__init__(hass, core_name, core, unique_id, entity_name, component, control)
         self.attribute = attribute
 
+        self._attr_device_class = device_class
+        self._attr_native_unit_of_measurement = unit_of_measurement
+        self._attr_state_class = state_class
+
     async def on_control_changed(self, core, change):
+        # TODO: if change["Choices"], copy to attr options?
         self._attr_native_value = change.get(self.attribute)

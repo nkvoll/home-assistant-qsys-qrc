@@ -67,6 +67,9 @@ class QSysComponentControlBase(QSysComponentBase):
     async def on_core_change(self, core, change):
         self._attr_available = True
         extra_attrs = {}
+
+        # TODO: it's not clear whether this is a problem or not (data size storage for attributes mentioned in a tip
+        # at https://developers.home-assistant.io/docs/core/entity/sensor
         for k, v in change.items():
             extra_attrs[_camel_pattern.sub("_", k).lower()] = v
         self._attr_extra_state_attributes.update(extra_attrs)
