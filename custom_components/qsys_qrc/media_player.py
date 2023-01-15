@@ -14,6 +14,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import PlatformNotReady
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.util.dt import utcnow
 
 from . import changegroup
 from .common import QSysComponentBase, id_for_component
@@ -70,7 +71,18 @@ async def async_setup_entry_safe(
             media_player_entity = None
             component_type = component["Type"]
             if component_type == "URL_receiver":
-                media_player_entity = QRCMediaPlayerEntity(
+                media_player_entity = QRCUrlReceiverEntity(
+                    hass,
+                    core_name,
+                    core,
+                    id_for_component(
+                        core_name, media_player_config[CONF_COMPONENT]
+                    ),
+                    media_player_config.get(CONF_ENTITY_NAME, None),
+                    component_name,
+                )
+            elif component_type == "audio_file_player":
+                media_player_entity = QRCAudioFilePlayerEntity(
                     hass,
                     core_name,
                     core,
@@ -107,7 +119,7 @@ async def async_setup_entry_safe(
             entry.async_on_unload(on_unload)
 
 
-class QRCMediaPlayerEntity(QSysComponentBase, MediaPlayerEntity):
+class QRCUrlReceiverEntity(QSysComponentBase, MediaPlayerEntity):
     _attr_supported_features = (
             MediaPlayerEntityFeature(0)
             | MediaPlayerEntityFeature.VOLUME_SET
@@ -220,3 +232,142 @@ class QRCMediaPlayerEntity(QSysComponentBase, MediaPlayerEntity):
             media_id = async_process_play_media_url(self.hass, play_item.url)
 
         await self.core.component().set(self.component, [{"Name": "url", "Value": media_id}])
+
+
+class QRCAudioFilePlayerEntity(QSysComponentBase, MediaPlayerEntity):
+    _attr_supported_features = (
+            MediaPlayerEntityFeature(0)
+            | MediaPlayerEntityFeature.VOLUME_SET
+            | MediaPlayerEntityFeature.VOLUME_MUTE
+            | MediaPlayerEntityFeature.PLAY_MEDIA
+            | MediaPlayerEntityFeature.PLAY
+            | MediaPlayerEntityFeature.STOP
+            | MediaPlayerEntityFeature.SEEK
+            # | MediaPlayerEntityFeature.SELECT_SOURCE
+            # | MediaPlayerEntityFeature.SELECT_SOUND_MODE
+            | MediaPlayerEntityFeature.BROWSE_MEDIA
+    )
+
+    def __init__(self, hass, core_name, core, unique_id, entity_name, component) -> None:
+        super().__init__(hass, core_name, core, unique_id, entity_name, component)
+
+        self._qsys_state = {}
+
+    async def on_changed(self, core, change):
+        _LOGGER.warning("media player control %s changed: %s", self.unique_id, change)
+
+        self._attr_available = True
+
+        name = change["Name"]
+        value = change["Value"]
+
+        self._qsys_state[name] = change
+
+        if name == "enable":
+            self._update_state()
+            _LOGGER.info("Status updated: %s", change)
+
+        elif name == "status":
+            self._update_state()
+
+        elif name == "track.name":
+            self._attr_media_title = value
+
+        elif name == "gain":
+            self._attr_volume_level = max(1.0, change["Position"] / position_0db)
+
+        elif name == "mute" or name == "mute":
+            self._attr_is_volume_muted = value == 1.0
+
+        elif name == "progress":
+            # TODO: does this need to update / be invalidated with playing states?
+            self._attr_media_position = change["Position"]
+            self._attr_media_position_updated_at = utcnow()
+
+        await self.async_update_ha_state()
+
+    # browsing bits
+    # {'Component': 'audio_player_doorbell_main', 'Name': 'directory', 'String': '', 'Value': 0.0, 'Position': 0.0, 'Choices': [], 'Color': ''}
+    # {'Component': 'audio_player_doorbell_main', 'Name': 'directory.ui', 'String': '', 'Value': 0.0, 'Position': 0.0, 'Choices': [], 'Color': '', 'Disabled': True}
+    # {'Component': 'audio_player_doorbell_main', 'Name': 'filename', 'String': '', 'Value': 0.0, 'Position': 0.0, 'Choices': [], 'Color': ''}
+    # {'Component': 'audio_player_doorbell_main', 'Name': 'filename.ui', 'String': '', 'Value': 0.0, 'Position': 0.0, 'Choices': [], 'Color': '', 'Disabled': True}
+    # {'Component': 'audio_player_doorbell_main', 'Name': 'root', 'String': 'Audio/', 'Value': 0.0, 'Position': 0.0, 'Choices': [], 'Color': ''}
+    # {'Component': 'audio_player_doorbell_main', 'Name': 'root.ui', 'String': 'Audio/', 'Value': 0.0, 'Position': 0.0, 'Choices': [], 'Color': '', 'Disabled': True}
+
+    def _update_state(self):
+        if self._qsys_state.get("playing", {}).get("Value", 0.0) == 1.0:
+            self._attr_state = MediaPlayerState.PLAYING
+        elif self._qsys_state.get("paused", {}).get("Value", 0.0) == 1.0:
+            self._attr_state = MediaPlayerState.PAUSED
+        elif self._qsys_state.get("stopped", {}).get("Value", 0.0) == 1.0:
+            self._attr_state = MediaPlayerState.IDLE
+        else:
+            # TODO: include "status" field values?
+            return
+
+    async def async_media_play(self) -> None:
+        await self.core.component().set(self.component, [{"Name": "play.state.trigger", "Value": 1.0}])
+
+    async def async_media_pause(self) -> None:
+        await self.core.component().set(self.component, [{"Name": "pause.state.trigger", "Value": 1.0}])
+
+    async def async_media_stop(self) -> None:
+        await self.core.component().set(self.component, [{"Name": "stop.state.trigger", "Value": 1.0}])
+
+    async def async_media_seek(self, position: float) -> None:
+        # TODO: position? range of this + actual control to use is unclear, could be progress/remaining?
+        await self.core.component().set(self.component, [{"Name": "locate", "Position": position}])
+
+    async def async_mute_volume(self, mute: bool) -> None:
+        await self.core.component().set(self.component, [
+            {"Name": "mute", "Value": 1.0 if mute else 0.0},
+        ])
+
+    async def async_set_volume_level(self, volume: float) -> None:
+        await self.core.component().set(self.component, [
+            {"Name": "gain", "Position": volume * position_0db},
+        ])
+
+    async def async_browse_media(
+            self, media_content_type: str | None = None, media_content_id: str | None = None
+    ) -> BrowseMedia:
+        """Implement the websocket media browsing helper."""
+        _LOGGER.warning(
+            "UNSUPPORTED / UNTESTED: browse_media: media_content_type:%s, media_content_id:%s",
+            media_content_type, media_content_id,
+        )
+
+        # If your media player has no own media sources to browse, route all browse commands
+        # to the media source integration.
+        return await media_source.async_browse_media(
+            self.hass,
+            media_content_id,
+            # This allows filtering content. In this case it will only show audio sources.
+            content_filter=lambda item: item.media_content_type.startswith("audio/"),
+        )
+
+    async def async_play_media(
+            self,
+            media_type: str,
+            media_id: str,
+            enqueue: MediaPlayerEnqueue | None = None,
+            announce: bool | None = None, **kwargs: Any
+    ) -> None:
+        """Play a piece of media."""
+
+        _LOGGER.warning("UNSUPPORTED / UNTESTED: play_media: media_type:%s, media_id:%s", media_type, media_id)
+
+        if media_source.is_media_source_id(media_id):
+            media_type = MediaType.MUSIC
+            play_item = await media_source.async_resolve_media(self.hass, media_id, self.entity_id)
+            # play_item returns a relative URL if it has to be resolved on the Home Assistant host
+            # This call will turn it into a full URL
+            media_id = async_process_play_media_url(self.hass, play_item.url)
+
+        directory, filename = media_id.rsplit("/", 1)
+
+        await self.core.component().set(self.component, [
+            {"Name": "directory", "Value": directory},
+            {"Name": "filename", "Value": filename},
+            {"Name": "play.state.trigger", "Value": 1.0}
+        ])
