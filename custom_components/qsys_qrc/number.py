@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import decimal
 import logging
 import math
 
@@ -65,8 +66,13 @@ async def async_setup_entry(
                 number_config.get(CONF_ENTITY_NAME, None),
                 component_name,
                 control_name,
+
+                number_config[CONF_NUMBER_USE_POSITION],
+                number_config[CONF_NUMBER_POSITION_UPPER_LIMIT],
+
                 number_config[CONF_NUMBER_MIN_VALUE],
                 number_config[CONF_NUMBER_MAX_VALUE],
+
                 number_config[CONF_NUMBER_STEP],
                 number_config[CONF_NUMBER_MODE],
                 change_template,
@@ -94,16 +100,29 @@ async def async_setup_entry(
 class QRCNumberEntity(QSysComponentControlBase, NumberEntity):
     def __init__(
             self, hass, core_name, core, unique_id, entity_name, component, control,
+            use_position: bool, position_upper_limit: float,
             min_value: float, max_value: float, step: float, mode: number.NumberMode,
             change_template: template.Template, value_template: template.Template,
     ) -> None:
         super().__init__(hass, core_name, core, unique_id, entity_name, component, control)
+        self._use_position = use_position
+        self._position_upper_limit = position_upper_limit
+
         self._attr_native_min_value = min_value
+
+        if self._use_position:
+            self._attr_native_min_value = 0.0
+
         self._attr_native_max_value = max_value
+        if self._use_position:
+            self._attr_native_max_value = 100.0
+
         self._attr_native_step = step
         self._attr_mode = mode
         self._change_template = change_template
         self._value_template = value_template
+
+        self._round_decimals = -1 * decimal.Decimal(str(step)).as_tuple().exponent
 
     # async def async_update(self):
     #    res = await self.core.component().get(self.component, [{"Name": self.control}])
@@ -112,12 +131,26 @@ class QRCNumberEntity(QSysComponentControlBase, NumberEntity):
     async def on_control_changed(self, core, change):
         # TODO: figure out value vs native_value. Is that a better place for the conversion?
         value = change["Value"]
+
+        if self._use_position:
+            value = change["Position"] * self._attr_native_max_value / self._position_upper_limit
+
         if self._change_template:
+            # TODO: a better way to have defaults available?
             value = self._change_template.async_render(dict(change=change, value=value, math=math, round=round))
+
+        value = round(value, self._round_decimals)
         self._attr_native_value = value
 
     async def async_set_native_value(self, value: float) -> None:
         """Update the current value."""
+        if self._use_position:
+            position = value/self._attr_native_max_value * self._position_upper_limit
+            await self.update_control({"Position": position})
+            return
+
         if self._value_template:
+            # TODO: a better way to have defaults available?
             value = self._value_template.async_render(dict(value=value, math=math, round=round))
+
         await self.update_control({"Value": value})

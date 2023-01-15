@@ -126,7 +126,7 @@ class QRCMediaPlayerEntity(QSysComponentBase, MediaPlayerEntity):
         self._qsys_state = {}
 
     async def on_changed(self, core, change):
-        _LOGGER.warning("media player control %s changed: %s", self.unique_id, change)
+        _LOGGER.debug("media player control %s changed: %s", self.unique_id, change)
 
         self._attr_available = True
 

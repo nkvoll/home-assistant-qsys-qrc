@@ -21,8 +21,10 @@ CONF_CONFIG = "config"
 CONF_COMPONENT = "component"
 CONF_CONTROL = "control"
 
+CONF_NUMBER_USE_POSITION = "use_position"
 CONF_NUMBER_MIN_VALUE = "min"
 CONF_NUMBER_MAX_VALUE = "max"
+CONF_NUMBER_POSITION_UPPER_LIMIT = "position_upper_limit"
 CONF_NUMBER_STEP = "step"
 CONF_NUMBER_MODE = "mode"
 

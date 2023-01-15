@@ -38,9 +38,11 @@ CONFIG_SCHEMA = vol.Schema({
                                 vol.Optional(CONF_ENTITY_NAME, default=None): vol.Any(None, str),
                                 vol.Required(CONF_COMPONENT): str,
                                 vol.Required(CONF_CONTROL): str,
+                                vol.Optional(CONF_NUMBER_USE_POSITION, default=False): bool,
                                 vol.Optional(CONF_NUMBER_MIN_VALUE, default=0.0): vol.Coerce(float),
                                 vol.Optional(CONF_NUMBER_MAX_VALUE, default=100.0): vol.Coerce(float),
-                                vol.Optional(CONF_NUMBER_STEP, default=0.1): vol.Coerce(float),
+                                vol.Optional(CONF_NUMBER_POSITION_UPPER_LIMIT, default=1.0): vol.Coerce(float),
+                                vol.Optional(CONF_NUMBER_STEP, default=1.0): vol.Coerce(float),
                                 vol.Optional(CONF_NUMBER_MODE, default=number.NumberMode.AUTO): vol.Coerce(
                                     number.NumberMode),
                                 vol.Optional(CONF_NUMBER_CHANGE_TEMPLATE, default=None): vol.Any(None, str),
