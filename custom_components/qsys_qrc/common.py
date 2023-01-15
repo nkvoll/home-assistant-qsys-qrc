@@ -46,8 +46,14 @@ class QSysComponentBase(entity.Entity):
 
         self._attr_name = entity_name
 
+    async def on_core_polling_ending(self, poller):
+        self._attr_available = False
+        await self.async_update_ha_state()
+
 
 class QSysComponentControlBase(QSysComponentBase):
+    _attr_available = False
+
     def __init__(
             self,
             hass: HomeAssistant,
@@ -59,6 +65,7 @@ class QSysComponentControlBase(QSysComponentBase):
         self.control = control
 
     async def on_core_change(self, core, change):
+        self._attr_available = True
         extra_attrs = {}
         for k, v in change.items():
             extra_attrs[_camel_pattern.sub("_", k).lower()] = v

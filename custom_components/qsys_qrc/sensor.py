@@ -55,13 +55,18 @@ async def async_setup_entry(
                 entities[control_sensor_entity.unique_id] = control_sensor_entity
                 async_add_entities([control_sensor_entity])
 
+                poller.subscribe_run_loop_iteration_ending(control_sensor_entity.on_core_polling_ending)
                 await poller.subscribe_component_control_changes(
                     control_sensor_entity.on_core_change, component_name, control_name,
                 )
 
         if len(entities) > 0:
             polling = asyncio.create_task(poller.run_while_core_running())
-            entry.async_on_unload(lambda: polling.cancel() and None)
+
+            def on_unload():
+                polling.cancel()
+
+            entry.async_on_unload(on_unload)
 
 
 class QRCComponentControlEntity(QSysComponentControlBase, SensorEntity):

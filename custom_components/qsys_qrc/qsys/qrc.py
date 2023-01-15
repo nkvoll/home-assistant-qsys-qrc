@@ -47,22 +47,22 @@ class Core:
         return self._id
 
     async def wait_until_running(self):
-        await self._running
+        await asyncio.shield(self._running)
 
     async def wait_until_connected(self):
-        await self._connected
+        await asyncio.shield(self._connected)
 
     async def run_until_stopped(self):
         self._running.set_result(True)
 
         while True:
-            _LOGGER.info("run loop iteration")
+            _LOGGER.debug("run loop iteration")
             try:
                 await self.connect()
                 self._connected.set_result(True)
                 await self._read_forever()
             except EOFError as eof:
-                _LOGGER.warning("eof", eof)
+                _LOGGER.exception("eof")
             except aioexceptions.TimeoutError as te:
                 if self._connected.done():
                     _LOGGER.warning("timeouterror while reading from remote [%s:%d]", self._host, PORT)
@@ -74,18 +74,19 @@ class Core:
                 if self._writer:
                     self._writer.close()
                 if self._connected.done():
+                    _LOGGER.debug("creating new _connected future")
                     self._connected = asyncio.Future()
 
     async def connect(self):
-        _LOGGER.info("connecting")
+        _LOGGER.info("connecting to %s:%d", self._host, PORT)
         # TODO: make limit configurable
         opening = asyncio.open_connection(self._host, PORT, limit=5 * 1024 * 1024)
         self._reader, self._writer = await asyncio.wait_for(opening, 5)
         _LOGGER.info("connected")
 
     async def _send(self, data):
-        await self._running
-        await self._connected
+        await asyncio.shield(self._running)
+        await asyncio.shield(self._connected)
         data.setdefault("jsonrpc", "2.0")
         self._writer.write(json.dumps(data).encode("utf8"))
         self._writer.write(DELIMITER)
@@ -97,10 +98,13 @@ class Core:
         id_ = self._generate_id()
         self._pending[id_] = future
 
-        await self._send({"method": method, "params": params, "id": id_})
+        try:
+            await self._send({"method": method, "params": params, "id": id_})
 
-        result = await future
-        return result
+            result = await future
+            return result
+        finally:
+            self._pending.pop(id_, None)
 
     async def _read_forever(self):
         while True:
