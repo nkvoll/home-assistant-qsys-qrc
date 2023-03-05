@@ -1,0 +1,45 @@
+# Loads default set of integrations. Do not remove.
+default_config:
+
+# Text to speech
+tts:
+  - platform: google_translate
+
+automation: !include automations.yaml
+script: !include scripts.yaml
+scene: !include scenes.yaml
+
+logger:
+  default: info
+  logs:
+    homeassistant.components.cloud: debug
+
+qsys_qrc:
+  cores:
+    # the name of the core must match the integration one
+    my_core:
+      platforms:
+        media_player:
+        - component: media_stream_receiver_1
+        - component: audio_player_doorbell_main
+
+        switch:
+        - component: bathroom_f2_gain
+          control: mute
+          device_class: switch
+
+        number:
+        - component: bathroom_f2_gain
+          control: gain
+          use_position: true
+          position_lower_limit: 0.30
+          position_upper_limit: 0.83333331
+          #unit_of_measurement: "%"
+        #- component: bathroom_f1_gain
+        #  control: gain
+        #  min: 0
+        #  max: 100
+        #  step: 0.1
+        #  mode: slider
+        #  change_template: "{{ round(100 * (math.pow(10, value/50)-0.01)/0.99, 1) }}"
+        #  value_template: "{{ 50 * math.log(value/100*0.99+0.01, 10) }}"%
