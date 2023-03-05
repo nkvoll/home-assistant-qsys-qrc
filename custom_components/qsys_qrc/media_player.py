@@ -103,10 +103,14 @@ async def async_setup_entry_safe(
                 entities[media_player_entity.unique_id] = media_player_entity
                 async_add_entities([media_player_entity])
 
+                poller.subscribe_run_loop_iteration_ending(media_player_entity.on_core_polling_ending)
+
                 get_controls_result = await core.component().get_controls(component_name)
 
                 for control in get_controls_result["result"]["Controls"]:
-                    poller.subscribe_run_loop_iteration_ending(media_player_entity.on_core_polling_ending)
+                    # avoid polling peak levels for media players because we're not utilizing them on the HA side
+                    if control["Name"].endswith(".peak.level"):
+                        continue
                     await poller.subscribe_component_control_changes(
                         media_player_entity.on_changed, component_name, control["Name"],
                     )
