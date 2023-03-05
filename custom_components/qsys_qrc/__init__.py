@@ -46,6 +46,7 @@ CONFIG_SCHEMA = vol.Schema({
                                 vol.Optional(CONF_NUMBER_USE_POSITION, default=False): bool,
                                 vol.Optional(CONF_NUMBER_MIN_VALUE, default=0.0): vol.Coerce(float),
                                 vol.Optional(CONF_NUMBER_MAX_VALUE, default=100.0): vol.Coerce(float),
+                                vol.Optional(CONF_NUMBER_POSITION_LOWER_LIMIT, default=0.0): vol.Coerce(float),
                                 vol.Optional(CONF_NUMBER_POSITION_UPPER_LIMIT, default=1.0): vol.Coerce(float),
                                 vol.Optional(CONF_NUMBER_STEP, default=1.0): vol.Coerce(float),
                                 vol.Optional(CONF_NUMBER_MODE, default=number.NumberMode.AUTO): vol.Coerce(

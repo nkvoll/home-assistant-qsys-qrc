@@ -68,6 +68,7 @@ async def async_setup_entry(
                 control_name,
 
                 number_config[CONF_NUMBER_USE_POSITION],
+                number_config[CONF_NUMBER_POSITION_LOWER_LIMIT],
                 number_config[CONF_NUMBER_POSITION_UPPER_LIMIT],
 
                 number_config[CONF_NUMBER_MIN_VALUE],
@@ -102,7 +103,7 @@ async def async_setup_entry(
 class QRCNumberEntity(QSysComponentControlBase, NumberEntity):
     def __init__(
             self, hass, core_name, core, unique_id, entity_name, component, control,
-            use_position: bool, position_upper_limit: float,
+            use_position: bool, position_lower_limit: float, position_upper_limit: float,
             min_value: float, max_value: float, step: float, mode: number.NumberMode,
             change_template: template.Template, value_template: template.Template,
             device_class, unit_of_measurement
@@ -113,6 +114,7 @@ class QRCNumberEntity(QSysComponentControlBase, NumberEntity):
         self._attr_native_unit_of_measurement = unit_of_measurement
 
         self._use_position = use_position
+        self._position_lower_limit = position_lower_limit
         self._position_upper_limit = position_upper_limit
 
         self._attr_native_min_value = min_value
@@ -129,6 +131,8 @@ class QRCNumberEntity(QSysComponentControlBase, NumberEntity):
         self._change_template = change_template
         self._value_template = value_template
 
+        self._position_lower_limit_factor = self._position_lower_limit * self._attr_native_max_value / self._position_upper_limit
+
         self._round_decimals = -1 * decimal.Decimal(str(step)).as_tuple().exponent
 
     # async def async_update(self):
@@ -140,7 +144,10 @@ class QRCNumberEntity(QSysComponentControlBase, NumberEntity):
         value = change["Value"]
 
         if self._use_position:
-            value = change["Position"] * self._attr_native_max_value / self._position_upper_limit
+            #value = change["Position"] * self._attr_native_max_value / self._position_upper_limit
+            value = (
+                change["Position"] * (self._attr_native_max_value + self._position_lower_limit_factor) - self._position_lower_limit_factor
+            ) / self._position_upper_limit
 
         if self._change_template:
             # TODO: a better way to have defaults available?
@@ -152,7 +159,9 @@ class QRCNumberEntity(QSysComponentControlBase, NumberEntity):
     async def async_set_native_value(self, value: float) -> None:
         """Update the current value."""
         if self._use_position:
-            position = value/self._attr_native_max_value * self._position_upper_limit
+            position = (
+                (value+self._position_lower_limit_factor) / (self._attr_native_max_value + self._position_lower_limit_factor)
+            ) * self._position_upper_limit
             await self.update_control({"Position": position})
             return
 
