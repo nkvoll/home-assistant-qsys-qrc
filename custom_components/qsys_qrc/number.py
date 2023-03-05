@@ -35,14 +35,27 @@ async def async_setup_entry(
 
         poller = changegroup.ChangeGroupPoller(core, f"{__name__.rsplit('.', 1)[-1]}_platform")
 
-        for number_config in hass.data[DOMAIN] \
+        core_config = hass.data[DOMAIN] \
                 .get(CONF_CONFIG, {}) \
                 .get(CONF_CORES, {}) \
-                .get(core_name, []) \
+                .get(core_name, {})
+
+        exclude_component_controls = core_config.get(CONF_FILTER, {}).get(CONF_EXCLUDE_COMPONENT_CONTROL, [])
+
+        for number_config in core_config \
                 .get(CONF_PLATFORMS, {}) \
                 .get(CONF_NUMBER_PLATFORM, []):
             component_name = number_config[CONF_COMPONENT]
             control_name = number_config[CONF_CONTROL]
+
+            should_exclude = False
+            for filter in exclude_component_controls:
+                # TODO: support globbing?
+                if component_name == filter[CONF_COMPONENT] and control_name == filter[CONF_CONTROL]:
+                    should_exclude = True
+                    break
+            if should_exclude:
+                continue
 
             # need to fetch component and control config first? at least if we want to default min/max etc
 

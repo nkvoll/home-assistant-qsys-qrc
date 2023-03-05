@@ -18,6 +18,9 @@ CONF_PASSWORD = "password"
 
 CONF_CONFIG = "config"
 
+CONF_FILTER = "filter"
+CONF_EXCLUDE_COMPONENT_CONTROL = "exclude_component_control"
+
 CONF_COMPONENT = "component"
 CONF_CONTROL = "control"
 

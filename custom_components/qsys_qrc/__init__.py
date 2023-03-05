@@ -26,6 +26,14 @@ CONFIG_SCHEMA = vol.Schema({
         CONF_CORES: vol.Schema(
             {
                 vol.basestring: vol.Schema({
+                    # TODO: this seems largely wasteful because we're not globbing components, but explicitly configuring them
+                    # leaving it in for now, but consider ripping it out for simplicity
+                    vol.Optional(CONF_FILTER): vol.Schema({
+                        vol.Optional(CONF_EXCLUDE_COMPONENT_CONTROL): vol.Schema({
+                            CONF_COMPONENT: str,
+                            CONF_CONTROL: str
+                        })
+                    }),
                     vol.Optional(CONF_PLATFORMS): vol.Schema({
                         CONF_MEDIA_PLAYER_PLATFORM: vol.Schema([
                             vol.Schema({
