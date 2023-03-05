@@ -42,6 +42,11 @@ class Core:
         self._running = asyncio.Future()
         self._connected = asyncio.Future()
 
+        self._on_connected_commands = []
+
+    def set_on_connected_commands(self, commands: list):
+        self._on_connected_commands = commands
+
     def _generate_id(self):
         self._id = (self._id + 1) % 65535
         return self._id
@@ -59,6 +64,12 @@ class Core:
             _LOGGER.debug("run loop iteration")
             try:
                 await self.connect()
+                for cmd in self._on_connected_commands:
+                    if callable(cmd):
+                        yield cmd()
+                    else:
+                        # TODO: support aborting connection (with backoff?) on failures
+                        yield self.call(method = cmd['method'], params = cmd.get('params', None))
                 self._connected.set_result(True)
                 await self._read_forever()
             except EOFError as eof:

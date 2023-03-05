@@ -131,6 +131,10 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Q-Sys QRC from a config entry."""
     c = qrc.Core(entry.data[CONF_HOST])
+    # set up automatic logon
+    c.set_on_connected_commands([
+        lambda: c.logon(entry.data[CONF_USERNAME], entry.data[CONF_PASSWORD])
+    ])
     core_runner_task = asyncio.create_task(c.run_until_stopped())
     entry.async_on_unload(lambda: core_runner_task.cancel() and None)
     hass.data.setdefault(DOMAIN, {})
