@@ -15,9 +15,9 @@ from .qsys import qrc
 
 
 async def async_setup_entry(
-        hass: HomeAssistant,
-        entry: ConfigEntry,
-        async_add_entities: AddEntitiesCallback,
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up text entities."""
 
@@ -25,14 +25,18 @@ async def async_setup_entry(
     core: qrc.Core
     for core_name, core in hass.data[DOMAIN].get(CONF_CORES, {}).items():
         entities = {}
-        poller = changegroup.ChangeGroupPoller(core, f"{__name__.rsplit('.', 1)[-1]}_platform")
+        poller = changegroup.ChangeGroupPoller(
+            core, f"{__name__.rsplit('.', 1)[-1]}_platform"
+        )
 
-        for text_config in hass.data[DOMAIN] \
-                .get(CONF_CONFIG, {}) \
-                .get(CONF_CORES, {}) \
-                .get(core_name, []) \
-                .get(CONF_PLATFORMS, {}) \
-                .get(CONF_TEXT_PLATFORM, []):
+        for text_config in (
+            hass.data[DOMAIN]
+            .get(CONF_CONFIG, {})
+            .get(CONF_CORES, {})
+            .get(core_name, [])
+            .get(CONF_PLATFORMS, {})
+            .get(CONF_TEXT_PLATFORM, [])
+        ):
             component_name = text_config[CONF_COMPONENT]
             control_name = text_config[CONF_CONTROL]
 
@@ -42,7 +46,9 @@ async def async_setup_entry(
                 core_name,
                 core,
                 id_for_component_control(
-                    core_name, text_config[CONF_COMPONENT], text_config[CONF_CONTROL],
+                    core_name,
+                    text_config[CONF_COMPONENT],
+                    text_config[CONF_CONTROL],
                 ),
                 text_config.get(CONF_ENTITY_NAME, None),
                 component_name,
@@ -57,9 +63,13 @@ async def async_setup_entry(
                 entities[control_text_entity.unique_id] = control_text_entity
                 async_add_entities([control_text_entity])
 
-                poller.subscribe_run_loop_iteration_ending(control_text_entity.on_core_polling_ending)
+                poller.subscribe_run_loop_iteration_ending(
+                    control_text_entity.on_core_polling_ending
+                )
                 await poller.subscribe_component_control_changes(
-                    control_text_entity.on_core_change, component_name, control_name,
+                    control_text_entity.on_core_change,
+                    component_name,
+                    control_name,
                 )
 
         if len(entities) > 0:
@@ -73,10 +83,22 @@ async def async_setup_entry(
 
 class QRCTextEntity(QSysComponentControlBase, TextEntity):
     def __init__(
-            self, hass, core_name, core, unique_id, entity_name, component, control,
-            mode, min_length, max_length, pattern,
+        self,
+        hass,
+        core_name,
+        core,
+        unique_id,
+        entity_name,
+        component,
+        control,
+        mode,
+        min_length,
+        max_length,
+        pattern,
     ) -> None:
-        super().__init__(hass, core_name, core, unique_id, entity_name, component, control)
+        super().__init__(
+            hass, core_name, core, unique_id, entity_name, component, control
+        )
 
         self._attr_mode = mode
         if min_length is not None:

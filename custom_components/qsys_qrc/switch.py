@@ -18,9 +18,9 @@ _LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(
-        hass: HomeAssistant,
-        entry: ConfigEntry,
-        async_add_entities: AddEntitiesCallback,
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up switch entities."""
 
@@ -28,14 +28,18 @@ async def async_setup_entry(
     core: qrc.Core
     for core_name, core in hass.data[DOMAIN].get(CONF_CORES, {}).items():
         entities = {}
-        poller = changegroup.ChangeGroupPoller(core, f"{__name__.rsplit('.', 1)[-1]}_platform")
+        poller = changegroup.ChangeGroupPoller(
+            core, f"{__name__.rsplit('.', 1)[-1]}_platform"
+        )
 
-        for switch_config in hass.data[DOMAIN] \
-                .get(CONF_CONFIG, {}) \
-                .get(CONF_CORES, {}) \
-                .get(core_name, []) \
-                .get(CONF_PLATFORMS, {}) \
-                .get(CONF_SWITCH_PLATFORM, []):
+        for switch_config in (
+            hass.data[DOMAIN]
+            .get(CONF_CONFIG, {})
+            .get(CONF_CORES, {})
+            .get(core_name, [])
+            .get(CONF_PLATFORMS, {})
+            .get(CONF_SWITCH_PLATFORM, [])
+        ):
             component_name = switch_config[CONF_COMPONENT]
             control_name = switch_config[CONF_CONTROL]
 
@@ -45,7 +49,9 @@ async def async_setup_entry(
                 core_name,
                 core,
                 id_for_component_control(
-                    core_name, switch_config[CONF_COMPONENT], switch_config[CONF_CONTROL],
+                    core_name,
+                    switch_config[CONF_COMPONENT],
+                    switch_config[CONF_CONTROL],
                 ),
                 switch_config.get(CONF_ENTITY_NAME, None),
                 component_name,
@@ -57,9 +63,13 @@ async def async_setup_entry(
                 entities[control_switch_entity.unique_id] = control_switch_entity
                 async_add_entities([control_switch_entity])
 
-                poller.subscribe_run_loop_iteration_ending(control_switch_entity.on_core_polling_ending)
+                poller.subscribe_run_loop_iteration_ending(
+                    control_switch_entity.on_core_polling_ending
+                )
                 await poller.subscribe_component_control_changes(
-                    control_switch_entity.on_core_change, component_name, control_name,
+                    control_switch_entity.on_core_change,
+                    component_name,
+                    control_name,
                 )
 
         if len(entities) > 0:
@@ -72,8 +82,20 @@ async def async_setup_entry(
 
 
 class QRCSwitchEntity(QSysComponentControlBase, SwitchEntity):
-    def __init__(self, hass, core_name, core, unique_id, entity_name, component, control, device_class) -> None:
-        super().__init__(hass, core_name, core, unique_id, entity_name, component, control)
+    def __init__(
+        self,
+        hass,
+        core_name,
+        core,
+        unique_id,
+        entity_name,
+        component,
+        control,
+        device_class,
+    ) -> None:
+        super().__init__(
+            hass, core_name, core, unique_id, entity_name, component, control
+        )
 
         self._attr_device_class = device_class
 

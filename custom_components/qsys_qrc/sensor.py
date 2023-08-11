@@ -15,9 +15,9 @@ from .qsys import qrc
 
 
 async def async_setup_entry(
-        hass: HomeAssistant,
-        entry: ConfigEntry,
-        async_add_entities: AddEntitiesCallback,
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up sensor entities."""
 
@@ -25,14 +25,18 @@ async def async_setup_entry(
     core: qrc.Core
     for core_name, core in hass.data[DOMAIN].get(CONF_CORES, {}).items():
         entities = {}
-        poller = changegroup.ChangeGroupPoller(core, f"{__name__.rsplit('.', 1)[-1]}_platform")
+        poller = changegroup.ChangeGroupPoller(
+            core, f"{__name__.rsplit('.', 1)[-1]}_platform"
+        )
 
-        for sensor_config in hass.data[DOMAIN] \
-                .get(CONF_CONFIG, {}) \
-                .get(CONF_CORES, {}) \
-                .get(core_name, []) \
-                .get(CONF_PLATFORMS, {}) \
-                .get(CONF_SENSOR_PLATFORM, []):
+        for sensor_config in (
+            hass.data[DOMAIN]
+            .get(CONF_CONFIG, {})
+            .get(CONF_CORES, {})
+            .get(core_name, [])
+            .get(CONF_PLATFORMS, {})
+            .get(CONF_SENSOR_PLATFORM, [])
+        ):
             component_name = sensor_config[CONF_COMPONENT]
             control_name = sensor_config[CONF_CONTROL]
             attribute = sensor_config[CONF_SENSOR_ATTRIBUTE]
@@ -43,7 +47,9 @@ async def async_setup_entry(
                 core_name,
                 core,
                 id_for_component_control(
-                    core_name, sensor_config[CONF_COMPONENT], sensor_config[CONF_CONTROL],
+                    core_name,
+                    sensor_config[CONF_COMPONENT],
+                    sensor_config[CONF_CONTROL],
                 ),
                 sensor_config.get(CONF_ENTITY_NAME, None),
                 component_name,
@@ -58,9 +64,13 @@ async def async_setup_entry(
                 entities[control_sensor_entity.unique_id] = control_sensor_entity
                 async_add_entities([control_sensor_entity])
 
-                poller.subscribe_run_loop_iteration_ending(control_sensor_entity.on_core_polling_ending)
+                poller.subscribe_run_loop_iteration_ending(
+                    control_sensor_entity.on_core_polling_ending
+                )
                 await poller.subscribe_component_control_changes(
-                    control_sensor_entity.on_core_change, component_name, control_name,
+                    control_sensor_entity.on_core_change,
+                    component_name,
+                    control_name,
                 )
 
         if len(entities) > 0:
@@ -74,10 +84,22 @@ async def async_setup_entry(
 
 class QRCComponentControlEntity(QSysComponentControlBase, SensorEntity):
     def __init__(
-            self, hass, core_name, core, unique_id, entity_name, component, control, attribute,
-            device_class, unit_of_measurement, state_class,
+        self,
+        hass,
+        core_name,
+        core,
+        unique_id,
+        entity_name,
+        component,
+        control,
+        attribute,
+        device_class,
+        unit_of_measurement,
+        state_class,
     ) -> None:
-        super().__init__(hass, core_name, core, unique_id, entity_name, component, control)
+        super().__init__(
+            hass, core_name, core, unique_id, entity_name, component, control
+        )
         self.attribute = attribute
 
         self._attr_device_class = device_class

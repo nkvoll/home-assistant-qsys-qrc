@@ -23,11 +23,13 @@ class QSysComponentBase(entity.Entity):
     _attr_should_poll = False
 
     def __init__(
-            self,
-            hass: HomeAssistant,
-            core_name: str, core: qrc.Core,
-            unique_id: str, entity_name: str,
-            component: str
+        self,
+        hass: HomeAssistant,
+        core_name: str,
+        core: qrc.Core,
+        unique_id: str,
+        entity_name: str,
+        component: str,
     ) -> None:
         super().__init__()
         self.core = core
@@ -39,27 +41,32 @@ class QSysComponentBase(entity.Entity):
 
         self.component = component
 
-        core_device_entry = device_registry.async_get(hass).async_get_device({(DOMAIN, core_name)})
+        core_device_entry = device_registry.async_get(hass).async_get_device(
+            {(DOMAIN, core_name)}
+        )
         self._attr_device_info = entity.DeviceInfo(
             identifiers=core_device_entry.identifiers,
         )
 
         self._attr_name = entity_name
 
-    async def on_core_polling_ending(self, poller):
+    def on_core_polling_ending(self, poller):
         self._attr_available = False
-        await self.async_update_ha_state()
+        self.async_write_ha_state()
 
 
 class QSysComponentControlBase(QSysComponentBase):
     _attr_available = False
 
     def __init__(
-            self,
-            hass: HomeAssistant,
-            core_name: str, core: qrc.Core,
-            unique_id: str, entity_name: str,
-            component: str, control: str
+        self,
+        hass: HomeAssistant,
+        core_name: str,
+        core: qrc.Core,
+        unique_id: str,
+        entity_name: str,
+        component: str,
+        control: str,
     ) -> None:
         super().__init__(hass, core_name, core, unique_id, entity_name, component)
         self.control = control
@@ -74,8 +81,9 @@ class QSysComponentControlBase(QSysComponentBase):
             extra_attrs[_camel_pattern.sub("_", k).lower()] = v
         self._attr_extra_state_attributes.update(extra_attrs)
 
+        # TODO: is this really async?
         await self.on_control_changed(core, change)
-        await self.async_update_ha_state()
+        self.async_write_ha_state()
 
     async def on_control_changed(self, core, change):
         pass
@@ -83,6 +91,4 @@ class QSysComponentControlBase(QSysComponentBase):
     async def update_control(self, control_values):
         payload = {"Name": self.control}
         payload.update(**control_values)
-        await self.core.component().set(self.component, controls=[
-            payload
-        ])
+        await self.core.component().set(self.component, controls=[payload])

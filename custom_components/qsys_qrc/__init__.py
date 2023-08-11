@@ -15,92 +15,229 @@ from homeassistant.helpers.typing import ConfigType
 from .const import *
 from .qsys import qrc
 
-PLATFORMS: list[Platform] = [Platform.NUMBER, Platform.SENSOR, Platform.SWITCH, Platform.TEXT, Platform.MEDIA_PLAYER]
+PLATFORMS: list[Platform] = [
+    Platform.NUMBER,
+    Platform.SENSOR,
+    Platform.SWITCH,
+    Platform.TEXT,
+    Platform.MEDIA_PLAYER,
+]
 
 _LOGGER = logging.getLogger(__name__)
 
 devices = {}
 
-CONFIG_SCHEMA = vol.Schema({
-    DOMAIN: vol.Schema({
-        CONF_CORES: vol.Schema(
+CONFIG_SCHEMA = vol.Schema(
+    {
+        DOMAIN: vol.Schema(
             {
-                vol.basestring: vol.Schema({
-                    # TODO: this seems largely wasteful because we're not globbing components, but explicitly configuring them
-                    # leaving it in for now, but consider ripping it out for simplicity
-                    vol.Optional(CONF_FILTER): vol.Schema({
-                        vol.Optional(CONF_EXCLUDE_COMPONENT_CONTROL): vol.Schema({
-                            CONF_COMPONENT: str,
-                            CONF_CONTROL: str
-                        })
-                    }),
-                    vol.Optional(CONF_PLATFORMS): vol.Schema({
-                        CONF_MEDIA_PLAYER_PLATFORM: vol.Schema([
-                            vol.Schema({
-                                vol.Optional(CONF_ENTITY_NAME, default=None): vol.Any(None, str),
-                                vol.Optional(CONF_DEVICE_CLASS, default=None,):
-                                    vol.Any(None, media_player.MediaPlayerDeviceClass),
-                                vol.Required(CONF_COMPONENT): str,
-                            })
-                        ]),
-                        CONF_NUMBER_PLATFORM: vol.Schema([
-                            vol.Schema({
-                                vol.Optional(CONF_ENTITY_NAME, default=None): vol.Any(None, str),
-                                vol.Optional(CONF_DEVICE_CLASS, default=None):
-                                    vol.Any(None, number.DEVICE_CLASSES_SCHEMA),
-                                vol.Optional(CONF_UNIT_OF_MEASUREMENT, default=None): vol.Any(None, str),
-                                vol.Required(CONF_COMPONENT): str,
-                                vol.Required(CONF_CONTROL): str,
-                                vol.Optional(CONF_NUMBER_USE_POSITION, default=False): bool,
-                                vol.Optional(CONF_NUMBER_MIN_VALUE, default=0.0): vol.Coerce(float),
-                                vol.Optional(CONF_NUMBER_MAX_VALUE, default=100.0): vol.Coerce(float),
-                                vol.Optional(CONF_NUMBER_POSITION_LOWER_LIMIT, default=0.0): vol.Coerce(float),
-                                vol.Optional(CONF_NUMBER_POSITION_UPPER_LIMIT, default=1.0): vol.Coerce(float),
-                                vol.Optional(CONF_NUMBER_STEP, default=1.0): vol.Coerce(float),
-                                vol.Optional(CONF_NUMBER_MODE, default=number.NumberMode.AUTO): vol.Coerce(
-                                    number.NumberMode),
-                                vol.Optional(CONF_NUMBER_CHANGE_TEMPLATE, default=None): vol.Any(None, str),
-                                vol.Optional(CONF_NUMBER_VALUE_TEMPLATE, default=None): vol.Any(None, str),
-                            })
-                        ]),
-                        CONF_SENSOR_PLATFORM: vol.Schema([
-                            vol.Schema({
-                                vol.Optional(CONF_ENTITY_NAME, default=None): vol.Any(None, str),
-                                vol.Optional(CONF_DEVICE_CLASS, default=None):
-                                    vol.Any(None, sensor.DEVICE_CLASSES_SCHEMA),
-                                vol.Optional(CONF_STATE_CLASS, default=None): vol.Any(None, sensor.STATE_CLASSES_SCHEMA),
-                                vol.Optional(CONF_UNIT_OF_MEASUREMENT, default=None): vol.Any(None, str),
-                                vol.Required(CONF_COMPONENT): str,
-                                vol.Required(CONF_CONTROL): str,
-                                vol.Optional(CONF_SENSOR_ATTRIBUTE, default="String"): str,
-                            })
-                        ]),
-                        CONF_SWITCH_PLATFORM: vol.Schema([
-                            vol.Schema({
-                                vol.Optional(CONF_ENTITY_NAME, default=None): vol.Any(None, str),
-                                vol.Optional(CONF_DEVICE_CLASS, default=None):
-                                    vol.Any(None, switch.DEVICE_CLASSES_SCHEMA),
-                                vol.Required(CONF_COMPONENT): str,
-                                vol.Required(CONF_CONTROL): str,
-                            })
-                        ]),
-                        CONF_TEXT_PLATFORM: vol.Schema([
-                            vol.Schema({
-                                vol.Optional(CONF_ENTITY_NAME, default=None): vol.Any(None, str),
-                                vol.Required(CONF_COMPONENT): str,
-                                vol.Required(CONF_CONTROL): str,
-                                vol.Optional(CONF_TEXT_MODE, default=None): vol.Any(None, text.TextMode),
-                                vol.Optional(CONF_TEXT_MIN_LENGTH, default=None): vol.Any(None, int),
-                                vol.Optional(CONF_TEXT_MAX_LENGTH, default=None): vol.Any(None, int),
-                                vol.Optional(CONF_TEXT_PATTERN, default=None): vol.Any(None, str),
-                            })
-                        ]),
-                    })
-                })
+                CONF_CORES: vol.Schema(
+                    {
+                        vol.basestring: vol.Schema(
+                            {
+                                # TODO: this seems largely wasteful because we're not globbing components, but explicitly configuring them
+                                # leaving it in for now, but consider ripping it out for simplicity
+                                vol.Optional(CONF_FILTER): vol.Schema(
+                                    {
+                                        vol.Optional(
+                                            CONF_EXCLUDE_COMPONENT_CONTROL
+                                        ): vol.Schema(
+                                            {CONF_COMPONENT: str, CONF_CONTROL: str}
+                                        )
+                                    }
+                                ),
+                                vol.Optional(CONF_PLATFORMS): vol.Schema(
+                                    {
+                                        CONF_MEDIA_PLAYER_PLATFORM: vol.Schema(
+                                            [
+                                                vol.Schema(
+                                                    {
+                                                        vol.Optional(
+                                                            CONF_ENTITY_NAME,
+                                                            default=None,
+                                                        ): vol.Any(None, str),
+                                                        vol.Optional(
+                                                            CONF_DEVICE_CLASS,
+                                                            default=None,
+                                                        ): vol.Any(
+                                                            None,
+                                                            media_player.MediaPlayerDeviceClass,
+                                                        ),
+                                                        vol.Required(
+                                                            CONF_COMPONENT
+                                                        ): str,
+                                                    }
+                                                )
+                                            ]
+                                        ),
+                                        CONF_NUMBER_PLATFORM: vol.Schema(
+                                            [
+                                                vol.Schema(
+                                                    {
+                                                        vol.Optional(
+                                                            CONF_ENTITY_NAME,
+                                                            default=None,
+                                                        ): vol.Any(None, str),
+                                                        vol.Optional(
+                                                            CONF_DEVICE_CLASS,
+                                                            default=None,
+                                                        ): vol.Any(
+                                                            None,
+                                                            number.DEVICE_CLASSES_SCHEMA,
+                                                        ),
+                                                        vol.Optional(
+                                                            CONF_UNIT_OF_MEASUREMENT,
+                                                            default=None,
+                                                        ): vol.Any(None, str),
+                                                        vol.Required(
+                                                            CONF_COMPONENT
+                                                        ): str,
+                                                        vol.Required(CONF_CONTROL): str,
+                                                        vol.Optional(
+                                                            CONF_NUMBER_USE_POSITION,
+                                                            default=False,
+                                                        ): bool,
+                                                        vol.Optional(
+                                                            CONF_NUMBER_MIN_VALUE,
+                                                            default=0.0,
+                                                        ): vol.Coerce(float),
+                                                        vol.Optional(
+                                                            CONF_NUMBER_MAX_VALUE,
+                                                            default=100.0,
+                                                        ): vol.Coerce(float),
+                                                        vol.Optional(
+                                                            CONF_NUMBER_POSITION_LOWER_LIMIT,
+                                                            default=0.0,
+                                                        ): vol.Coerce(float),
+                                                        vol.Optional(
+                                                            CONF_NUMBER_POSITION_UPPER_LIMIT,
+                                                            default=1.0,
+                                                        ): vol.Coerce(float),
+                                                        vol.Optional(
+                                                            CONF_NUMBER_STEP,
+                                                            default=1.0,
+                                                        ): vol.Coerce(float),
+                                                        vol.Optional(
+                                                            CONF_NUMBER_MODE,
+                                                            default=number.NumberMode.AUTO,
+                                                        ): vol.Coerce(
+                                                            number.NumberMode
+                                                        ),
+                                                        vol.Optional(
+                                                            CONF_NUMBER_CHANGE_TEMPLATE,
+                                                            default=None,
+                                                        ): vol.Any(None, str),
+                                                        vol.Optional(
+                                                            CONF_NUMBER_VALUE_TEMPLATE,
+                                                            default=None,
+                                                        ): vol.Any(None, str),
+                                                    }
+                                                )
+                                            ]
+                                        ),
+                                        CONF_SENSOR_PLATFORM: vol.Schema(
+                                            [
+                                                vol.Schema(
+                                                    {
+                                                        vol.Optional(
+                                                            CONF_ENTITY_NAME,
+                                                            default=None,
+                                                        ): vol.Any(None, str),
+                                                        vol.Optional(
+                                                            CONF_DEVICE_CLASS,
+                                                            default=None,
+                                                        ): vol.Any(
+                                                            None,
+                                                            sensor.DEVICE_CLASSES_SCHEMA,
+                                                        ),
+                                                        vol.Optional(
+                                                            CONF_STATE_CLASS,
+                                                            default=None,
+                                                        ): vol.Any(
+                                                            None,
+                                                            sensor.STATE_CLASSES_SCHEMA,
+                                                        ),
+                                                        vol.Optional(
+                                                            CONF_UNIT_OF_MEASUREMENT,
+                                                            default=None,
+                                                        ): vol.Any(None, str),
+                                                        vol.Required(
+                                                            CONF_COMPONENT
+                                                        ): str,
+                                                        vol.Required(CONF_CONTROL): str,
+                                                        vol.Optional(
+                                                            CONF_SENSOR_ATTRIBUTE,
+                                                            default="String",
+                                                        ): str,
+                                                    }
+                                                )
+                                            ]
+                                        ),
+                                        CONF_SWITCH_PLATFORM: vol.Schema(
+                                            [
+                                                vol.Schema(
+                                                    {
+                                                        vol.Optional(
+                                                            CONF_ENTITY_NAME,
+                                                            default=None,
+                                                        ): vol.Any(None, str),
+                                                        vol.Optional(
+                                                            CONF_DEVICE_CLASS,
+                                                            default=None,
+                                                        ): vol.Any(
+                                                            None,
+                                                            switch.DEVICE_CLASSES_SCHEMA,
+                                                        ),
+                                                        vol.Required(
+                                                            CONF_COMPONENT
+                                                        ): str,
+                                                        vol.Required(CONF_CONTROL): str,
+                                                    }
+                                                )
+                                            ]
+                                        ),
+                                        CONF_TEXT_PLATFORM: vol.Schema(
+                                            [
+                                                vol.Schema(
+                                                    {
+                                                        vol.Optional(
+                                                            CONF_ENTITY_NAME,
+                                                            default=None,
+                                                        ): vol.Any(None, str),
+                                                        vol.Required(
+                                                            CONF_COMPONENT
+                                                        ): str,
+                                                        vol.Required(CONF_CONTROL): str,
+                                                        vol.Optional(
+                                                            CONF_TEXT_MODE, default=None
+                                                        ): vol.Any(None, text.TextMode),
+                                                        vol.Optional(
+                                                            CONF_TEXT_MIN_LENGTH,
+                                                            default=None,
+                                                        ): vol.Any(None, int),
+                                                        vol.Optional(
+                                                            CONF_TEXT_MAX_LENGTH,
+                                                            default=None,
+                                                        ): vol.Any(None, int),
+                                                        vol.Optional(
+                                                            CONF_TEXT_PATTERN,
+                                                            default=None,
+                                                        ): vol.Any(None, str),
+                                                    }
+                                                )
+                                            ]
+                                        ),
+                                    }
+                                ),
+                            }
+                        )
+                    }
+                )
             }
-        )
-    }),
-}, extra=vol.ALLOW_EXTRA)
+        ),
+    },
+    extra=vol.ALLOW_EXTRA,
+)
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
@@ -139,10 +276,12 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Q-Sys QRC from a config entry."""
     c = qrc.Core(entry.data[CONF_HOST])
+
     # set up automatic logon
-    c.set_on_connected_commands([
-        lambda: c.logon(entry.data[CONF_USERNAME], entry.data[CONF_PASSWORD])
-    ])
+    async def logon():
+        await c.logon(entry.data[CONF_USERNAME], entry.data[CONF_PASSWORD])
+
+    c.set_on_connected_commands([logon])
     core_runner_task = asyncio.create_task(c.run_until_stopped())
     entry.async_on_unload(lambda: core_runner_task.cancel() and None)
     hass.data.setdefault(DOMAIN, {})

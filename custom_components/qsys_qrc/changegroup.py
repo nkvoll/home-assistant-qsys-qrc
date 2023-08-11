@@ -20,9 +20,11 @@ class ChangeGroupPoller:
         self._listeners_component_control.append((listener, filter))
 
     async def _fire_on_component_control(self, component, control):
-        for (listener, filter) in self._listeners_component_control:
+        for listener, filter in self._listeners_component_control:
             if filter(component, control):
-                if asyncio.iscoroutine(listener) or asyncio.iscoroutinefunction(listener):
+                if asyncio.iscoroutine(listener) or asyncio.iscoroutinefunction(
+                    listener
+                ):
                     await listener(self, component, control)
                 else:
                     listener(self, component, control)
@@ -38,26 +40,26 @@ class ChangeGroupPoller:
                 listener(self)
 
     async def subscribe_component_control_changes(
-            self, listener, component_name, control_name
+        self, listener, component_name, control_name
     ):
         self._listeners_component_control_changes.setdefault(
             (component_name, control_name), []
         ).append(listener)
 
         if self.cg:
-            await self.cg.add_component_control({
-                "Name": component_name,
-                "Controls": [
-                    {"Name": control_name}
-                ],
-            })
+            await self.cg.add_component_control(
+                {
+                    "Name": component_name,
+                    "Controls": [{"Name": control_name}],
+                }
+            )
 
     async def _fire_on_component_control_change(self, change):
         component_name = change["Component"]
         control_name = change["Name"]
 
         for listener in self._listeners_component_control_changes.get(
-                (component_name, control_name), []
+            (component_name, control_name), []
         ):
             if asyncio.iscoroutine(listener) or asyncio.iscoroutinefunction(listener):
                 await listener(self, change)
@@ -78,21 +80,26 @@ class ChangeGroupPoller:
                     self._change_group_name,
                     len(self._listeners_component_control_changes),
                 )
-                for ((component_name, control_name), listeners) in self._listeners_component_control_changes.items():
+                for (
+                    component_name,
+                    control_name,
+                ), listeners in self._listeners_component_control_changes.items():
                     await asyncio.wait_for(
-                        self.cg.add_component_control({
-                            "Name": component_name,
-                            "Controls": [
-                                {"Name": control_name}
-                            ],
-                        }),
+                        self.cg.add_component_control(
+                            {
+                                "Name": component_name,
+                                "Controls": [{"Name": control_name}],
+                            }
+                        ),
                         self._core_request_timeout,
                     )
 
                 while True:
                     # TODO: find a way to only poll if there are components to poll
                     _LOGGER.debug("%s: polling", self._change_group_name)
-                    poll_result = await asyncio.wait_for(self.cg.poll(), self._core_request_timeout)
+                    poll_result = await asyncio.wait_for(
+                        self.cg.poll(), self._core_request_timeout
+                    )
                     _LOGGER.debug("%s: polled", self._change_group_name)
                     _LOGGER.debug("poll result: %s", poll_result)
 

@@ -62,26 +62,45 @@ class Core:
 
         while True:
             _LOGGER.debug("run loop iteration")
+            reader = None
             try:
                 await self.connect()
+                reader = asyncio.Task(self._read_forever())
+                # TODO: potential race here?
+                self._connected.set_result(True)
                 for cmd in self._on_connected_commands:
-                    if callable(cmd):
-                        yield cmd()
+                    if asyncio.iscoroutine(cmd) or asyncio.iscoroutinefunction(cmd):
+                        await cmd()
+                    elif callable(cmd):
+                        cmd()
                     else:
                         # TODO: support aborting connection (with backoff?) on failures
-                        yield self.call(method = cmd['method'], params = cmd.get('params', None))
-                self._connected.set_result(True)
-                await self._read_forever()
+                        await self.call(
+                            method=cmd["method"], params=cmd.get("params", None)
+                        )
+                await reader
             except EOFError as eof:
-                _LOGGER.exception("eof")
+                _LOGGER.exception("EOF")
             except aioexceptions.TimeoutError as te:
                 if self._connected.done():
-                    _LOGGER.warning("timeouterror while reading from remote [%s:%d]", self._host, PORT)
+                    _LOGGER.warning(
+                        "Timeouterror while reading from remote [%s:%d]",
+                        self._host,
+                        PORT,
+                    )
                 else:
-                    _LOGGER.warning("timeouterror while connecting to remote [%s:%d]", self._host, PORT)
+                    _LOGGER.warning(
+                        "Timeouterror while connecting to remote [%s:%d]",
+                        self._host,
+                        PORT,
+                    )
             except Exception as e:
-                _LOGGER.exception("generic exception: %s", repr(e))
+                _LOGGER.exception("Generic exception: %s", repr(e))
+                await asyncio.sleep(10)
             finally:
+                if reader:
+                    _LOGGER.warning("Cancelling reader")
+                    reader.cancel()
                 if self._writer:
                     self._writer.close()
                 if self._connected.done():
@@ -122,9 +141,10 @@ class Core:
             raw_data = await self._reader.readuntil(DELIMITER)
             data = json.loads(raw_data[:-1])
             if "id" in data:
+                # _LOGGER.info("received response: %s", data)
                 await self._process_response(data)
             else:
-                _LOGGER.info("received non-response: %s", data)
+                _LOGGER.debug("received non-response: %s", data)
 
     async def _process_response(self, data):
         future = self._pending.pop(data["id"], None)
@@ -138,9 +158,7 @@ class Core:
         return await self.call("NoOp")
 
     async def logon(self, username, password):
-        return await self.call(
-            "Logon", params={"User": username, "Password": password}
-        )
+        return await self.call("Logon", params={"User": username, "Password": password})
 
     def component(self):
         return ComponentAPI(self)
@@ -160,10 +178,14 @@ class ComponentAPI:
         return await self._core.call("Component.GetControls", params={"Name": name})
 
     async def get(self, name, controls):
-        return await self._core.call("Component.Get", params={"Name": name, "Controls": controls})
+        return await self._core.call(
+            "Component.Get", params={"Name": name, "Controls": controls}
+        )
 
     async def set(self, name, controls):
-        return await self._core.call("Component.Set", params={"Name": name, "Controls": controls})
+        return await self._core.call(
+            "Component.Set", params={"Name": name, "Controls": controls}
+        )
 
 
 class ChangeGroupAPI:
