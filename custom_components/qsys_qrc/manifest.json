@@ -3,6 +3,7 @@
   "name": "Q-Sys QRC Integration",
   "config_flow": true,
   "documentation": "https://github.com/nkvoll/home-assistant-qsys-qrc",
+  "issue_tracker": "https://github.com/nkvoll/home-assistant-qsys-qrc/issues",
   "requirements": [],
   "ssdp": [],
   "zeroconf": [],
