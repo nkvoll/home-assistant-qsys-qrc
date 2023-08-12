@@ -2,7 +2,7 @@
 
 [![GitHub Release][releases-shield]][releases]
 [![GitHub Activity][commits-shield]][commits]
-[![License][license-shield]](LICENSE)
+[![License][license-shield]](LICENSE.md)
 [![hacs][hacsbadge]][hacs]
 
 [![Community Forum][forum-shield]][forum]

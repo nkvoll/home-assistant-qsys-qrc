@@ -56,4 +56,4 @@ file.
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under its Apache License, Version 2.0. See [LICENSE](LICENSE).
+By contributing, you agree that your contributions will be licensed under its Apache License, Version 2.0. See [LICENSE](LICENSE.md).
