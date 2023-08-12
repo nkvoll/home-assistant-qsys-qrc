@@ -9,7 +9,11 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import changegroup
-from .common import QSysComponentControlBase, id_for_component_control
+from .common import (
+    QSysComponentBase,
+    QSysComponentControlBase,
+    id_for_component_control,
+)
 from .const import *
 from .qsys import qrc
 
@@ -83,6 +87,54 @@ async def async_setup_entry(
             polling.cancel()
 
         entry.async_on_unload(on_unload)
+
+    engine_status_sensor = EngineStatusEntity(
+        hass,
+        core_name,
+        core,
+        f"{core_name}_engine_status",
+        f"{core_name}_engine_status",
+        f"{core_name}_engine_status_component",  # unused
+    )
+    async_add_entities([engine_status_sensor])
+
+    async def update():
+        while True:
+            try:
+                status = await core.status_get()
+
+                engine_status_sensor.set_available(True)
+                engine_status_sensor.set_attr_native_value(
+                    status.get("result", {}).get("Status", {}).get("Code", -1)
+                )
+                engine_status_sensor.set_attr_extra_state_attributes(
+                    status.get("result", {})
+                )
+                engine_status_sensor.async_write_ha_state()
+            except Exception as e:
+                engine_status_sensor.set_available(False)
+                engine_status_sensor.async_write_ha_state()
+                pass
+            finally:
+                await asyncio.sleep(5)
+
+    updater = asyncio.create_task(update())
+
+    def on_unload():
+        updater.cancel()
+
+    entry.async_on_unload(on_unload)
+
+
+class EngineStatusEntity(QSysComponentBase, SensorEntity):
+    def set_available(self, available):
+        self._attr_available = available
+
+    def set_attr_native_value(self, value):
+        self._attr_native_value = value
+
+    def set_attr_extra_state_attributes(self, value):
+        self._attr_extra_state_attributes = value
 
 
 class QRCComponentControlEntity(QSysComponentControlBase, SensorEntity):
