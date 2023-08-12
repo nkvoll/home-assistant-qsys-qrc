@@ -1,5 +1,6 @@
 {
   "name": "Q-Sys QRC integration",
   "homeassistant": "2023.8.2",
+  "hacs": "1.32.1",
   "render_readme": true
 }
