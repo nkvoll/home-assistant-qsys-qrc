@@ -1,4 +1,4 @@
-# Home Assistant Q-Sys QRC
+# Home Assistant Q-SYS™ Remote Control Protocol (QRC)
 
 [![GitHub Release][releases-shield]][releases]
 [![GitHub Activity][commits-shield]][commits]
@@ -6,9 +6,39 @@
 [![hacs][hacsbadge]][hacs]
 [![Community Forum][forum-shield]][forum]
 
-Note: This is a work in progress.
+Note: This is a work in progress, but should work.
 
-A custom component that integrates Q-Sys Cores with Home Assistant via [QRC](https://q-syshelp.qsc.com/Index.htm#External_Control_APIs/QRC/QRC_Overview.htm). This is useful to expose elements such as gain controls, mute buttons and different media players to HA.
+A custom component that integrates Q-Sys Core Devices with Home Assistant via [QRC](https://q-syshelp.qsc.com/Index.htm#External_Control_APIs/QRC/QRC_Overview.htm). This is useful to expose elements such as gain controls, mute buttons and different media players to HA.
+
+### Features
+
+- `media_player` platform:
+    - [Media Stream Receivers/ URL Receivers](https://q-syshelp.qsc.com/Index.htm#Schematic_Library/URL_receiver.htm)
+        - On/Off (Enable/Disable)
+        - Mute control
+        - Volume control (stereo channels)
+        - Browse media
+        - Play media
+
+- `number` platform:
+    - `Value` controls (e.g gains)
+        - Direct control (setting Value directly)
+        - Position control (0.0 to 1.0)
+        - Custom mapping via templated changes/values.
+
+- `sensor` platform:
+    - `EngineStatus` exposed to HA
+    - Any component control
+
+- `switch` platform:
+    - Any float/int/bool where 1.0/1/True is considered on respectively
+    - Toggling.
+
+- `text` platform:
+    - `String` controls.
+
+- `services`:
+    - Invoking methods on the device via QRC (see `Services` section below)
 
 ### Installing
 
@@ -42,6 +72,44 @@ To expose component controls to HA, configure them via the configuration file (`
 
 See [the example configuration](examples/configuration.yaml) for an example of what can be configured.
 
+### Services
+
+### `call_method` Service
+
+Used to call any method via [QRC Commands](https://q-syshelp.qsc.com/Index.htm#External_Control_APIs/QRC/QRC_Commands.htm):
+
+#### Example: setting a gain control:
+
+```yaml
+service: qsys_qrc.call_method
+data:
+  method: Component.Set
+  params:
+    Name: bathroom_f2_gain
+    Controls:
+      - Name: gain
+        Position: 0.5
+        Ramp: 2
+target:
+  device_id: 7b7be23f1d37293589c28bee4dbb5b4d
+```
+
+#### Example: setting a mute control:
+
+```yaml
+service: qsys_qrc.call_method
+data:
+  method: Component.Set
+  params:
+    Name: bathroom_f2_gain
+    Controls:
+      - Name: mute
+        Value: true
+target:
+  device_id: 7b7be23f1d37293589c28bee4dbb5b4d
+```
+
+
 ### TODO
 
 - Add tests, see [`pytest-homeassistant-custom-component`](https://github.com/MatthewFlamm/pytest-homeassistant-custom-component) to get started.
@@ -55,6 +123,14 @@ See [the example configuration](examples/configuration.yaml) for an example of w
 ### Contributions are welcome!
 
 If you want to contribute to this please read the [Contribution guidelines](CONTRIBUTING.md)
+
+### Trademarks
+
+This Home Assistant custom integration is not endorsed or affiliated with QSC, LLC.
+
+- QSC and the QSC logo are registered trademarks of QSC, LLC in the U.S. Patent and Trademark Office and other countries.
+- QSC, the QSC logo and (Name) are registered trademarks of QSC, LLC in the U.S. Patent and Trademark Office and other countries.
+- Q-SYS is a trademark of QSC, LLC.
 
 ***
 

@@ -91,9 +91,9 @@ async def async_setup_entry(
         hass,
         core_name,
         core,
-        f"{core_name}_engine_status",
-        f"{core_name}_engine_status",
-        f"{core_name}_engine_status_component",  # unused
+        f"{core_name}_engine",
+        f"{core_name}_engine",
+        f"{core_name}_engine_component",  # unused
     )
     async_add_entities([engine_status_sensor])
 

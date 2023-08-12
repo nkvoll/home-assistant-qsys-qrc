@@ -8,8 +8,8 @@ import voluptuous as vol
 from homeassistant.components import media_player, number, sensor, switch, text
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant, ServiceCall
-from homeassistant.helpers import device_registry as dr
+from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
+from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.typing import ConfigType
 
 from .const import *
@@ -262,19 +262,52 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         """Handle the service call."""
         registry = dr.async_get(hass)
 
-        for device_id in call.data["device_id"]:
+        _LOGGER.info("Call request: %s", call.data)
+
+        config_entry_ids = set()
+
+        for entity_id in call.data.get("entity_id", []):
+            entity: er.EntityEntry = er.async_get(hass).entities.get(entity_id, None)
+            if not entity:
+                continue
+
+            config_entry_ids.add(entity.config_entry_id)
+
+        for device_id in call.data.get("device_id", []):
             device: dr.DeviceEntry = registry.devices.get(device_id, None)
             if not device:
                 continue
+            for config_entry_id in device.config_entries:
+                config_entry_ids.add(config_entry_id)
 
-            core: qrc.Core = hass.data[DOMAIN][CONF_CORES].get(device.name)
+        # TODO: support more than one config entry match?
+        for config_entry_id in config_entry_ids:
+            config_entry = hass.data[DOMAIN][CONF_CONFIG].get(config_entry_id)
+
+            if not config_entry:
+                continue
+
+            core: qrc.Core = hass.data[DOMAIN][CONF_CORES].get(
+                config_entry.data.get(CONF_USER_DATA, {}).get(CONF_CORE_NAME)
+            )
 
             method = call.data.get(CALL_METHOD_NAME)
             params = call.data.get(CALL_METHOD_PARAMS)
 
-            _LOGGER.info("Call response: %s", await core.call(method, params))
+            response = await core.call(method, params)
+            _LOGGER.debug("Call response: %s", response)
+            if call.return_response:
+                return response
+            return
 
-    hass.services.async_register(DOMAIN, "call_method", handle_call_method)
+        raise qrc.QRCError({"message": "No matching Q-Sys device found for call."})
+
+    hass.services.async_register(
+        DOMAIN,
+        "call_method",
+        handle_call_method,
+        supports_response=SupportsResponse.OPTIONAL,
+    )
 
     # TODO: set up values in hass.data to be used by async setup entry?
     # may use https://github.com/home-assistant/core/blob/dev/homeassistant/components/knx/__init__.py#L210
@@ -301,7 +334,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     entry.async_on_unload(lambda: core_runner_task.cancel() and None)
     hass.data.setdefault(DOMAIN, {})
     # use design name? might be harder for the user?
-    hass.data[DOMAIN][CONF_CORES][core_name] = c
+    hass.data[DOMAIN].setdefault(CONF_CORES, {})[core_name] = c
+    hass.data[DOMAIN].setdefault(CONF_CONFIG, {})[entry.entry_id] = entry
 
     registry = dr.async_get(hass)
     # TODO: reconcile with docs https://developers.home-assistant.io/docs/device_registry_index
@@ -335,6 +369,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.data[DOMAIN][CONF_CORES].pop(
             entry.data[CONF_USER_DATA][CONF_CORE_NAME], None
         )
+        hass.data[DOMAIN][CONF_CONFIG].pop(entry.entry_id, None)
         device_entry = devices.get(entry.entry_id)
         if device_entry:
             registry = dr.async_get(hass)

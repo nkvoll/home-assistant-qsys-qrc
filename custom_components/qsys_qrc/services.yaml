@@ -1,11 +1,15 @@
 call_method:
   name: Call QRC Method
-  description: Invokes a method on the Core using QRC.
+  description: |
+    Invokes a method on a Q-SYS device using QRC. See the
+    QRC Commands Documentation (https://q-syshelp.qsc.com/Index.htm#External_Control_APIs/QRC/QRC_Commands.htm)
+    for more details
   target:
     device:
       integration: qsys_qrc
     entity:
-      integration: qsys_qrc_nonexistent
+      - integration: qsys_qrc
+        domain: sensor
   fields:
     method:
       name: Method
@@ -18,11 +22,11 @@ call_method:
       name: Parameters
       description: Parameters to the method
       example: |
-        name: my apm
-        controls:
-        - name: ent.xfade.gain
-          value: -100.0
-          ramp: 2.0
+        Name: my apm
+        Controls:
+        - Name: ent.xfade.gain
+          Value: -100.0
+          Ramp: 2.0
       default: { }
       selector:
         object:
