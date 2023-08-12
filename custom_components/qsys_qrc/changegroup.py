@@ -76,7 +76,7 @@ class ChangeGroupPoller:
                 self.cg = self.core.change_group(self._change_group_name)
 
                 _LOGGER.info(
-                    "%s: adding %d controls to change group",
+                    "%s: creating changegroup with %d controls",
                     self._change_group_name,
                     len(self._listeners_component_control_changes),
                 )
@@ -101,7 +101,7 @@ class ChangeGroupPoller:
                         self.cg.poll(), self._core_request_timeout
                     )
                     _LOGGER.debug("%s: polled", self._change_group_name)
-                    _LOGGER.debug("poll result: %s", poll_result)
+                    _LOGGER.debug("Poll result: %s", poll_result)
 
                     for change in poll_result["result"]["Changes"]:
                         await self._fire_on_component_control_change(change)
@@ -109,10 +109,16 @@ class ChangeGroupPoller:
 
             except asyncio.TimeoutError as e:
                 # this is expected as we add a timeout to our requests to the core
-                _LOGGER.debug("timeout error during polling: %s", repr(e))
+                _LOGGER.debug("Timeout error during polling: %s", repr(e))
 
             except Exception as e:
-                _LOGGER.exception("error during polling: %s", repr(e))
+                if isinstance(e, qrc.QRCError) and e.error.get("code") == 6:
+                    _LOGGER.debug(
+                        "Change group probably didn't exist because of a reconnect: %s, retrying",
+                        repr(e),
+                    )
+                    continue
+                _LOGGER.exception("Error during polling: %s", repr(e))
 
             finally:
                 await self._fire_on_run_loop_iteration_ending()

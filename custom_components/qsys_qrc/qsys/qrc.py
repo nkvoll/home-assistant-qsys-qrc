@@ -61,7 +61,7 @@ class Core:
         self._running.set_result(True)
 
         while True:
-            _LOGGER.debug("run loop iteration")
+            _LOGGER.debug("Run loop iteration")
             reader = None
             try:
                 await self.connect()
@@ -80,7 +80,7 @@ class Core:
                         )
                 await reader
             except EOFError as eof:
-                _LOGGER.exception("EOF")
+                _LOGGER.info("EOF from core at [%s]", self._host)
             except aioexceptions.TimeoutError as te:
                 if self._connected.done():
                     _LOGGER.warning(
@@ -95,29 +95,30 @@ class Core:
                         PORT,
                     )
             except Exception as e:
-                _LOGGER.exception("Generic exception: %s", repr(e))
+                _LOGGER.exception("Generic exception: [%s]", repr(e))
                 await asyncio.sleep(10)
             finally:
                 if reader:
-                    _LOGGER.warning("Cancelling reader")
+                    _LOGGER.debug("Cancelling reader")
                     reader.cancel()
                 if self._writer:
                     self._writer.close()
                 if self._connected.done():
-                    _LOGGER.debug("creating new _connected future")
+                    _LOGGER.debug("Creating new _connected future")
                     self._connected = asyncio.Future()
 
     async def connect(self):
-        _LOGGER.info("connecting to %s:%d", self._host, PORT)
+        _LOGGER.info("Connecting to %s:%d", self._host, PORT)
         # TODO: make limit configurable
         opening = asyncio.open_connection(self._host, PORT, limit=5 * 1024 * 1024)
         self._reader, self._writer = await asyncio.wait_for(opening, 5)
-        _LOGGER.info("connected")
+        _LOGGER.info("Connected")
 
     async def _send(self, data):
         await asyncio.shield(self._running)
         await asyncio.shield(self._connected)
         data.setdefault("jsonrpc", "2.0")
+        _LOGGER.debug("Sending message: %s", data)
         self._writer.write(json.dumps(data).encode("utf8"))
         self._writer.write(DELIMITER)
 
@@ -141,10 +142,10 @@ class Core:
             raw_data = await self._reader.readuntil(DELIMITER)
             data = json.loads(raw_data[:-1])
             if "id" in data:
-                # _LOGGER.info("received response: %s", data)
+                _LOGGER.debug("Received response: %s", data)
                 await self._process_response(data)
             else:
-                _LOGGER.debug("received non-response: %s", data)
+                _LOGGER.debug("Received non-response: %s", data)
 
     async def _process_response(self, data):
         future = self._pending.pop(data["id"], None)
@@ -159,6 +160,9 @@ class Core:
 
     async def logon(self, username, password):
         return await self.call("Logon", params={"User": username, "Password": password})
+
+    async def status_get(self):
+        return await self.call("StatusGet")
 
     def component(self):
         return ComponentAPI(self)

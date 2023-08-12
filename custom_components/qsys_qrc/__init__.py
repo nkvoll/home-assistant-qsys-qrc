@@ -262,7 +262,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             method = call.data.get(CALL_METHOD_NAME)
             params = call.data.get(CALL_METHOD_PARAMS)
 
-            _LOGGER.info("call response: %s", await core.call(method, params))
+            _LOGGER.info("Call response: %s", await core.call(method, params))
 
     hass.services.async_register(DOMAIN, "call_method", handle_call_method)
 
@@ -275,34 +275,46 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Q-Sys QRC from a config entry."""
-    c = qrc.Core(entry.data[CONF_HOST])
+    user_data = entry.data[CONF_USER_DATA]
+    c = qrc.Core(user_data[CONF_HOST])
+    core_name = user_data[CONF_CORE_NAME]
 
     # set up automatic logon
     async def logon():
-        await c.logon(entry.data[CONF_USERNAME], entry.data[CONF_PASSWORD])
+        await c.logon(
+            user_data[CONF_USERNAME],
+            user_data[CONF_PASSWORD],
+        )
 
     c.set_on_connected_commands([logon])
     core_runner_task = asyncio.create_task(c.run_until_stopped())
     entry.async_on_unload(lambda: core_runner_task.cancel() and None)
     hass.data.setdefault(DOMAIN, {})
-    hass.data[DOMAIN][CONF_CORES][entry.data[CONF_CORE_NAME]] = c
+    # use design name? might be harder for the user?
+    hass.data[DOMAIN][CONF_CORES][core_name] = c
 
     registry = dr.async_get(hass)
     # TODO: reconcile with docs https://developers.home-assistant.io/docs/device_registry_index
     # TODO: use name_by_user?
     device_entry = registry.async_get_or_create(
         config_entry_id=entry.entry_id,
-        identifiers={(DOMAIN, entry.data[CONF_CORE_NAME])},
-        name=entry.data[CONF_CORE_NAME],
+        # TODO: use design code? not sure how to link entities to device then...
+        identifiers={
+            (DOMAIN, core_name),
+            (DOMAIN, entry.data[CONF_ENGINE_STATUS].get("DesignName")),
+        },
+        name=entry.data[CONF_ENGINE_STATUS].get("DesignName", "Unknown"),
         manufacturer="Q-Sys",
-        model="Core",
+        model=entry.data[CONF_ENGINE_STATUS].get("Platform", "Unknown"),
     )
     devices[entry.entry_id] = device_entry
 
-    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    for de in dr.async_entries_for_config_entry(registry, entry.entry_id):
+        if de != device_entry:
+            # each hub should only have one device entry..
+            registry.async_remove_device(de.id)
 
-    # polling = asyncio.create_task(h.run_poll())
-    # entry.async_on_unload(lambda: polling.cancel() and None)
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     return True
 
@@ -310,7 +322,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
     if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
-        hass.data[DOMAIN][CONF_CORES].pop(entry.data[CONF_CORE_NAME])
+        hass.data[DOMAIN][CONF_CORES].pop(
+            entry.data[CONF_USER_DATA][CONF_CORE_NAME], None
+        )
         device_entry = devices.get(entry.entry_id)
         if device_entry:
             registry = dr.async_get(hass)

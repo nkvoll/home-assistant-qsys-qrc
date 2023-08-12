@@ -29,98 +29,98 @@ async def async_setup_entry(
     """Set up sensor entities."""
 
     # TODO: remove restored entities that are no longer used?
-    core: qrc.Core
-    for core_name, core in hass.data[DOMAIN].get(CONF_CORES, {}).items():
-        entities = {}
+    core_name = entry.data[CONF_USER_DATA][CONF_CORE_NAME]
+    core: qrc.Core = hass.data[DOMAIN].get(CONF_CORES, {}).get(core_name)
+    if core is None:
+        return
 
-        poller = changegroup.ChangeGroupPoller(
-            core, f"{__name__.rsplit('.', 1)[-1]}_platform"
-        )
+    entities = {}
 
-        core_config = (
-            hass.data[DOMAIN]
-            .get(CONF_CONFIG, {})
-            .get(CONF_CORES, {})
-            .get(core_name, {})
-        )
+    poller = changegroup.ChangeGroupPoller(
+        core, f"{__name__.rsplit('.', 1)[-1]}_platform"
+    )
 
-        exclude_component_controls = core_config.get(CONF_FILTER, {}).get(
-            CONF_EXCLUDE_COMPONENT_CONTROL, []
-        )
+    core_config = (
+        hass.data[DOMAIN].get(CONF_CONFIG, {}).get(CONF_CORES, {}).get(core_name, {})
+    )
 
-        for number_config in core_config.get(CONF_PLATFORMS, {}).get(
-            CONF_NUMBER_PLATFORM, []
-        ):
-            component_name = number_config[CONF_COMPONENT]
-            control_name = number_config[CONF_CONTROL]
+    exclude_component_controls = core_config.get(CONF_FILTER, {}).get(
+        CONF_EXCLUDE_COMPONENT_CONTROL, []
+    )
 
-            should_exclude = False
-            for filter in exclude_component_controls:
-                # TODO: support globbing?
-                if (
-                    component_name == filter[CONF_COMPONENT]
-                    and control_name == filter[CONF_CONTROL]
-                ):
-                    should_exclude = True
-                    break
-            if should_exclude:
-                continue
+    for number_config in core_config.get(CONF_PLATFORMS, {}).get(
+        CONF_NUMBER_PLATFORM, []
+    ):
+        component_name = number_config[CONF_COMPONENT]
+        control_name = number_config[CONF_CONTROL]
 
-            # need to fetch component and control config first? at least if we want to default min/max etc
+        should_exclude = False
+        for filter in exclude_component_controls:
+            # TODO: support globbing?
+            if (
+                component_name == filter[CONF_COMPONENT]
+                and control_name == filter[CONF_CONTROL]
+            ):
+                should_exclude = True
+                break
+        if should_exclude:
+            continue
 
-            change_template = number_config[CONF_NUMBER_CHANGE_TEMPLATE]
-            if change_template:
-                change_template = template.Template(change_template, hass)
+        # need to fetch component and control config first? at least if we want to default min/max etc
 
-            value_template = number_config[CONF_NUMBER_VALUE_TEMPLATE]
-            if value_template:
-                value_template = template.Template(value_template, hass)
+        change_template = number_config[CONF_NUMBER_CHANGE_TEMPLATE]
+        if change_template:
+            change_template = template.Template(change_template, hass)
 
-            control_number_entity = QRCNumberEntity(
-                hass,
+        value_template = number_config[CONF_NUMBER_VALUE_TEMPLATE]
+        if value_template:
+            value_template = template.Template(value_template, hass)
+
+        control_number_entity = QRCNumberEntity(
+            hass,
+            core_name,
+            core,
+            id_for_component_control(
                 core_name,
-                core,
-                id_for_component_control(
-                    core_name,
-                    number_config[CONF_COMPONENT],
-                    number_config[CONF_CONTROL],
-                ),
-                number_config.get(CONF_ENTITY_NAME, None),
+                number_config[CONF_COMPONENT],
+                number_config[CONF_CONTROL],
+            ),
+            number_config.get(CONF_ENTITY_NAME, None),
+            component_name,
+            control_name,
+            number_config[CONF_NUMBER_USE_POSITION],
+            number_config[CONF_NUMBER_POSITION_LOWER_LIMIT],
+            number_config[CONF_NUMBER_POSITION_UPPER_LIMIT],
+            number_config[CONF_NUMBER_MIN_VALUE],
+            number_config[CONF_NUMBER_MAX_VALUE],
+            number_config[CONF_NUMBER_STEP],
+            number_config[CONF_NUMBER_MODE],
+            change_template,
+            value_template,
+            number_config[CONF_DEVICE_CLASS],
+            number_config[CONF_UNIT_OF_MEASUREMENT],
+        )
+
+        if control_number_entity.unique_id not in entities:
+            entities[control_number_entity.unique_id] = control_number_entity
+            async_add_entities([control_number_entity])
+
+            poller.subscribe_run_loop_iteration_ending(
+                control_number_entity.on_core_polling_ending
+            )
+            await poller.subscribe_component_control_changes(
+                control_number_entity.on_core_change,
                 component_name,
                 control_name,
-                number_config[CONF_NUMBER_USE_POSITION],
-                number_config[CONF_NUMBER_POSITION_LOWER_LIMIT],
-                number_config[CONF_NUMBER_POSITION_UPPER_LIMIT],
-                number_config[CONF_NUMBER_MIN_VALUE],
-                number_config[CONF_NUMBER_MAX_VALUE],
-                number_config[CONF_NUMBER_STEP],
-                number_config[CONF_NUMBER_MODE],
-                change_template,
-                value_template,
-                number_config[CONF_DEVICE_CLASS],
-                number_config[CONF_UNIT_OF_MEASUREMENT],
             )
 
-            if control_number_entity.unique_id not in entities:
-                entities[control_number_entity.unique_id] = control_number_entity
-                async_add_entities([control_number_entity])
+    if len(entities) > 0:
+        polling = asyncio.create_task(poller.run_while_core_running())
 
-                poller.subscribe_run_loop_iteration_ending(
-                    control_number_entity.on_core_polling_ending
-                )
-                await poller.subscribe_component_control_changes(
-                    control_number_entity.on_core_change,
-                    component_name,
-                    control_name,
-                )
+        def on_unload():
+            polling.cancel()
 
-        if len(entities) > 0:
-            polling = asyncio.create_task(poller.run_while_core_running())
-
-            def on_unload():
-                polling.cancel()
-
-            entry.async_on_unload(on_unload)
+        entry.async_on_unload(on_unload)
 
 
 class QRCNumberEntity(QSysComponentControlBase, NumberEntity):
@@ -180,7 +180,7 @@ class QRCNumberEntity(QSysComponentControlBase, NumberEntity):
 
     # async def async_update(self):
     #    res = await self.core.component().get(self.component, [{"Name": self.control}])
-    #    _LOGGER.info("maybe update: %s", res)
+    #    _LOGGER.info("Maybe update: %s", res)
 
     async def on_control_changed(self, core, change):
         # TODO: figure out value vs native_value. Is that a better place for the conversion?

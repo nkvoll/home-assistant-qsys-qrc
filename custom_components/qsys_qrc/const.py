@@ -51,3 +51,6 @@ CALL_METHOD_NAME = "method"
 CALL_METHOD_PARAMS = "params"
 
 CONF_SENSOR_ATTRIBUTE = "attribute"
+
+CONF_USER_DATA = "user_data"
+CONF_ENGINE_STATUS = "engine_status"

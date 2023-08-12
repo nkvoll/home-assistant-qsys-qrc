@@ -48,92 +48,92 @@ async def async_setup_entry_safe(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up media player entities."""
-
     # TODO: remove restored entities that are no longer used?
-    core: qrc.Core
-    for core_name, core in hass.data[DOMAIN].get(CONF_CORES, {}).items():
-        entities = {}
-        # can platform name be more dynamic than this?
-        poller = changegroup.ChangeGroupPoller(
-            core, f"{__name__.rsplit('.', 1)[-1]}_platform"
-        )
+    core_name = entry.data[CONF_USER_DATA][CONF_CORE_NAME]
+    core: qrc.Core = hass.data[DOMAIN].get(CONF_CORES, {}).get(core_name)
+    if core is None:
+        return
 
-        # TODO: this is a little hard to reload at the moment, do via listener instead?
-        # TODO: timeouts for remote calls like these?
-        components = await core.component().get_components()
-        component_by_name = {}
-        for component in components["result"]:
-            component_by_name[component["Name"]] = component
+    entities = {}
+    # can platform name be more dynamic than this?
+    poller = changegroup.ChangeGroupPoller(
+        core, f"{__name__.rsplit('.', 1)[-1]}_platform"
+    )
 
-        for media_player_config in (
-            hass.data[DOMAIN]
-            .get(CONF_CONFIG, {})
-            .get(CONF_CORES, {})
-            .get(core_name, [])
-            .get(CONF_PLATFORMS, {})
-            .get(CONF_MEDIA_PLAYER_PLATFORM, [])
-        ):
-            component_name = media_player_config[CONF_COMPONENT]
+    # TODO: this is a little hard to reload at the moment, do via listener instead?
+    # TODO: timeouts for remote calls like these?
+    components = await core.component().get_components()
+    component_by_name = {}
+    for component in components["result"]:
+        component_by_name[component["Name"]] = component
 
-            component = component_by_name.get(component_name)
+    for media_player_config in (
+        hass.data[DOMAIN]
+        .get(CONF_CONFIG, {})
+        .get(CONF_CORES, {})
+        .get(core_name, {})
+        .get(CONF_PLATFORMS, {})
+        .get(CONF_MEDIA_PLAYER_PLATFORM, [])
+    ):
+        component_name = media_player_config[CONF_COMPONENT]
 
-            media_player_entity = None
-            component_type = component["Type"]
-            if component_type == "URL_receiver":
-                media_player_entity = QRCUrlReceiverEntity(
-                    hass,
-                    core_name,
-                    core,
-                    id_for_component(core_name, media_player_config[CONF_COMPONENT]),
-                    media_player_config.get(CONF_ENTITY_NAME, None),
+        component = component_by_name.get(component_name)
+
+        media_player_entity = None
+        component_type = component["Type"]
+        if component_type == "URL_receiver":
+            media_player_entity = QRCUrlReceiverEntity(
+                hass,
+                core_name,
+                core,
+                id_for_component(core_name, media_player_config[CONF_COMPONENT]),
+                media_player_config.get(CONF_ENTITY_NAME, None),
+                component_name,
+                media_player_config[CONF_DEVICE_CLASS],
+            )
+        elif component_type == "audio_file_player":
+            media_player_entity = QRCAudioFilePlayerEntity(
+                hass,
+                core_name,
+                core,
+                id_for_component(core_name, media_player_config[CONF_COMPONENT]),
+                media_player_config.get(CONF_ENTITY_NAME, None),
+                component_name,
+                media_player_config[CONF_DEVICE_CLASS],
+            )
+        else:
+            msg = f"Component has invalid type for media player: {component_type}"
+            _LOGGER.warning(msg)
+            raise PlatformNotReady(msg)
+
+        if media_player_entity.unique_id not in entities:
+            entities[media_player_entity.unique_id] = media_player_entity
+            async_add_entities([media_player_entity])
+
+            poller.subscribe_run_loop_iteration_ending(
+                media_player_entity.on_core_polling_ending
+            )
+
+            get_controls_result = await core.component().get_controls(component_name)
+
+            for control in get_controls_result["result"]["Controls"]:
+                # avoid polling peak levels for media players because we're not utilizing them on the HA side
+                if control["Name"].endswith(".peak.level"):
+                    continue
+                await poller.subscribe_component_control_changes(
+                    media_player_entity.on_changed,
                     component_name,
-                    media_player_config[CONF_DEVICE_CLASS],
-                )
-            elif component_type == "audio_file_player":
-                media_player_entity = QRCAudioFilePlayerEntity(
-                    hass,
-                    core_name,
-                    core,
-                    id_for_component(core_name, media_player_config[CONF_COMPONENT]),
-                    media_player_config.get(CONF_ENTITY_NAME, None),
-                    component_name,
-                    media_player_config[CONF_DEVICE_CLASS],
-                )
-            else:
-                msg = f"Component has invalid type for media player: {component_type}"
-                _LOGGER.warning(msg)
-                raise PlatformNotReady(msg)
-
-            if media_player_entity.unique_id not in entities:
-                entities[media_player_entity.unique_id] = media_player_entity
-                async_add_entities([media_player_entity])
-
-                poller.subscribe_run_loop_iteration_ending(
-                    media_player_entity.on_core_polling_ending
+                    control["Name"],
                 )
 
-                get_controls_result = await core.component().get_controls(
-                    component_name
-                )
+    if len(entities) > 0:
+        # TODO: handle poll exceptions, disconnections and re-connections
+        polling = asyncio.create_task(poller.run_while_core_running())
 
-                for control in get_controls_result["result"]["Controls"]:
-                    # avoid polling peak levels for media players because we're not utilizing them on the HA side
-                    if control["Name"].endswith(".peak.level"):
-                        continue
-                    await poller.subscribe_component_control_changes(
-                        media_player_entity.on_changed,
-                        component_name,
-                        control["Name"],
-                    )
+        def on_unload():
+            polling.cancel()
 
-        if len(entities) > 0:
-            # TODO: handle poll exceptions, disconnections and re-connections
-            polling = asyncio.create_task(poller.run_while_core_running())
-
-            def on_unload():
-                polling.cancel()
-
-            entry.async_on_unload(on_unload)
+        entry.async_on_unload(on_unload)
 
 
 class QRCUrlReceiverEntity(QSysComponentBase, MediaPlayerEntity):
@@ -161,7 +161,7 @@ class QRCUrlReceiverEntity(QSysComponentBase, MediaPlayerEntity):
         self._qsys_state = {}
 
     def on_changed(self, core, change):
-        _LOGGER.debug("media player control %s changed: %s", self.unique_id, change)
+        _LOGGER.debug("Media player control %s changed: %s", self.unique_id, change)
 
         self._attr_available = True
 
@@ -296,7 +296,7 @@ class QRCAudioFilePlayerEntity(QSysComponentBase, MediaPlayerEntity):
         self._qsys_state = {}
 
     def on_changed(self, core, change):
-        _LOGGER.warning("media player control %s changed: %s", self.unique_id, change)
+        _LOGGER.warning("Media player control %s changed: %s", self.unique_id, change)
 
         self._attr_available = True
 
