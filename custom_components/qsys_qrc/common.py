@@ -3,7 +3,7 @@ import re
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry, entity
 
-from .const import DOMAIN
+from .const import *
 from .qsys import qrc
 
 
@@ -14,6 +14,10 @@ def id_for_component_control(core_name, component, control):
 
 def id_for_component(core_name, component):
     return f"{core_name}_{component}"
+
+
+def config_for_core(hass, core_name):
+    return hass.data[DOMAIN].get(CONF_CONFIG, {}).get(CONF_CORES, {}).get(core_name, {})
 
 
 _camel_pattern = re.compile(r"(?<!^)(?=[A-Z])")

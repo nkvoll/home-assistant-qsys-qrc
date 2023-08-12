@@ -18,6 +18,10 @@ CONF_PASSWORD = "password"
 
 CONF_CONFIG = "config"
 
+CONF_CHANGEGROUP = "change_group"
+CONF_POLL_INTERVAL = "poll_interval"
+CONF_REQUEST_TIMEOUT = "request_timeout"
+
 CONF_FILTER = "filter"
 CONF_EXCLUDE_COMPONENT_CONTROL = "exclude_component_control"
 

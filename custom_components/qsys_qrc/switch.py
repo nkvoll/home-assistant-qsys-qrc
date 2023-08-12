@@ -10,7 +10,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import changegroup
-from .common import QSysComponentControlBase, id_for_component_control
+from .common import QSysComponentControlBase, id_for_component_control, config_for_core
 from .const import *
 from .qsys import qrc
 
@@ -31,17 +31,15 @@ async def async_setup_entry(
         return
 
     entities = {}
-    poller = changegroup.ChangeGroupPoller(
-        core, f"{__name__.rsplit('.', 1)[-1]}_platform"
+
+    core_config = config_for_core(hass, core_name)
+    # can platform name be more dynamic than this?
+    poller = changegroup.create_change_group_for_platform(
+        core, core_config.get(CONF_CHANGEGROUP), __name__.rsplit(".", 1)[-1]
     )
 
-    for switch_config in (
-        hass.data[DOMAIN]
-        .get(CONF_CONFIG, {})
-        .get(CONF_CORES, {})
-        .get(core_name, {})
-        .get(CONF_PLATFORMS, {})
-        .get(CONF_SWITCH_PLATFORM, [])
+    for switch_config in core_config.get(CONF_PLATFORMS, {}).get(
+        CONF_SWITCH_PLATFORM, []
     ):
         component_name = switch_config[CONF_COMPONENT]
         control_name = switch_config[CONF_CONTROL]

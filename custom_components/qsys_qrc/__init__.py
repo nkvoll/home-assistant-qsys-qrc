@@ -46,6 +46,16 @@ CONFIG_SCHEMA = vol.Schema(
                                         )
                                     }
                                 ),
+                                vol.Optional(CONF_CHANGEGROUP): vol.Schema(
+                                    {
+                                        vol.Optional(
+                                            CONF_POLL_INTERVAL, default=1.0
+                                        ): float,
+                                        vol.Optional(
+                                            CONF_REQUEST_TIMEOUT, default=5.0
+                                        ): float,
+                                    }
+                                ),
                                 vol.Optional(CONF_PLATFORMS): vol.Schema(
                                     {
                                         CONF_MEDIA_PLAYER_PLATFORM: vol.Schema(
