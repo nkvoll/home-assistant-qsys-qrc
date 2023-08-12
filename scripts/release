@@ -17,6 +17,11 @@ if [[ $(git diff --stat) != '' ]] || [[ $(git diff --stat --staged) != '' ]]; th
   exit -1
 fi
 
+if [[ $(git branch --show-current) != 'main' ]]; then
+  echo 'can only release from main at the moment'
+  exit -1
+fi
+
 echo
 echo "Run the following commands to release \"${CURRENT_RELEASE}\" and bump development version to \"${NEXT_RELEASE}\"."
 echo ""
