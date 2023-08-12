@@ -8,6 +8,7 @@ from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers import entity_registry as er
 
 from . import changegroup
 from .common import QSysComponentControlBase, id_for_component_control, config_for_core
@@ -15,6 +16,7 @@ from .const import *
 from .qsys import qrc
 
 _LOGGER = logging.getLogger(__name__)
+PLATFORM = __name__.rsplit(".", 1)[-1]
 
 
 async def async_setup_entry(
@@ -35,7 +37,7 @@ async def async_setup_entry(
     core_config = config_for_core(hass, core_name)
     # can platform name be more dynamic than this?
     poller = changegroup.create_change_group_for_platform(
-        core, core_config.get(CONF_CHANGEGROUP), __name__.rsplit(".", 1)[-1]
+        core, core_config.get(CONF_CHANGEGROUP), PLATFORM
     )
 
     for switch_config in core_config.get(CONF_PLATFORMS, {}).get(
@@ -80,6 +82,15 @@ async def async_setup_entry(
             polling.cancel()
 
         entry.async_on_unload(on_unload)
+
+    for entity_entry in er.async_entries_for_config_entry(
+        er.async_get(hass), entry.entry_id
+    ):
+        if entity_entry.domain != PLATFORM:
+            continue
+        if not entities.get(entity_entry.unique_id):
+            _LOGGER.debug("Removing old entity: %s", entity_entry.entity_id)
+            er.async_get(hass).async_remove(entity_entry.entity_id)
 
 
 class QRCSwitchEntity(QSysComponentControlBase, SwitchEntity):
