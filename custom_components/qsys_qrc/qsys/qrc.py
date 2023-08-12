@@ -33,8 +33,9 @@ class QRCError(Exception):
 
 
 class Core:
-    def __init__(self, host):
+    def __init__(self, host, port: int = PORT):
         self._host = host
+        self._port = port
         self._reader = None
         self._writer = None
         self._id = 0
@@ -86,13 +87,13 @@ class Core:
                     _LOGGER.warning(
                         "Timeouterror while reading from remote [%s:%d]",
                         self._host,
-                        PORT,
+                        self._port,
                     )
                 else:
                     _LOGGER.warning(
-                        "Timeouterror while connecting to remote [%s:%d]",
+                        "TimeoutError while connecting to remote [%s:%d]",
                         self._host,
-                        PORT,
+                        self._port,
                     )
             except Exception as e:
                 _LOGGER.exception("Generic exception: [%s]", repr(e))
@@ -114,9 +115,9 @@ class Core:
                         )
 
     async def connect(self):
-        _LOGGER.info("Connecting to %s:%d", self._host, PORT)
+        _LOGGER.info("Connecting to %s:%d", self._host, self._port)
         # TODO: make limit configurable
-        opening = asyncio.open_connection(self._host, PORT, limit=5 * 1024 * 1024)
+        opening = asyncio.open_connection(self._host, self._port, limit=5 * 1024 * 1024)
         self._reader, self._writer = await asyncio.wait_for(opening, 5)
         _LOGGER.info("Connected")
 

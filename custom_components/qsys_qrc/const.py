@@ -13,6 +13,7 @@ CONF_MEDIA_PLAYER_PLATFORM = "media_player"
 CONF_CORE_NAME = "core_name"
 
 CONF_HOST = "host"
+CONF_PORT = "port"
 CONF_USERNAME = "username"
 CONF_PASSWORD = "password"
 

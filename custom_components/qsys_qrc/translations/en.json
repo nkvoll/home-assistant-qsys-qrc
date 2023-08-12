@@ -13,8 +13,35 @@
         "data": {
           "core_name": "Core Name",
           "host": "Host",
-          "password": "Password",
-          "username": "Username"
+          "port": "Port",
+          "username": "Username",
+          "password": "Password"
+        },
+        "data_description": {
+          "core_name": "Core Name is used as an identifier used in configuration.yaml.",
+          "password": "Password is usually a 4 digit PIN as configured in Q-Sys Administrator."
+        }
+      }
+    }
+  },
+  "options": {
+    "error": {
+      "cannot_connect": "Failed to connect",
+      "invalid_auth": "Invalid authentication",
+      "unknown": "Unexpected error"
+    },
+    "step": {
+      "init": {
+        "data": {
+          "core_name": "Core Name",
+          "host": "Host",
+          "port": "Port",
+          "username": "Username",
+          "password": "Password"
+        },
+        "data_description": {
+          "core_name": "Core Name is used as an identifier used in configuration.yaml.",
+          "password": "Password is usually a 4 digit PIN as configured in Q-Sys Administrator."
         }
       }
     }
