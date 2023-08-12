@@ -113,8 +113,13 @@ async def async_setup_entry(
                 engine_status_sensor.async_write_ha_state()
             except Exception as e:
                 engine_status_sensor.set_available(False)
+                # no point in setting anything if unavailable, won't show up. maybe consider having
+                # another channel for availability?
+                # if isinstance(e, qrc.QRCError):
+                #     engine_status_sensor.set_attr_extra_state_attributes(
+                #         status.get("error", e.error)
+                #     )
                 engine_status_sensor.async_write_ha_state()
-                pass
             finally:
                 await asyncio.sleep(5)
 

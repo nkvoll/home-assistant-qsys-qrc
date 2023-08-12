@@ -107,6 +107,12 @@ class Core:
                     _LOGGER.debug("Creating new _connected future")
                     self._connected = asyncio.Future()
 
+                    # tell pending requests that we failed
+                    for _, future in self._pending.items():
+                        future.set_exception(
+                            QRCError({"code": -1, "message": "disconnected"})
+                        )
+
     async def connect(self):
         _LOGGER.info("Connecting to %s:%d", self._host, PORT)
         # TODO: make limit configurable
