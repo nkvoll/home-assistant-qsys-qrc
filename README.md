@@ -34,12 +34,11 @@ See [the example configuration](examples/configuration.yaml) for an example of w
 
 ### TODO
 
-
 - Add tests, see [`pytest-homeassistant-custom-component`](https://github.com/MatthewFlamm/pytest-homeassistant-custom-component) to get started.
 - Add brand images (logo/icon) to https://github.com/home-assistant/brands.
 - Create a releasee.
-- Share your integration on the [Home Assistant Forum](https://community.home-assistant.io/).
-- Submit your integration to the [HACS](https://hacs.xyz/docs/publish/start).
+- Share the integration on the [Home Assistant Forum](https://community.home-assistant.io/).
+- Submit the integration to the [HACS](https://hacs.xyz/docs/publish/start).
 - Verify audio player works in practice as HA media players.
 - Anything else?
 
