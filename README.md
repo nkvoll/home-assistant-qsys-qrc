@@ -22,7 +22,7 @@ Add the custom component via your `custom_components` folder or via HACS (untest
 1. Fill in the form with `Repository: https://github.com/nkvoll/home-assistant-qsys-qrc`, `Category: Integration` and click "Add".
 1. Once it's added, you can search for `q-sys qrc`, click the integration and select "Download".
 1. Restart Home Assistant ("Settings" -> three dots top right corner -> "Restart Home Assistant")
-1. In the HA UI go to "Configuration" -> "Integrations" click "+" and search for "Q-Sys QRC Integration"
+1. In the HA UI go to "Configuration" -> "Devices & Services" click "+ Add Integration" (bottom right corner) and search for "Q-Sys QRC Integration"
 
 #### Manual installation
 
@@ -32,7 +32,7 @@ Add the custom component via your `custom_components` folder or via HACS (untest
 1. Download _all_ the files from the `custom_components/qsys_qrc/` directory (folder) in this repository.
 1. Place the files you downloaded in the new directory (folder) you created.
 1. Restart Home Assistant ("Settings" -> three dots top right corner -> "Restart Home Assistant")
-1. In the HA UI go to "Configuration" -> "Integrations" click "+" and search for "Q-Sys QRC Integration"
+1. In the HA UI go to "Configuration" -> "Devices & Services" click "+ Add Integration" (bottom right corner) and search for "Q-Sys QRC Integration"
 
 ### Configuring
 

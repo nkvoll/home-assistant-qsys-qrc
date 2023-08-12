@@ -95,7 +95,9 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 ),
             )
 
-        if user_input[CONF_CORE_NAME] in self.hass.data[DOMAIN][CONF_CORES]:
+        if user_input[CONF_CORE_NAME] in self.hass.data.get(DOMAIN, {}).get(
+            CONF_CORES, {}
+        ):
             raise data_entry_flow.AbortFlow("already_configured")
 
         errors = {}
