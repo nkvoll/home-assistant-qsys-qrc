@@ -90,7 +90,8 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             return self.async_show_form(
                 step_id="user",
                 data_schema=self.add_suggested_values_to_schema(
-                    STEP_USER_DATA_SCHEMA, {CONF_CORE_NAME: suggested_name}
+                    STEP_USER_DATA_SCHEMA,
+                    {CONF_CORE_NAME: suggested_name},
                 ),
             )
 
@@ -115,7 +116,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             errors["base"] = "unknown"
         else:
             return self.async_create_entry(
-                title=f"{data[CONF_ENGINE_STATUS].get("DesignName", data[CONF_USER_DATA][CONF_CORE_NAME])}",
+                title=f"{data[CONF_ENGINE_STATUS].get('DesignName', data[CONF_USER_DATA][CONF_CORE_NAME])}",
                 data=data,
             )
 

@@ -11,8 +11,8 @@ scene: !include scenes.yaml
 
 logger:
   default: info
-  logs:
-    homeassistant.components.cloud: debug
+  #logs:
+  #  homeassistant.components.cloud: warn
 
 qsys_qrc:
   cores:
