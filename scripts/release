@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+
+set -e
+
+cd "$(dirname "$0")/.."
+
+CURRENT_RELEASE=$1
+NEXT_RELEASE=$2
+
+set -x
+if ! [[ "${CURRENT_RELEASE}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+[.a-z0-9]*$ ]]; then echo 'invalid current release version'; exit 1; fi;
+if ! [[ "${NEXT_RELEASE}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+[.a-z0-9]*$ ]]; then echo 'invalid next release version'; exit 1; fi;
+{ set +x; } 2>/dev/null
+
+if [[ $(git diff --stat) != '' ]] || [[ $(git diff --stat --staged) != '' ]]; then
+  echo 'working tree dirty, cannot release'
+  exit -1
+fi
+
+echo jq -e ".version = \"${CURRENT_RELEASE}\"" custom_components/qsys_qrc/manifest.json
+echo git add custom_components/qsys_qrc/manifest.json
+echo git commit -m "release ${CURRENT_RELEASE}"
+echo git tag "${CURRENT_RELEASE}"
+echo jq -e ".version = \"${NEXT_RELEASE}\"" custom_components/qsys_qrc/manifest.json
+echo git commit -m "bump version ${NEXT_RELEASE}"
+echo git push --tags

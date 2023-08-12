@@ -14,6 +14,16 @@ A custom component that integrates Q-Sys Cores with Home Assistant via [QRC](htt
 
 Add the custom component via your `custom_components` folder or via HACS (untested).
 
+#### Via HACS
+
+1. Install HACS
+1. Open HACS in the sidebar and go to "Integrations".
+1. Press the three dots in the top right corner and select "Custom repositories"
+1. Fill in the form with `Repository: https://github.com/nkvoll/home-assistant-qsys-qrc`, `Category: Integration` and click "Add".
+1. Once it's added, you can search for `q-sys qrc`, click the integration and select "Download".
+1. Restart Home Assistant ("Settings" -> three dots top right corner -> "Restart Home Assistant")
+1. In the HA UI go to "Configuration" -> "Integrations" click "+" and search for "Q-Sys QRC Integration"
+
 #### Manual installation
 
 1. Using the tool of choice open the directory (folder) for your HA configuration (where you find `configuration.yaml`).
@@ -21,14 +31,14 @@ Add the custom component via your `custom_components` folder or via HACS (untest
 1. In the `custom_components` directory (folder) create a new folder called `qsys_qrc`.
 1. Download _all_ the files from the `custom_components/qsys_qrc/` directory (folder) in this repository.
 1. Place the files you downloaded in the new directory (folder) you created.
-1. Restart Home Assistant
+1. Restart Home Assistant ("Settings" -> three dots top right corner -> "Restart Home Assistant")
 1. In the HA UI go to "Configuration" -> "Integrations" click "+" and search for "Q-Sys QRC Integration"
 
 ### Configuring
 
 First, set up the integration through the UI to configure the core name and credentials.
 
-To expose component controls to HA, configure them via the configuration file.
+To expose component controls to HA, configure them via the configuration file (`configuration.yaml`).
 
 See [the example configuration](examples/configuration.yaml) for an example of what can be configured.
 
