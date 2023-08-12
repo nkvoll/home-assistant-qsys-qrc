@@ -4,7 +4,6 @@
 [![GitHub Activity][commits-shield]][commits]
 [![License][license-shield]](LICENSE.md)
 [![hacs][hacsbadge]][hacs]
-
 [![Community Forum][forum-shield]][forum]
 
 Note: This is a work in progress.
