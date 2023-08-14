@@ -1,17 +1,13 @@
 {
   "domain": "qsys_qrc",
   "name": "Q-Sys QRC Integration",
-  "config_flow": true,
-  "documentation": "https://github.com/nkvoll/home-assistant-qsys-qrc",
-  "issue_tracker": "https://github.com/nkvoll/home-assistant-qsys-qrc/issues",
-  "requirements": [],
-  "ssdp": [],
-  "zeroconf": [],
-  "homekit": {},
   "codeowners": [
     "@nkvoll"
   ],
+  "config_flow": true,
+  "documentation": "https://github.com/nkvoll/home-assistant-qsys-qrc",
+  "integration_type": "hub",
   "iot_class": "local_polling",
-  "version": "v0.1.5.dev0",
-  "integration_type": "hub"
+  "issue_tracker": "https://github.com/nkvoll/home-assistant-qsys-qrc/issues",
+  "version": "v0.1.5.dev0"
 }
