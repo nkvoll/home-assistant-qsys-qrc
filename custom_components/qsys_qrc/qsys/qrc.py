@@ -109,10 +109,12 @@ class Core:
                     self._connected = asyncio.Future()
 
                     # tell pending requests that we failed
+                    future: asyncio.Future
                     for _, future in self._pending.items():
-                        future.set_exception(
-                            QRCError({"code": -1, "message": "disconnected"})
-                        )
+                        if not future.done():
+                            future.set_exception(
+                                QRCError({"code": -1, "message": "disconnected"})
+                            )
 
     async def connect(self):
         _LOGGER.info("Connecting to %s:%d", self._host, self._port)
@@ -156,7 +158,7 @@ class Core:
 
     async def _process_response(self, data):
         future = self._pending.pop(data["id"], None)
-        if future:
+        if future and not future.done():
             if "error" in data:
                 future.set_exception(QRCError(data["error"]))
             else:
