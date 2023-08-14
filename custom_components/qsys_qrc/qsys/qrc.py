@@ -127,7 +127,7 @@ class Core:
         await asyncio.shield(self._running)
         await asyncio.shield(self._connected)
         data.setdefault("jsonrpc", "2.0")
-        _LOGGER.debug("Sending message: %s", data)
+        _LOGGER.debug("Sending message: %s", json.dumps(data).encode("utf8"))
         self._writer.write(json.dumps(data).encode("utf8"))
         self._writer.write(DELIMITER)
 

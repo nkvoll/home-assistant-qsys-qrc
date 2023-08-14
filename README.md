@@ -19,6 +19,14 @@ A custom component that integrates Q-Sys Core Devices with Home Assistant via [Q
         - Volume control (stereo channels)
         - Browse media
         - Play media
+    - [Audio Player / Audio File Player](https://q-syshelp.qsc.com/Index.htm#Schematic_Library/audio_file_player.htm)
+        - On/Off (Enable/Disable)
+        - Mute control
+        - Volume control
+        - Browse media (files on the Core)
+        - Play media (files on the Core)
+        - Seek
+        - Loop on/off
 
 - `number` platform:
     - `Value` controls (e.g gains)
@@ -113,11 +121,8 @@ target:
 ### TODO
 
 - Add tests, see [`pytest-homeassistant-custom-component`](https://github.com/MatthewFlamm/pytest-homeassistant-custom-component) to get started.
-- Add brand images (logo/icon) to https://github.com/home-assistant/brands.
-- Create a releasee.
 - Share the integration on the [Home Assistant Forum](https://community.home-assistant.io/).
-- Submit the integration to the [HACS](https://hacs.xyz/docs/publish/start).
-- Verify audio player works in practice as HA media players.
+- In progress: Submit the integration to the [HACS](https://hacs.xyz/docs/publish/start).
 - Anything else?
 
 ### Contributions are welcome!

@@ -8,13 +8,16 @@ from typing import Any
 from homeassistant.components import media_source
 from homeassistant.components.media_player import (
     BrowseMedia,
+    MediaClass,
     MediaPlayerEnqueue,
     MediaPlayerEntity,
     MediaPlayerEntityFeature,
     MediaPlayerState,
     MediaType,
+    RepeatMode,
     async_process_play_media_url,
 )
+
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import PlatformNotReady
@@ -149,13 +152,13 @@ class QRCUrlReceiverEntity(QSysComponentBase, MediaPlayerEntity):
         MediaPlayerEntityFeature(0)
         | MediaPlayerEntityFeature.VOLUME_SET
         | MediaPlayerEntityFeature.VOLUME_MUTE
-        | MediaPlayerEntityFeature.PLAY_MEDIA
         # | MediaPlayerEntityFeature.PLAY
         # | MediaPlayerEntityFeature.STOP
         | MediaPlayerEntityFeature.TURN_ON
         | MediaPlayerEntityFeature.TURN_OFF
         # | MediaPlayerEntityFeature.SELECT_SOURCE
         # | MediaPlayerEntityFeature.SELECT_SOUND_MODE
+        | MediaPlayerEntityFeature.PLAY_MEDIA
         | MediaPlayerEntityFeature.BROWSE_MEDIA
     )
 
@@ -250,6 +253,7 @@ class QRCUrlReceiverEntity(QSysComponentBase, MediaPlayerEntity):
         """Implement the websocket media browsing helper."""
         # If your media player has no own media sources to browse, route all browse commands
         # to the media source integration.
+
         return await media_source.async_browse_media(
             self.hass,
             media_content_id,
@@ -276,7 +280,8 @@ class QRCUrlReceiverEntity(QSysComponentBase, MediaPlayerEntity):
             media_id = async_process_play_media_url(self.hass, play_item.url)
 
         await self.core.component().set(
-            self.component, [{"Name": "url", "Value": media_id}]
+            self.component,
+            [{"Name": "url", "Value": media_id}, {"Name": "enable", "Value": 1.0}],
         )
 
 
@@ -285,12 +290,14 @@ class QRCAudioFilePlayerEntity(QSysComponentBase, MediaPlayerEntity):
         MediaPlayerEntityFeature(0)
         | MediaPlayerEntityFeature.VOLUME_SET
         | MediaPlayerEntityFeature.VOLUME_MUTE
-        | MediaPlayerEntityFeature.PLAY_MEDIA
         | MediaPlayerEntityFeature.PLAY
         | MediaPlayerEntityFeature.STOP
+        | MediaPlayerEntityFeature.PAUSE
         | MediaPlayerEntityFeature.SEEK
+        | MediaPlayerEntityFeature.REPEAT_SET
         # | MediaPlayerEntityFeature.SELECT_SOURCE
         # | MediaPlayerEntityFeature.SELECT_SOUND_MODE
+        | MediaPlayerEntityFeature.PLAY_MEDIA
         | MediaPlayerEntityFeature.BROWSE_MEDIA
     )
 
@@ -304,7 +311,9 @@ class QRCAudioFilePlayerEntity(QSysComponentBase, MediaPlayerEntity):
         self._qsys_state = {}
 
     def on_changed(self, core, change):
-        _LOGGER.warning("Media player control %s changed: %s", self.unique_id, change)
+        _LOGGER.info(
+            "Media player control %s changed: %s", self.unique_id, change["Name"]
+        )
 
         self._attr_available = True
 
@@ -313,14 +322,7 @@ class QRCAudioFilePlayerEntity(QSysComponentBase, MediaPlayerEntity):
 
         self._qsys_state[name] = change
 
-        if name == "enable":
-            self._update_state()
-            _LOGGER.info("Status updated: %s", change)
-
-        elif name == "status":
-            self._update_state()
-
-        elif name == "track.name":
+        if name == "track.name":
             self._attr_media_title = value
 
         elif name == "gain":
@@ -331,32 +333,37 @@ class QRCAudioFilePlayerEntity(QSysComponentBase, MediaPlayerEntity):
         elif name == "mute" or name == "mute":
             self._attr_is_volume_muted = value == 1.0
 
+        elif name == "loop":
+            self._attr_repeat = RepeatMode.ALL if value else RepeatMode.OFF
+
         elif name == "progress":
-            # TODO: does this need to update / be invalidated with playing states?
-            self._attr_media_position = change["Position"]
+            self._attr_media_position = change["Value"]
             self._attr_media_position_updated_at = utcnow()
 
-        self.async_write_ha_state()
+            self._attr_media_duration = self._qsys_state.get("progress", {}).get(
+                "Value", 0
+            ) + self._qsys_state.get("remaining", {}).get("Value", 0)
 
-    # browsing bits
-    # {'Component': 'audio_player_doorbell_main', 'Name': 'directory', 'String': '', 'Value': 0.0, 'Position': 0.0, 'Choices': [], 'Color': ''}
-    # {'Component': 'audio_player_doorbell_main', 'Name': 'directory.ui', 'String': '', 'Value': 0.0, 'Position': 0.0, 'Choices': [], 'Color': '', 'Disabled': True}
-    # {'Component': 'audio_player_doorbell_main', 'Name': 'filename', 'String': '', 'Value': 0.0, 'Position': 0.0, 'Choices': [], 'Color': ''}
-    # {'Component': 'audio_player_doorbell_main', 'Name': 'filename.ui', 'String': '', 'Value': 0.0, 'Position': 0.0, 'Choices': [], 'Color': '', 'Disabled': True}
-    # {'Component': 'audio_player_doorbell_main', 'Name': 'root', 'String': 'Audio/', 'Value': 0.0, 'Position': 0.0, 'Choices': [], 'Color': ''}
-    # {'Component': 'audio_player_doorbell_main', 'Name': 'root.ui', 'String': 'Audio/', 'Value': 0.0, 'Position': 0.0, 'Choices': [], 'Color': '', 'Disabled': True}
+        elif name == "remaining":
+            self._attr_media_duration = self._qsys_state.get("progress", {}).get(
+                "Value", 0
+            ) + self._qsys_state.get("remaining", {}).get("Value", 0)
+
+        if name in ["playing", "stopped", "pause", "progress", "remaining", "status"]:
+            self._update_state()
+
+        self.async_write_ha_state()
 
     def _update_state(self):
         if self._qsys_state.get("playing", {}).get("Value", 0.0) == 1.0:
             self._attr_state = MediaPlayerState.PLAYING
-        elif self._qsys_state.get("paused", {}).get("Value", 0.0) == 1.0:
-            self._attr_state = MediaPlayerState.PAUSED
         elif self._qsys_state.get("stopped", {}).get("Value", 0.0) == 1.0:
             self._attr_state = MediaPlayerState.IDLE
+        elif self._qsys_state.get("paused", {}).get("Value", 0.0) == 1.0:
+            self._attr_state = MediaPlayerState.PAUSED
         else:
             # TODO: include "status" field values?
             self._attr_state = MediaPlayerState.ON
-            return
 
     async def async_media_play(self) -> None:
         await self.core.component().set(
@@ -374,9 +381,8 @@ class QRCAudioFilePlayerEntity(QSysComponentBase, MediaPlayerEntity):
         )
 
     async def async_media_seek(self, position: float) -> None:
-        # TODO: position? range of this + actual control to use is unclear, could be progress/remaining?
         await self.core.component().set(
-            self.component, [{"Name": "locate", "Position": position}]
+            self.component, [{"Name": "locate", "Value": position}]
         )
 
     async def async_mute_volume(self, mute: bool) -> None:
@@ -395,24 +401,91 @@ class QRCAudioFilePlayerEntity(QSysComponentBase, MediaPlayerEntity):
             ],
         )
 
+    async def async_set_repeat(self, repeat: RepeatMode) -> None:
+        await self.core.component().set(
+            self.component,
+            [
+                {"Name": "loop", "Value": repeat == RepeatMode.ALL},
+            ],
+        )
+
     async def async_browse_media(
         self, media_content_type: str | None = None, media_content_id: str | None = None
     ) -> BrowseMedia:
         """Implement the websocket media browsing helper."""
-        _LOGGER.warning(
-            "UNSUPPORTED / UNTESTED: browse_media: media_content_type:%s, media_content_id:%s",
-            media_content_type,
-            media_content_id,
+        current_directory_name = media_content_id
+        if not media_content_id:
+            current_directory_name = ""
+
+        # TODO: make it possible to configure/restrict to certain roots?
+        await self.core.component().set(
+            self.component,
+            controls=[
+                {"Name": "root.ui", "Value": current_directory_name},
+                {"Name": "directory.ui", "Value": ""},
+            ],
         )
 
-        # If your media player has no own media sources to browse, route all browse commands
-        # to the media source integration.
-        return await media_source.async_browse_media(
-            self.hass,
-            media_content_id,
-            # This allows filtering content. In this case it will only show audio sources.
-            content_filter=lambda item: item.media_content_type.startswith("audio/"),
+        title = (
+            current_directory_name
+            if current_directory_name != ""
+            else "Q-SYS Audio Player"
         )
+
+        browser = media_source.models.BrowseMedia(
+            title=title,
+            media_class=MediaClass.DIRECTORY,
+            media_content_id=current_directory_name,
+            media_content_type="directory",
+            can_play=False,
+            can_expand=True,
+            children=[],
+        )
+
+        await self._append_current_directories(browser, current_directory_name)
+        await self._append_current_filenames(browser, current_directory_name)
+
+        return browser
+
+    async def _append_current_directories(
+        self, browser: BrowseMedia, current_directory
+    ):
+        result = await self.core.component().get(
+            self.component, controls=[{"Name": "directory.ui"}]
+        )
+        directory_names = [
+            d for d in result["result"]["Controls"][0].get("Choices") if d
+        ]
+
+        for directory_name in directory_names:
+            bm = media_source.models.BrowseMedia(
+                title=directory_name,
+                media_class=MediaClass.DIRECTORY,
+                media_content_id=f"{current_directory}{directory_name}",
+                media_content_type="directory",
+                can_play=False,
+                can_expand=True,
+                children=None,
+            )
+            browser.children.append(bm)
+
+    async def _append_current_filenames(self, browser: BrowseMedia, current_directory):
+        result = await self.core.component().get(
+            self.component, controls=[{"Name": "filename.ui"}]
+        )
+        filenames = result["result"]["Controls"][0].get("Choices")
+
+        for filename in filenames:
+            bm = media_source.models.BrowseMedia(
+                title=filename,
+                media_class=MediaClass.MUSIC,
+                media_content_id=f"{current_directory}{filename}",
+                media_content_type="file",
+                can_play=True,
+                can_expand=False,
+                children=None,
+            )
+            browser.children.append(bm)
 
     async def async_play_media(
         self,
@@ -423,29 +496,28 @@ class QRCAudioFilePlayerEntity(QSysComponentBase, MediaPlayerEntity):
         **kwargs: Any,
     ) -> None:
         """Play a piece of media."""
-
-        _LOGGER.warning(
-            "UNSUPPORTED / UNTESTED: play_media: media_type:%s, media_id:%s",
+        _LOGGER.debug(
+            "play_media: media_type:%s, media_id:%s",
             media_type,
             media_id,
         )
 
-        if media_source.is_media_source_id(media_id):
-            media_type = MediaType.MUSIC
-            play_item = await media_source.async_resolve_media(
-                self.hass, media_id, self.entity_id
+        if media_type == "file":
+            directory, filename = media_id.rsplit("/", 1)
+
+            await self.core.component().set(
+                self.component,
+                [
+                    {"Name": "root", "Value": ""},
+                    {"Name": "directory", "Value": directory + "/"},
+                    {"Name": "filename", "Value": filename},
+                    {"Name": "play.state.trigger", "Value": 1.0},
+                ],
             )
-            # play_item returns a relative URL if it has to be resolved on the Home Assistant host
-            # This call will turn it into a full URL
-            media_id = async_process_play_media_url(self.hass, play_item.url)
+            return
 
-        directory, filename = media_id.rsplit("/", 1)
-
-        await self.core.component().set(
-            self.component,
-            [
-                {"Name": "directory", "Value": directory},
-                {"Name": "filename", "Value": filename},
-                {"Name": "play.state.trigger", "Value": 1.0},
-            ],
+        _LOGGER.warning(
+            "UNSUPPORTED play_media: media_type:%s, media_id:%s",
+            media_type,
+            media_id,
         )
