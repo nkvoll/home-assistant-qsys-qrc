@@ -66,8 +66,9 @@ class Core:
             reader = None
             try:
                 await self.connect()
-                reader = asyncio.Task(self._read_forever())
-                # TODO: potential race here?
+                reader = asyncio.create_task(self._read_forever())
+                # TODO: potential race here between self._connected and the preamble commands
+                # consider creating another gate
                 self._connected.set_result(True)
                 for cmd in self._on_connected_commands:
                     if asyncio.iscoroutine(cmd) or asyncio.iscoroutinefunction(cmd):
@@ -80,9 +81,9 @@ class Core:
                             method=cmd["method"], params=cmd.get("params", None)
                         )
                 await reader
-            except EOFError as eof:
+            except EOFError:
                 _LOGGER.info("EOF from core at [%s]", self._host)
-            except aioexceptions.TimeoutError as te:
+            except aioexceptions.TimeoutError:
                 if self._connected.done():
                     _LOGGER.warning(
                         "Timeouterror while reading from remote [%s:%d]",
@@ -95,15 +96,19 @@ class Core:
                         self._host,
                         self._port,
                     )
-            except Exception as e:
-                _LOGGER.exception("Generic exception: [%s]", repr(e))
+            except Exception as ex:
+                _LOGGER.exception("Generic exception in run loop: [%s]", repr(ex))
                 await asyncio.sleep(10)
             finally:
                 if reader:
                     _LOGGER.debug("Cancelling reader")
                     reader.cancel()
                 if self._writer:
-                    self._writer.close()
+                    try:
+                        _LOGGER.info("Closing writer")
+                        self._writer.close()
+                    except Exception as ex:
+                        _LOGGER.exception("Unable to close writer: [%s]", repr(ex))
                 if self._connected.done():
                     _LOGGER.debug("Creating new _connected future")
                     self._connected = asyncio.Future()

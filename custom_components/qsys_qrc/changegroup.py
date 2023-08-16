@@ -122,10 +122,10 @@ class ChangeGroupPoller:
 
             except asyncio.TimeoutError as e:
                 # this is expected as we add a timeout to our requests to the core
-                _LOGGER.debug("Timeout error during polling: %s", repr(e))
+                _LOGGER.warning("Timeout error during polling: %s", repr(e))
 
             except qrc.QRCError as e:
-                _LOGGER.debug(
+                _LOGGER.info(
                     "Change group probably didn't exist because of a reconnect: %s, retrying",
                     repr(e),
                 )

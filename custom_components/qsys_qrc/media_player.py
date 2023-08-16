@@ -152,6 +152,8 @@ class QRCUrlReceiverEntity(QSysComponentBase, MediaPlayerEntity):
         MediaPlayerEntityFeature(0)
         | MediaPlayerEntityFeature.VOLUME_SET
         | MediaPlayerEntityFeature.VOLUME_MUTE
+        # An argument can be made that we should use PLAY/STOP instead of ON/OFF for enable
+        # perhaps this can be made configurable if it turns out ot be a matter of preference?
         # | MediaPlayerEntityFeature.PLAY
         # | MediaPlayerEntityFeature.STOP
         | MediaPlayerEntityFeature.TURN_ON
@@ -181,14 +183,10 @@ class QRCUrlReceiverEntity(QSysComponentBase, MediaPlayerEntity):
 
         self._qsys_state[name] = change
 
-        if name == "enable":
-            self._update_state()
-
-        elif name == "status":
-            self._update_state()
-
-        elif name == "track.name":
-            self._attr_media_title = value
+        if name == "track.name" or name == "url":
+            self._attr_media_title = self._qsys_state.get(
+                "track_name", self._qsys_state.get("url", {})
+            ).get("String")
 
         elif name == "channel.1.gain" or name == "channel.2.gain":
             self._attr_volume_level = max(
@@ -198,6 +196,7 @@ class QRCUrlReceiverEntity(QSysComponentBase, MediaPlayerEntity):
         elif name == "channel.1.mute" or name == "channel.2.mute":
             self._attr_is_volume_muted = value == 1.0
 
+        self._update_state()
         self.async_write_ha_state()
 
     def _update_state(self):
@@ -311,7 +310,7 @@ class QRCAudioFilePlayerEntity(QSysComponentBase, MediaPlayerEntity):
         self._qsys_state = {}
 
     def on_changed(self, core, change):
-        _LOGGER.info(
+        _LOGGER.debug(
             "Media player control %s changed: %s", self.unique_id, change["Name"]
         )
 
