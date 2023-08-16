@@ -86,11 +86,7 @@ async def async_setup_entry(
 
     if len(entities) > 0:
         polling = asyncio.create_task(poller.run_while_core_running())
-
-        def on_unload():
-            polling.cancel()
-
-        entry.async_on_unload(on_unload)
+        entry.async_on_unload(lambda: polling.cancel() and None)
 
     engine_status_sensor = EngineStatusEntity(
         hass,
@@ -103,38 +99,20 @@ async def async_setup_entry(
     async_add_entities([engine_status_sensor])
 
     async def update():
-        cancelled = False
-        while not cancelled:
+        while True:
             try:
                 status = await core.status_get()
-
-                engine_status_sensor.set_available(True)
-                engine_status_sensor.set_attr_native_value(
-                    status.get("result", {}).get("Status", {}).get("Code", -1)
-                )
-                engine_status_sensor.set_attr_extra_state_attributes(
-                    status.get("result", {})
-                )
-                engine_status_sensor.async_write_ha_state()
+                engine_status_sensor.on_status(status)
             except asyncio.CancelledError:
-                cancelled = True
-
-            except Exception:
-                pass
-
-            finally:
-                engine_status_sensor.set_available(False)
-                engine_status_sensor.async_write_ha_state()
-                if not cancelled:
-                    await asyncio.sleep(5)
+                engine_status_sensor.on_unavailable()
+                raise
+            else:
+                await asyncio.sleep(5)
 
     entities[engine_status_sensor.unique_id] = engine_status_sensor
     updater = asyncio.create_task(update())
 
-    def on_unload():
-        updater.cancel()
-
-    entry.async_on_unload(on_unload)
+    entry.async_on_unload(lambda: updater.cancel() and None)
 
     for entity_entry in er.async_entries_for_config_entry(
         er.async_get(hass), entry.entry_id
@@ -155,6 +133,18 @@ class EngineStatusEntity(QSysComponentBase, SensorEntity):
 
     def set_attr_extra_state_attributes(self, value):
         self._attr_extra_state_attributes = value
+
+    def on_status(self, status):
+        self.set_available(True)
+        self.set_attr_native_value(
+            status.get("result", {}).get("Status", {}).get("Code", -1)
+        )
+        self.set_attr_extra_state_attributes(status.get("result", {}))
+        self.async_write_ha_state()
+
+    def on_unavailable(self):
+        self.set_available(False)
+        self.async_write_ha_state()
 
 
 class QRCComponentControlEntity(QSysComponentControlBase, SensorEntity):

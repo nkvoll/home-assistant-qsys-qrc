@@ -61,8 +61,7 @@ class Core:
     async def run_until_stopped(self):
         self._running.set_result(True)
 
-        cancelled = False
-        while not cancelled:
+        while True:
             _LOGGER.debug("Run loop iteration")
             reader = None
             try:
@@ -97,8 +96,9 @@ class Core:
                         self._host,
                         self._port,
                     )
-            except asyncio.CancelledError:
-                cancelled = True
+            except asyncio.CancelledError as err:
+                # re-raise to avoid hitting the generic exception handler below
+                raise err
             except Exception as ex:
                 _LOGGER.exception("Generic exception in run loop: [%s]", repr(ex))
                 await asyncio.sleep(10)
@@ -110,7 +110,7 @@ class Core:
                     try:
                         _LOGGER.info("Closing writer")
                         self._writer.close()
-                    except Exception as ex:
+                    except Exception as ex:  # pylint: disable=broad-except
                         _LOGGER.exception("Unable to close writer: [%s]", repr(ex))
                 if self._connected.done():
                     _LOGGER.debug("Creating new _connected future")

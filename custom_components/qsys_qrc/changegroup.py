@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import sys
 
 from .qsys import qrc
 from .const import CONF_POLL_INTERVAL, CONF_REQUEST_TIMEOUT
@@ -80,8 +81,7 @@ class ChangeGroupPoller:
                 listener(self, change)
 
     async def run_while_core_running(self):
-        cancelled = False
-        while not cancelled:
+        while True:
             try:
                 # TODO: run_while_core_is_running?
                 await self.core.wait_until_connected()
@@ -139,16 +139,16 @@ class ChangeGroupPoller:
                     repr(ex),
                 )
 
-            except asyncio.CancelledError:
-                # this is expected as we may be cancelled when shutting down or reloading
-                cancelled = True
+            except asyncio.CancelledError as err:
+                # re-raise to avoid hitting the generic exception handler below
+                raise err
 
-            except Exception as ex:
+            except Exception as ex:  # pylint: disable=broad-except
                 _LOGGER.exception(
                     "Error during polling %s: %s", self._change_group_name, repr(ex)
                 )
 
             finally:
                 await self._fire_on_run_loop_iteration_ending()
-                if not cancelled:
+                if not sys.exception():
                     await asyncio.sleep(self._poll_interval)

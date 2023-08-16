@@ -77,11 +77,7 @@ async def async_setup_entry(
 
     if len(entities) > 0:
         polling = asyncio.create_task(poller.run_while_core_running())
-
-        def on_unload():
-            polling.cancel()
-
-        entry.async_on_unload(on_unload)
+        entry.async_on_unload(lambda: polling.cancel() and None)
 
     for entity_entry in er.async_entries_for_config_entry(
         er.async_get(hass), entry.entry_id
