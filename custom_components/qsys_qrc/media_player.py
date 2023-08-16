@@ -55,7 +55,7 @@ async def async_setup_entry_safe(
     """Set up media player entities."""
     # TODO: remove restored entities that are no longer used?
     core_name = entry.data[CONF_USER_DATA][CONF_CORE_NAME]
-    core: qrc.Core = hass.data[DOMAIN].get(CONF_CORES, {}).get(core_name)
+    core: qrc.Core = hass.data[DOMAIN].get(CONF_CACHED_CORES, {}).get(core_name)
     if core is None:
         return
 
@@ -435,7 +435,7 @@ class QRCAudioFilePlayerEntity(QSysComponentBase, MediaPlayerEntity):
             title=title,
             media_class=MediaClass.DIRECTORY,
             media_content_id=current_directory_name,
-            media_content_type="directory",
+            media_content_type="",
             can_play=False,
             can_expand=True,
             children=[],
@@ -461,7 +461,7 @@ class QRCAudioFilePlayerEntity(QSysComponentBase, MediaPlayerEntity):
                 title=directory_name,
                 media_class=MediaClass.DIRECTORY,
                 media_content_id=f"{current_directory}{directory_name}",
-                media_content_type="directory",
+                media_content_type="",
                 can_play=False,
                 can_expand=True,
                 children=None,
@@ -479,7 +479,7 @@ class QRCAudioFilePlayerEntity(QSysComponentBase, MediaPlayerEntity):
                 title=filename,
                 media_class=MediaClass.MUSIC,
                 media_content_id=f"{current_directory}{filename}",
-                media_content_type="file",
+                media_content_type="Audio",
                 can_play=True,
                 can_expand=False,
                 children=None,

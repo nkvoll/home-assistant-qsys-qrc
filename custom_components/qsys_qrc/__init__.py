@@ -7,9 +7,11 @@ import logging
 import voluptuous as vol
 from homeassistant.components import media_player, number, sensor, switch, text
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import Platform
+from homeassistant.const import SERVICE_RELOAD, Platform
 from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
 from homeassistant.helpers import device_registry as dr, entity_registry as er
+from homeassistant.helpers.reload import async_integration_yaml_config
+from homeassistant.helpers.service import async_register_admin_service
 from homeassistant.helpers.typing import ConfigType
 
 from .const import *
@@ -31,7 +33,7 @@ CONFIG_SCHEMA = vol.Schema(
     {
         DOMAIN: vol.Schema(
             {
-                CONF_CORES: vol.Schema(
+                vol.Optional(CONF_CORES): vol.Schema(
                     {
                         vol.basestring: vol.Schema(
                             {
@@ -50,10 +52,10 @@ CONFIG_SCHEMA = vol.Schema(
                                     {
                                         vol.Optional(
                                             CONF_POLL_INTERVAL, default=1.0
-                                        ): float,
+                                        ): vol.Coerce(float),
                                         vol.Optional(
                                             CONF_REQUEST_TIMEOUT, default=5.0
-                                        ): float,
+                                        ): vol.Coerce(float),
                                     }
                                 ),
                                 vol.Optional(CONF_PLATFORMS): vol.Schema(
@@ -254,8 +256,8 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Your controller/hub specific code."""
     # Data that you want to share with your platforms
     hass.data[DOMAIN] = {
-        CONF_CORES: {},
         CONF_CONFIG: config[DOMAIN],
+        CONF_CACHED_CORES: {},
     }
 
     async def handle_call_method(call: ServiceCall):
@@ -287,7 +289,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             if not config_entry:
                 continue
 
-            core: qrc.Core = hass.data[DOMAIN][CONF_CORES].get(
+            core: qrc.Core = hass.data[DOMAIN][CONF_CACHED_CORES].get(
                 config_entry.data.get(CONF_USER_DATA, {}).get(CONF_CORE_NAME)
             )
 
@@ -318,6 +320,20 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Q-Sys QRC from a config entry."""
+    config = CONFIG_SCHEMA({DOMAIN: {}})[DOMAIN]
+
+    _conf = await async_integration_yaml_config(hass, DOMAIN)
+    if not _conf or DOMAIN not in _conf:
+        _LOGGER.warning(
+            "No `qsys_qrc:` key found in configuration.yaml. See "
+            "https://github.com/nkvoll/home-assistant-qsys-qrc/ "
+            "for qsys_qrc entity configuration documentation"
+        )
+    else:
+        config = _conf[DOMAIN]
+    # update stored config
+    hass.data[DOMAIN][CONF_CONFIG] = config
+
     user_data = entry.data[CONF_USER_DATA]
     c = qrc.Core(user_data[CONF_HOST])
     core_name = user_data[CONF_CORE_NAME]
@@ -332,10 +348,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     c.set_on_connected_commands([logon])
     core_runner_task = asyncio.create_task(c.run_until_stopped())
     entry.async_on_unload(lambda: core_runner_task.cancel() and None)
-    hass.data.setdefault(DOMAIN, {})
+
     # use design name? might be harder for the user?
-    hass.data[DOMAIN].setdefault(CONF_CORES, {})[core_name] = c
-    hass.data[DOMAIN].setdefault(CONF_CONFIG, {})[entry.entry_id] = entry
+    hass.data[DOMAIN][CONF_CACHED_CORES][core_name] = c
 
     registry = dr.async_get(hass)
     # TODO: reconcile with docs https://developers.home-assistant.io/docs/device_registry_index
@@ -360,21 +375,26 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
+    async def _reload_integration(call: ServiceCall) -> None:
+        """Reload the integration."""
+        await hass.config_entries.async_reload(entry.entry_id)
+        hass.bus.async_fire(f"event_{DOMAIN}_reloaded", context=call.context)
+
+    async_register_admin_service(hass, DOMAIN, SERVICE_RELOAD, _reload_integration)
+
     return True
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
     if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
-        hass.data[DOMAIN][CONF_CORES].pop(
+        hass.data[DOMAIN][CONF_CACHED_CORES].pop(
             entry.data[CONF_USER_DATA][CONF_CORE_NAME], None
         )
-        hass.data[DOMAIN][CONF_CONFIG].pop(entry.entry_id, None)
+
         device_entry = devices.get(entry.entry_id)
         if device_entry:
             registry = dr.async_get(hass)
             registry.async_remove_device(device_entry.id)
-        # if len(hass.data[DOMAIN][CONF_CORES]) == 0:
-        #    del hass.data[DOMAIN]
 
     return unload_ok

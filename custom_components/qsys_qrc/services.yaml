@@ -30,3 +30,4 @@ call_method:
       default: { }
       selector:
         object:
+reload:

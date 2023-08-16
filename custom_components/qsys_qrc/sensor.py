@@ -33,7 +33,7 @@ async def async_setup_entry(
 
     # TODO: remove restored entities that are no longer used?
     core_name = entry.data[CONF_USER_DATA][CONF_CORE_NAME]
-    core: qrc.Core = hass.data[DOMAIN].get(CONF_CORES, {}).get(core_name)
+    core: qrc.Core = hass.data[DOMAIN].get(CONF_CACHED_CORES, {}).get(core_name)
     if core is None:
         return
 

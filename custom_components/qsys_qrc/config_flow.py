@@ -81,7 +81,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             i = 1
             while (
                 self.hass.data.get(DOMAIN, {})
-                .get(CONF_CORES, {})
+                .get(CONF_CACHED_CORES, {})
                 .get(suggested_name, None)
             ):
                 i += 1
@@ -96,7 +96,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             )
 
         if user_input[CONF_CORE_NAME] in self.hass.data.get(DOMAIN, {}).get(
-            CONF_CORES, {}
+            CONF_CACHED_CORES, {}
         ):
             raise data_entry_flow.AbortFlow("already_configured")
 

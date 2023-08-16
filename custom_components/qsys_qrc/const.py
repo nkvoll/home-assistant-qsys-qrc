@@ -2,6 +2,8 @@
 
 DOMAIN = "qsys_qrc"
 
+CONF_CACHED_CORES = "qsys_qrc_cores"
+
 CONF_CORES = "cores"
 CONF_PLATFORMS = "platforms"
 CONF_SWITCH_PLATFORM = "switch"
@@ -17,7 +19,7 @@ CONF_PORT = "port"
 CONF_USERNAME = "username"
 CONF_PASSWORD = "password"
 
-CONF_CONFIG = "config"
+CONF_CONFIG = "qsys_qrc_config"
 
 CONF_CHANGEGROUP = "change_group"
 CONF_POLL_INTERVAL = "poll_interval"
