@@ -1,7 +1,6 @@
 import asyncio
 import json
 import logging
-from asyncio import exceptions as aioexceptions
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -83,7 +82,7 @@ class Core:
                 await reader
             except EOFError:
                 _LOGGER.info("EOF from core at [%s]", self._host)
-            except aioexceptions.TimeoutError:
+            except asyncio.TimeoutError:
                 if self._connected.done():
                     _LOGGER.warning(
                         "Timeouterror while reading from remote [%s:%d]",
@@ -99,7 +98,7 @@ class Core:
             except asyncio.CancelledError as err:
                 # re-raise to avoid hitting the generic exception handler below
                 raise err
-            except Exception as ex:
+            except Exception as ex:  # pylint: disable=broad-except
                 _LOGGER.exception("Generic exception in run loop: [%s]", repr(ex))
                 await asyncio.sleep(10)
             finally:
