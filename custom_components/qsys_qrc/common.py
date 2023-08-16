@@ -36,6 +36,7 @@ class QSysComponentBase(entity.Entity):
         component: str,
     ) -> None:
         super().__init__()
+        self._core_name = core_name
         self.core = core
         self._attr_unique_id = unique_id
         extra_attrs = {}

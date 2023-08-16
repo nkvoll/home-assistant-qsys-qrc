@@ -61,7 +61,8 @@ class Core:
     async def run_until_stopped(self):
         self._running.set_result(True)
 
-        while True:
+        cancelled = False
+        while not cancelled:
             _LOGGER.debug("Run loop iteration")
             reader = None
             try:
@@ -96,6 +97,8 @@ class Core:
                         self._host,
                         self._port,
                     )
+            except asyncio.CancelledError:
+                cancelled = True
             except Exception as ex:
                 _LOGGER.exception("Generic exception in run loop: [%s]", repr(ex))
                 await asyncio.sleep(10)

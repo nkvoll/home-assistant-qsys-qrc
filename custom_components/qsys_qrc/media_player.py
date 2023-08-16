@@ -4,9 +4,11 @@ from __future__ import annotations
 import asyncio
 import logging
 from typing import Any
+from urllib.parse import urlparse
 
 from homeassistant.components import media_source
 from homeassistant.components.media_player import (
+    BrowseError,
     BrowseMedia,
     MediaClass,
     MediaPlayerEnqueue,
@@ -34,6 +36,8 @@ _LOGGER = logging.getLogger(__name__)
 PLATFORM = __name__.rsplit(".", 1)[-1]
 
 position_0db = 0.83333331
+
+CORE_MEDIA_CONTENT_TYPE = "qsys_core"
 
 
 async def async_setup_entry(
@@ -252,7 +256,6 @@ class QRCUrlReceiverEntity(QSysComponentBase, MediaPlayerEntity):
         """Implement the websocket media browsing helper."""
         # If your media player has no own media sources to browse, route all browse commands
         # to the media source integration.
-
         return await media_source.async_browse_media(
             self.hass,
             media_content_id,
@@ -308,6 +311,8 @@ class QRCAudioFilePlayerEntity(QSysComponentBase, MediaPlayerEntity):
         self._attr_device_class = device_class
 
         self._qsys_state = {}
+
+        self._browse_lock = asyncio.Lock()
 
     def on_changed(self, core, change):
         _LOGGER.debug(
@@ -412,43 +417,52 @@ class QRCAudioFilePlayerEntity(QSysComponentBase, MediaPlayerEntity):
         self, media_content_type: str | None = None, media_content_id: str | None = None
     ) -> BrowseMedia:
         """Implement the websocket media browsing helper."""
-        current_directory_name = media_content_id
         if not media_content_id:
-            current_directory_name = ""
+            media_content_id = f"qsys-core://{self._core_name}/"
 
-        # TODO: make it possible to configure/restrict to certain roots?
-        await self.core.component().set(
-            self.component,
-            controls=[
-                {"Name": "root.ui", "Value": current_directory_name},
-                {"Name": "directory.ui", "Value": ""},
-            ],
-        )
+        try:
+            url = urlparse(media_content_id)
+        except ValueError as err:
+            raise BrowseError(str(err)) from err
 
-        title = (
-            current_directory_name
-            if current_directory_name != ""
-            else "Q-SYS Audio Player"
-        )
+        invalid_content_type_or_scheme = (
+            media_content_type and media_content_type != CORE_MEDIA_CONTENT_TYPE
+        ) or url.scheme != "qsys-core"
 
-        browser = media_source.models.BrowseMedia(
-            title=title,
-            media_class=MediaClass.DIRECTORY,
-            media_content_id=current_directory_name,
-            media_content_type="",
-            can_play=False,
-            can_expand=True,
-            children=[],
-        )
+        if invalid_content_type_or_scheme:
+            raise BrowseError("can only browse files on a q-sys core")
 
-        await self._append_current_directories(browser, current_directory_name)
-        await self._append_current_filenames(browser, current_directory_name)
+        if url.hostname != self._core_name:
+            raise BrowseError("can only browse files from the same q-sys core")
 
-        return browser
+        async with self._browse_lock:
+            # TODO: make it possible to configure/restrict to certain roots?
+            await self.core.component().set(
+                self.component,
+                controls=[
+                    {"Name": "root.ui", "Value": url.path.lstrip("/")},
+                    {"Name": "directory.ui", "Value": ""},
+                ],
+            )
 
-    async def _append_current_directories(
-        self, browser: BrowseMedia, current_directory
-    ):
+            title = url.path if url.path.lstrip("/") != "" else "Q-SYS Audio Player"
+
+            browser = media_source.models.BrowseMedia(
+                title=title,
+                media_class=MediaClass.DIRECTORY,
+                media_content_id=url.geturl(),
+                media_content_type=CORE_MEDIA_CONTENT_TYPE,
+                can_play=False,
+                can_expand=True,
+                children=[],
+            )
+
+            await self._append_current_directories(browser, url)
+            await self._append_current_filenames(browser, url)
+
+            return browser
+
+    async def _append_current_directories(self, browser: BrowseMedia, url):
         result = await self.core.component().get(
             self.component, controls=[{"Name": "directory.ui"}]
         )
@@ -460,15 +474,17 @@ class QRCAudioFilePlayerEntity(QSysComponentBase, MediaPlayerEntity):
             bm = media_source.models.BrowseMedia(
                 title=directory_name,
                 media_class=MediaClass.DIRECTORY,
-                media_content_id=f"{current_directory}{directory_name}",
-                media_content_type="",
+                media_content_id=url._replace(
+                    path=f"{url.path.rstrip('/')}{directory_name}"
+                ).geturl(),
+                media_content_type=CORE_MEDIA_CONTENT_TYPE,
                 can_play=False,
                 can_expand=True,
                 children=None,
             )
             browser.children.append(bm)
 
-    async def _append_current_filenames(self, browser: BrowseMedia, current_directory):
+    async def _append_current_filenames(self, browser: BrowseMedia, url):
         result = await self.core.component().get(
             self.component, controls=[{"Name": "filename.ui"}]
         )
@@ -478,8 +494,10 @@ class QRCAudioFilePlayerEntity(QSysComponentBase, MediaPlayerEntity):
             bm = media_source.models.BrowseMedia(
                 title=filename,
                 media_class=MediaClass.MUSIC,
-                media_content_id=f"{current_directory}{filename}",
-                media_content_type="Audio",
+                media_content_id=url._replace(
+                    path=f"{url.path}{'' if url.path.endswith('/') else '/'}{filename}"
+                ).geturl(),
+                media_content_type="audio/mpeg",
                 can_play=True,
                 can_expand=False,
                 children=None,
@@ -496,19 +514,33 @@ class QRCAudioFilePlayerEntity(QSysComponentBase, MediaPlayerEntity):
     ) -> None:
         """Play a piece of media."""
         _LOGGER.debug(
-            "play_media: media_type:%s, media_id:%s",
+            "play_media: media_type:%s, media_id:%s, %s, %s, %s",
             media_type,
             media_id,
+            enqueue,
+            announce,
+            kwargs,
         )
 
-        if media_type == "file":
-            directory, filename = media_id.rsplit("/", 1)
+        if media_type == "audio/mpeg":
+            try:
+                url = urlparse(media_id)
+            except ValueError as err:
+                raise BrowseError(str(err)) from err
+
+            # TODO: more validation?
+
+            directory = "/".join(url.path.split("/")[:-1])
+            filename = url.path.split("/")[-1]
 
             await self.core.component().set(
                 self.component,
                 [
                     {"Name": "root", "Value": ""},
-                    {"Name": "directory", "Value": directory + "/"},
+                    {
+                        "Name": "directory",
+                        "Value": directory + "/" if not directory.endswith("/") else "",
+                    },
                     {"Name": "filename", "Value": filename},
                     {"Name": "play.state.trigger", "Value": 1.0},
                 ],

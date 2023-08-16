@@ -80,7 +80,8 @@ class ChangeGroupPoller:
                 listener(self, change)
 
     async def run_while_core_running(self):
-        while True:
+        cancelled = False
+        while not cancelled:
             try:
                 # TODO: run_while_core_is_running?
                 await self.core.wait_until_connected()
@@ -89,9 +90,11 @@ class ChangeGroupPoller:
                 self.cg = self.core.change_group(self._change_group_name)
 
                 _LOGGER.info(
-                    "%s: creating changegroup with %d controls",
+                    "%s: creating changegroup with %d controls, poll interval: %f, request timeout: %f",
                     self._change_group_name,
                     len(self._listeners_component_control_changes),
+                    self._poll_interval,
+                    self._request_timeout,
                 )
                 for (
                     component_name,
@@ -136,6 +139,10 @@ class ChangeGroupPoller:
                     repr(ex),
                 )
 
+            except asyncio.CancelledError:
+                # this is expected as we may be cancelled when shutting down or reloading
+                cancelled = True
+
             except Exception as ex:
                 _LOGGER.exception(
                     "Error during polling %s: %s", self._change_group_name, repr(ex)
@@ -143,4 +150,5 @@ class ChangeGroupPoller:
 
             finally:
                 await self._fire_on_run_loop_iteration_ending()
-                await asyncio.sleep(self._poll_interval)
+                if not cancelled:
+                    await asyncio.sleep(self._poll_interval)

@@ -33,7 +33,7 @@ CONFIG_SCHEMA = vol.Schema(
     {
         DOMAIN: vol.Schema(
             {
-                vol.Optional(CONF_CORES): vol.Schema(
+                CONF_CORES: vol.Schema(
                     {
                         vol.basestring: vol.Schema(
                             {

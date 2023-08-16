@@ -103,7 +103,8 @@ async def async_setup_entry(
     async_add_entities([engine_status_sensor])
 
     async def update():
-        while True:
+        cancelled = False
+        while not cancelled:
             try:
                 status = await core.status_get()
 
@@ -115,17 +116,17 @@ async def async_setup_entry(
                     status.get("result", {})
                 )
                 engine_status_sensor.async_write_ha_state()
-            except Exception as e:
-                engine_status_sensor.set_available(False)
-                # no point in setting anything if unavailable, won't show up. maybe consider having
-                # another channel for availability?
-                # if isinstance(e, qrc.QRCError):
-                #     engine_status_sensor.set_attr_extra_state_attributes(
-                #         status.get("error", e.error)
-                #     )
-                engine_status_sensor.async_write_ha_state()
+            except asyncio.CancelledError:
+                cancelled = True
+
+            except Exception:
+                pass
+
             finally:
-                await asyncio.sleep(5)
+                engine_status_sensor.set_available(False)
+                engine_status_sensor.async_write_ha_state()
+                if not cancelled:
+                    await asyncio.sleep(5)
 
     entities[engine_status_sensor.unique_id] = engine_status_sensor
     updater = asyncio.create_task(update())
