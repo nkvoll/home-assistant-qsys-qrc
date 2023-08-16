@@ -125,7 +125,7 @@ class ChangeGroupPoller:
                     await asyncio.sleep(self._poll_interval)
 
             except asyncio.TimeoutError as ex:
-                # this is expected as we add a timeout to our requests to the core
+                # we poll with a timeout
                 _LOGGER.warning(
                     "Timeout error during polling %s: %s",
                     self._change_group_name,

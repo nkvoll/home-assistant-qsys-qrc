@@ -107,11 +107,11 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             errors["base"] = "cannot_connect"
         except InvalidAuth:
             errors["base"] = "invalid_auth"
-        except qrc.QRCError as e:  # pylint: disable=broad-except
+        except qrc.QRCError as err:  # pylint: disable=broad-except
             if e.error["code"] == 10:
                 errors["base"] = "invalid_auth"
             else:
-                _LOGGER.warn("Unexpected error: %s", repr(e))
+                _LOGGER.warning("Unexpected error: %s", repr(err))
                 errors["base"] = "unknown"
         except Exception:  # pylint: disable=broad-except
             _LOGGER.exception("Unexpected exception")
@@ -167,11 +167,11 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             errors["base"] = "cannot_connect"
         except InvalidAuth:
             errors["base"] = "invalid_auth"
-        except qrc.QRCError as e:  # pylint: disable=broad-except
+        except qrc.QRCError as err:  # pylint: disable=broad-except
             if e.error["code"] == 10:
                 errors["base"] = "invalid_auth"
             else:
-                _LOGGER.warn("Unexpected error: %s", repr(e))
+                _LOGGER.warning("Unexpected error: %s", repr(err))
                 errors["base"] = "unknown"
         except Exception:  # pylint: disable=broad-except
             _LOGGER.exception("Unexpected exception")
