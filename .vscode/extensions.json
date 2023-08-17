@@ -1,6 +1,11 @@
 {
     "recommendations": [
         "esbenp.prettier-vscode",
-        "ms-python.python"
+        "github.vscode-pull-request-github",
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "redhat.vscode-yaml",
+        "ryanluker.vscode-coverage-gutters",
+        "visualstudioexptteam.vscodeintellicode"
     ]
 }
