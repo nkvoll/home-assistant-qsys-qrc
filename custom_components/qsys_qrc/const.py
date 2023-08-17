@@ -61,3 +61,6 @@ CONF_SENSOR_ATTRIBUTE = "attribute"
 
 CONF_USER_DATA = "user_data"
 CONF_ENGINE_STATUS = "engine_status"
+
+POSITION_0DB = 0.83333331
+CORE_MEDIA_CONTENT_TYPE = "qsys_core"

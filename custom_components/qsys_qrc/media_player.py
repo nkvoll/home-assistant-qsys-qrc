@@ -27,17 +27,15 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers import entity_registry as er
 from homeassistant.util.dt import utcnow
 
+from custom_components.qsys_qrc.const import CORE_MEDIA_CONTENT_TYPE, POSITION_0DB
+
 from . import changegroup
 from .common import QSysComponentBase, id_for_component, config_for_core
-from .const import *
+from .const import *  # pylint: disable=unused-wildcard-import,wildcard-import
 from .qsys import qrc
 
 _LOGGER = logging.getLogger(__name__)
 PLATFORM = __name__.rsplit(".", 1)[-1]
-
-position_0db = 0.83333331
-
-CORE_MEDIA_CONTENT_TYPE = "qsys_core"
 
 
 async def async_setup_entry(
@@ -47,8 +45,8 @@ async def async_setup_entry(
 ) -> None:
     try:
         await async_setup_entry_safe(hass, entry, async_add_entities)
-    except asyncio.TimeoutError as te:
-        raise PlatformNotReady("timeouterror during setup") from te
+    except asyncio.TimeoutError as err:
+        raise PlatformNotReady("timeouterror during setup") from err
 
 
 async def async_setup_entry_safe(
@@ -188,12 +186,14 @@ class QRCUrlReceiverEntity(QSysComponentBase, MediaPlayerEntity):
                 "track_name", self._qsys_state.get("url", {})
             ).get("String")
 
-        elif name == "channel.1.gain" or name == "channel.2.gain":
+        elif name in ("channel.1.gain", "channel.2.gain"):
+            # TODO: should iterate over channels instead, and not hard-code names
             self._attr_volume_level = max(
-                0.0, min(1.0, change["Position"] / position_0db)
+                0.0, min(1.0, change["Position"] / POSITION_0DB)
             )
 
-        elif name == "channel.1.mute" or name == "channel.2.mute":
+        elif name in ("channel.1.mute" or "channel.2.mute"):
+            # TODO: marks as muted even if only one channel is muted, should iterate over channels
             self._attr_is_volume_muted = value == 1.0
 
         self._update_state()
@@ -241,8 +241,8 @@ class QRCUrlReceiverEntity(QSysComponentBase, MediaPlayerEntity):
         await self.core.component().set(
             self.component,
             [
-                {"Name": "channel.1.gain", "Position": volume * position_0db},
-                {"Name": "channel.2.gain", "Position": volume * position_0db},
+                {"Name": "channel.1.gain", "Position": volume * POSITION_0DB},
+                {"Name": "channel.2.gain", "Position": volume * POSITION_0DB},
             ],
         )
 
@@ -327,7 +327,7 @@ class QRCAudioFilePlayerEntity(QSysComponentBase, MediaPlayerEntity):
 
         elif name == "gain":
             self._attr_volume_level = max(
-                0.0, min(1.0, change["Position"] / position_0db)
+                0.0, min(1.0, change["Position"] / POSITION_0DB)
             )
 
         elif name == "mute" or name == "mute":
@@ -397,7 +397,7 @@ class QRCAudioFilePlayerEntity(QSysComponentBase, MediaPlayerEntity):
         await self.core.component().set(
             self.component,
             [
-                {"Name": "gain", "Position": volume * position_0db},
+                {"Name": "gain", "Position": volume * POSITION_0DB},
             ],
         )
 
