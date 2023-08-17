@@ -1,0 +1,30 @@
+{
+    "python.pythonPath": "/usr/local/bin/python",
+    "python.linting.enabled": true,
+    "python.linting.pylintEnabled": true,
+    "python.formatting.provider": "black",
+    "python.formatting.blackPath": "/usr/local/py-utils/bin/black",
+    "python.linting.pycodestylePath": "/usr/local/py-utils/bin/pycodestyle",
+    "python.linting.pydocstylePath": "/usr/local/py-utils/bin/pydocstyle",
+    "python.linting.mypyPath": "/usr/local/py-utils/bin/mypy",
+    "python.linting.pylintPath": "/usr/local/py-utils/bin/pylint",
+    "python.testing.pytestArgs": ["--no-cov"],
+    "editor.formatOnPaste": false,
+    "editor.formatOnSave": true,
+    "editor.formatOnType": true,
+    "files.trimTrailingWhitespace": true,
+    "terminal.integrated.profiles.linux": {
+      "zsh": {
+        "path": "/usr/bin/zsh"
+      }
+    },
+    "terminal.integrated.defaultProfile.linux": "zsh",
+    "yaml.customTags": [
+      "!input scalar",
+      "!secret scalar",
+      "!include_dir_named scalar",
+      "!include_dir_list scalar",
+      "!include_dir_merge_list scalar",
+      "!include_dir_merge_named scalar"
+    ]
+}
