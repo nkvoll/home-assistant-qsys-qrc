@@ -27,8 +27,6 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers import entity_registry as er
 from homeassistant.util.dt import utcnow
 
-from custom_components.qsys_qrc.const import CORE_MEDIA_CONTENT_TYPE, POSITION_0DB
-
 from . import changegroup
 from .common import QSysComponentBase, id_for_component, config_for_core
 from .const import *  # pylint: disable=unused-wildcard-import,wildcard-import
