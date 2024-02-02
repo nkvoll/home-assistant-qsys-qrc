@@ -9,11 +9,12 @@ _LOGGER = logging.getLogger(__name__)
 
 
 def create_change_group_for_platform(core, change_group_config, platform):
+    change_group_config = change_group_config or {}
     return ChangeGroupPoller(
         core,
         f"{platform}_platform",
-        change_group_config[CONF_POLL_INTERVAL],
-        change_group_config[CONF_REQUEST_TIMEOUT],
+        change_group_config.get(CONF_POLL_INTERVAL, 1.0),
+        change_group_config.get(CONF_REQUEST_TIMEOUT, 5.0),
     )
 
 
