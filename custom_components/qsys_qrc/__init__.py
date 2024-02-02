@@ -279,12 +279,13 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             device: dr.DeviceEntry = registry.devices.get(device_id, None)
             if not device:
                 continue
+
             for config_entry_id in device.config_entries:
                 config_entry_ids.add(config_entry_id)
 
         # TODO: support more than one config entry match?
         for config_entry_id in config_entry_ids:
-            config_entry = hass.data[DOMAIN][CONF_CONFIG].get(config_entry_id)
+            config_entry = hass.data[DOMAIN][CONF_CONFIG_ENTRIES].get(config_entry_id)
 
             if not config_entry:
                 continue
@@ -333,6 +334,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         config = _conf[DOMAIN]
     # update stored config
     hass.data[DOMAIN][CONF_CONFIG] = config
+
+    # store config entry for lookup later
+    hass.data[DOMAIN].setdefault(CONF_CONFIG_ENTRIES, {})[entry.entry_id] = entry
 
     user_data = entry.data[CONF_USER_DATA]
     c = qrc.Core(user_data[CONF_HOST])
@@ -391,6 +395,8 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.data[DOMAIN][CONF_CACHED_CORES].pop(
             entry.data[CONF_USER_DATA][CONF_CORE_NAME], None
         )
+
+        hass.data[DOMAIN].setdefault(CONF_CONFIG_ENTRIES, {}).pop(entry.entry_id, None)
 
         device_entry = devices.get(entry.entry_id)
         if device_entry:

@@ -19,6 +19,7 @@ CONF_PORT = "port"
 CONF_USERNAME = "username"
 CONF_PASSWORD = "password"
 
+CONF_CONFIG_ENTRIES = "qsys_qrc_config_entries"
 CONF_CONFIG = "qsys_qrc_config"
 
 CONF_CHANGEGROUP = "change_group"
