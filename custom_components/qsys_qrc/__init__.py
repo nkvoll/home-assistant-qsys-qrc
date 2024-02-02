@@ -73,7 +73,7 @@ CONFIG_SCHEMA = vol.Schema(
                                                             default=None,
                                                         ): vol.Any(
                                                             None,
-                                                            media_player.MediaPlayerDeviceClass,
+                                                            media_player.DEVICE_CLASSES_SCHEMA,
                                                         ),
                                                         vol.Required(
                                                             CONF_COMPONENT

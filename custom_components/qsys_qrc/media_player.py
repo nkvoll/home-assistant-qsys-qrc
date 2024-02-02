@@ -103,6 +103,16 @@ async def async_setup_entry_safe(
                 component_name,
                 media_player_config[CONF_DEVICE_CLASS],
             )
+        elif component_type == "gain":
+            media_player_entity = QRCGainEntity(
+                hass,
+                core_name,
+                core,
+                id_for_component(core_name, media_player_config[CONF_COMPONENT]),
+                media_player_config.get(CONF_ENTITY_NAME, None),
+                component_name,
+                media_player_config[CONF_DEVICE_CLASS],
+            )
         else:
             msg = f"Component has invalid type for media player: {component_type}"
             _LOGGER.warning(msg)
@@ -545,4 +555,60 @@ class QRCAudioFilePlayerEntity(QSysComponentBase, MediaPlayerEntity):
             "UNSUPPORTED play_media: media_type:%s, media_id:%s",
             media_type,
             media_id,
+        )
+
+class QRCGainEntity(QSysComponentBase, MediaPlayerEntity):
+    _attr_supported_features = (
+        MediaPlayerEntityFeature(0)
+        | MediaPlayerEntityFeature.VOLUME_SET
+        | MediaPlayerEntityFeature.VOLUME_MUTE
+    )
+
+    _attr_state = MediaPlayerState.ON
+
+    def __init__(
+        self, hass, core_name, core, unique_id, entity_name, component, device_class
+    ) -> None:
+        super().__init__(hass, core_name, core, unique_id, entity_name, component)
+
+        self._attr_device_class = device_class
+
+        self._qsys_state = {}
+
+    def on_changed(self, core, change):
+        _LOGGER.debug("Media player control %s changed: %s", self.unique_id, change)
+
+        self._attr_available = True
+
+        name = change["Name"]
+        value = change["Value"]
+
+        self._qsys_state[name] = change
+
+        if name == "gain":
+            # TODO: should iterate over channels instead, and not hard-code names
+            self._attr_volume_level = max(
+                0.0, min(1.0, change["Position"] / POSITION_0DB)
+            )
+
+        elif name == "mute":
+            # TODO: marks as muted even if only one channel is muted, should iterate over channels
+            self._attr_is_volume_muted = value == 1.0
+
+        self.async_write_ha_state()
+
+    async def async_mute_volume(self, mute: bool) -> None:
+        await self.core.component().set(
+            self.component,
+            [
+                {"Name": "mute", "Value": 1.0 if mute else 0.0},
+            ],
+        )
+
+    async def async_set_volume_level(self, volume: float) -> None:
+        await self.core.component().set(
+            self.component,
+            [
+                {"Name": "gain", "Position": volume * POSITION_0DB},
+            ],
         )
