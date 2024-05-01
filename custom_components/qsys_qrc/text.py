@@ -15,6 +15,7 @@ from .common import QSysComponentControlBase, id_for_component_control, config_f
 from .const import *
 from .qsys import qrc
 
+_LOGGER = logging.getLogger(__name__)
 PLATFORM = __name__.rsplit(".", 1)[-1]
 
 
