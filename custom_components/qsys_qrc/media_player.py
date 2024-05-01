@@ -43,7 +43,7 @@ async def async_setup_entry(
 ) -> None:
     try:
         await async_setup_entry_safe(hass, entry, async_add_entities)
-    except asyncio.TimeoutError as err:
+    except TimeoutError as err:
         raise PlatformNotReady("timeouterror during setup") from err
 
 

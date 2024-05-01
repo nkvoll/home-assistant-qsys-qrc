@@ -125,7 +125,7 @@ class ChangeGroupPoller:
                         await self._fire_on_component_control_change(change)
                     await asyncio.sleep(self._poll_interval)
 
-            except asyncio.TimeoutError as ex:
+            except TimeoutError as ex:
                 # we poll with a timeout
                 _LOGGER.warning(
                     "Timeout error during polling %s: %s",

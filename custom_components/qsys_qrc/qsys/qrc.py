@@ -82,7 +82,7 @@ class Core:
                 await reader
             except EOFError:
                 _LOGGER.info("EOF from core at [%s]", self._host)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 if self._connected.done():
                     _LOGGER.warning(
                         "Timeouterror while reading from remote [%s:%d]",
