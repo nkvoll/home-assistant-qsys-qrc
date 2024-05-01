@@ -48,7 +48,7 @@ CONFIG_SCHEMA = vol.Schema(
                                         )
                                     }
                                 ),
-                                vol.Optional(CONF_CHANGEGROUP): vol.Schema(
+                                vol.Optional(CONF_CHANGEGROUP, default={CONF_POLL_INTERVAL: 1.0, CONF_REQUEST_TIMEOUT: 5.0}): vol.Schema(
                                     {
                                         vol.Optional(
                                             CONF_POLL_INTERVAL, default=1.0
