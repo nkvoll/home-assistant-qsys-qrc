@@ -3,14 +3,14 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from custom_components.qsys_qrc import qrc
-from custom_components.qsys_qrc.qsys.qrc import Core, QRCError
+from custom_components.qsys_qrc.qsys.qrc import Core
 
 
 TEST_HOST = "127.0.0.1"
 TEST_PORT = 1710
 
 async def _mocked_open_connection():
-    """ Create a mocked stream pair for testing. """
+    """Create a mocked stream pair for testing."""
     return MagicMock(), MagicMock()
 
 @pytest.mark.asyncio
