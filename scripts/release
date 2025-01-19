@@ -26,6 +26,14 @@ if [[ $invalid_version -eq 1 ]]; then
 fi
 #{ set +x; } 2>/dev/null
 
+HACS_VERSION=$(jq -r '.homeassistant' hacs.json)
+REQUIREMENTS_VERSION=$(grep 'homeassistant' requirements.txt | cut -d'=' -f2)
+
+if [[ "${HACS_VERSION}" != "${REQUIREMENTS_VERSION}" ]]; then
+  echo "homeassistant version mismatch: hacs.json (${HACS_VERSION}) != requirements.txt (${REQUIREMENTS_VERSION})"
+  exit 1
+fi
+
 if [[ $(git diff --stat) != '' ]] || [[ $(git diff --stat --staged) != '' ]]; then
   echo 'working tree dirty, cannot release'
   exit -1
