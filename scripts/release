@@ -7,9 +7,13 @@ cd "$(dirname "$0")/.."
 CURRENT_RELEASE=$1
 NEXT_RELEASE=$2
 
+DETECTED_CURRENT_RELEASE=$(git describe --tags `git rev-list --tags --max-count=1`)
+IFS='.' read -r -a version_parts <<< "${DETECTED_CURRENT_RELEASE#v}"
+SUGGESTED_NEXT_RELEASE="v${version_parts[0]}.$((${version_parts[1]} + 1)).0"
+
 set -x
-if ! [[ "${CURRENT_RELEASE}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+[.a-z0-9]*$ ]]; then echo 'invalid current release version'; exit 1; fi;
-if ! [[ "${NEXT_RELEASE}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+[.a-z0-9]*$ ]]; then echo 'invalid next release version'; exit 1; fi;
+if ! [[ "${CURRENT_RELEASE}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+[.a-z0-9]*$ ]]; then echo "invalid current release version (suggested: $DETECTED_CURRENT_RELEASE)"; exit 1; fi;
+if ! [[ "${NEXT_RELEASE}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+[.a-z0-9]*$ ]]; then echo "invalid next release version (suggested: $SUGGESTED_NEXT_RELEASE)"; exit 1; fi;
 { set +x; } 2>/dev/null
 
 if [[ $(git diff --stat) != '' ]] || [[ $(git diff --stat --staged) != '' ]]; then
