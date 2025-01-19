@@ -100,7 +100,7 @@ class ChangeGroupPoller:
                 for (
                     component_name,
                     control_name,
-                ), listeners in self._listeners_component_control_changes.items():
+                ), _listeners in self._listeners_component_control_changes.items():
                     await asyncio.wait_for(
                         self.cg.add_component_control(
                             {

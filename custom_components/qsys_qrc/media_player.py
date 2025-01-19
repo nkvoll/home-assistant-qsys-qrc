@@ -15,7 +15,6 @@ from homeassistant.components.media_player import (
     MediaPlayerEntity,
     MediaPlayerEntityFeature,
     MediaPlayerState,
-    MediaType,
     RepeatMode,
     async_process_play_media_url,
 )
@@ -277,7 +276,7 @@ class QRCUrlReceiverEntity(QSysComponentBase, MediaPlayerEntity):
     ) -> None:
         """Play a piece of media."""
         if media_source.is_media_source_id(media_id):
-            media_type = MediaType.MUSIC
+            # media_type = MediaType.MUSIC
             play_item = await media_source.async_resolve_media(
                 self.hass, media_id, self.entity_id
             )
@@ -287,7 +286,10 @@ class QRCUrlReceiverEntity(QSysComponentBase, MediaPlayerEntity):
 
         await self.core.component().set(
             self.component,
-            [{"Name": "url", "Value": media_id}, {"Name": "enable", "Value": 1.0}],
+            [
+                {"Name": "url", "Value": media_id},
+                {"Name": "enable", "Value": 1.0},
+            ],
         )
 
 
@@ -556,6 +558,7 @@ class QRCAudioFilePlayerEntity(QSysComponentBase, MediaPlayerEntity):
             media_type,
             media_id,
         )
+
 
 class QRCGainEntity(QSysComponentBase, MediaPlayerEntity):
     _attr_supported_features = (

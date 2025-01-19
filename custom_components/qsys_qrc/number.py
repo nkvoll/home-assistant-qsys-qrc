@@ -32,7 +32,9 @@ async def async_setup_entry(
 
     # TODO: remove restored entities that are no longer used?
     core_name = entry.data[CONF_USER_DATA][CONF_CORE_NAME]
-    core: qrc.Core = hass.data[DOMAIN].get(CONF_CACHED_CORES, {}).get(core_name)
+    core: qrc.Core = hass.data[DOMAIN].get(
+        CONF_CACHED_CORES, {},
+    ).get(core_name)
     if core is None:
         return
 
@@ -201,13 +203,18 @@ class QRCNumberEntity(QSysComponentControlBase, NumberEntity):
 
         if self._change_template:
             # TODO: a better way to have defaults available?
-            value = self._change_template.async_render(
-                dict(change=change, value=value, math=math, round=round)
-            )
+            value = self._change_template.async_render({
+                "change": change,
+                "value": value,
+                "math": math,
+                "round": round
+            })
 
         value = round(value, self._round_decimals)
         self._attr_native_value = max(
-            self._attr_native_min_value, min(value, self._attr_native_max_value)
+            self._attr_native_min_value, min(
+                value, self._attr_native_max_value,
+            )
         )
 
     async def async_set_native_value(self, value: float) -> None:
@@ -222,8 +229,10 @@ class QRCNumberEntity(QSysComponentControlBase, NumberEntity):
 
         if self._value_template:
             # TODO: a better way to have defaults available?
-            value = self._value_template.async_render(
-                dict(value=value, math=math, round=round)
-            )
+            value = self._value_template.async_render({
+                "value": value,
+                "math": math,
+                "round": round
+            })
 
         await self.update_control({"Value": value})

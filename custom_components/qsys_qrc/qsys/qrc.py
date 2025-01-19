@@ -75,9 +75,11 @@ class Core:
                     elif callable(cmd):
                         cmd()
                     else:
+                        # TODO: if not dict, log warning or fail?
                         # TODO: support aborting connection (with backoff?) on failures
                         await self.call(
-                            method=cmd["method"], params=cmd.get("params", None)
+                            method=cmd["method"],
+                            params=cmd.get("params", None)
                         )
                 await reader
             except EOFError:
@@ -99,7 +101,10 @@ class Core:
                 # re-raise to avoid hitting the generic exception handler below
                 raise err
             except Exception as ex:  # pylint: disable=broad-except
-                _LOGGER.exception("Generic exception in run loop: [%s]", repr(ex))
+                _LOGGER.exception(
+                    "Generic exception in run loop: [%s]",
+                    repr(ex),
+                )
                 await asyncio.sleep(10)
             finally:
                 if reader:
@@ -110,7 +115,10 @@ class Core:
                         _LOGGER.info("Closing writer")
                         self._writer.close()
                     except Exception as ex:  # pylint: disable=broad-except
-                        _LOGGER.exception("Unable to close writer: [%s]", repr(ex))
+                        _LOGGER.exception(
+                            "Unable to close writer: [%s]",
+                            repr(ex),
+                        )
                 if self._connected.done():
                     _LOGGER.debug("Creating new _connected future")
                     self._connected = asyncio.Future()
@@ -120,13 +128,17 @@ class Core:
                     for _, future in self._pending.items():
                         if not future.done():
                             future.set_exception(
-                                QRCError({"code": -1, "message": "disconnected"})
+                                QRCError(
+                                    {"code": -1, "message": "disconnected"}
+                                )
                             )
 
     async def connect(self):
         _LOGGER.info("Connecting to %s:%d", self._host, self._port)
         # TODO: make limit configurable
-        opening = asyncio.open_connection(self._host, self._port, limit=5 * 1024 * 1024)
+        opening = asyncio.open_connection(
+            self._host, self._port, limit=5 * 1024 * 1024,
+        )
         self._reader, self._writer = await asyncio.wait_for(opening, 5)
         _LOGGER.info("Connected")
 
