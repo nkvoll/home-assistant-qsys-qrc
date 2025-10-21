@@ -1,10 +1,14 @@
-FROM mcr.microsoft.com/devcontainers/python:1.0.0-3.13
+FROM ubuntu:latest AS base
 
-RUN \
-    curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - \
-    && apt-get update \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    # Additional library needed by some tests and accordingly by VScode Tests Discovery
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install system dependencies and Python
+RUN apt update \
+    && apt install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    git \
+    bash \
     bluez \
     ffmpeg \
     libudev-dev \
@@ -17,21 +21,65 @@ RUN \
     libswresample-dev \
     libavfilter-dev \
     libpcap-dev \
-    libturbojpeg0 \
+    libturbojpeg \
     libyaml-dev \
     libxml2 \
-    git \
     cmake \
+    build-essential \
+    vim \
+    zsh \
+    sudo \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Add go2rtc binary
-COPY --from=ghcr.io/alexxit/go2rtc:latest /usr/local/bin/go2rtc /bin/go2rtc
+# Install uv (adds to ~/.local/bin by default); then relocate binary for global use
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh \
+    && mv ~/.local/bin/uv /usr/local/bin/uv
 
-# Install uv
-RUN pip3 install uv
+# Add go2rtc binary from upstream image
+FROM ghcr.io/alexxit/go2rtc:latest AS go2rtc
+
+FROM base AS dev
+
+ARG USERNAME=vscode
+ARG USER_UID=1000
+ARG USER_GID=$USER_UID
+
+# Ensure a user/group with uid/gid 1000 is named vscode
+RUN set -eux; \
+    existing_user="$(getent passwd 1000 | cut -d: -f1 || true)"; \
+    existing_group="$(getent group 1000 | cut -d: -f1 || true)"; \
+    if [ -n "$existing_group" ] && [ "$existing_group" != "vscode" ]; then \
+    groupmod -n vscode "$existing_group"; \
+    fi; \
+    if [ -n "$existing_user" ] && [ "$existing_user" != "vscode" ]; then \
+    usermod -l vscode "$existing_user"; \
+    usermod -d /home/vscode -m vscode; \
+    fi; \
+    if ! getent passwd vscode >/dev/null; then \
+    groupadd -g 1000 vscode; \
+    useradd -m -u 1000 -g 1000 -s /bin/bash vscode; \
+    fi
+
+RUN chsh -s /bin/zsh vscode
+RUN echo vscode ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/vscode \
+    && chmod 0440 /etc/sudoers.d/vscode
+
+# Ensure workspaces directory exists and is owned by vscode
+RUN mkdir -p /workspaces \
+    && chown vscode:vscode /workspaces
 
 WORKDIR /workspaces
 
-# Set the default shell to bash instead of sh
-ENV SHELL /bin/bash
+# Copy go2rtc binary
+COPY --from=go2rtc /usr/local/bin/go2rtc /usr/local/bin/go2rtc
+
+ENV SHELL=/bin/zsh
+
+USER vscode
+
+RUN  sudo -u vscode sh -c "$(curl -L https://github.com/deluan/zsh-in-docker/releases/download/v1.2.1/zsh-in-docker.sh)" -- \
+    -p git
+
+# Default command (override in devcontainer.json if needed)
+CMD ["zsh"]
