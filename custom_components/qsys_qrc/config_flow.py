@@ -108,7 +108,9 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         except InvalidAuth:
             errors["base"] = "invalid_auth"
         except qrc.QRCError as err:  # pylint: disable=broad-except
-            if e.error["code"] == 10:
+            # QRCError wraps an error dict in .error
+            code = getattr(err, "error", {}).get("code")
+            if code == 10:
                 errors["base"] = "invalid_auth"
             else:
                 _LOGGER.warning("Unexpected error: %s", repr(err))
@@ -168,7 +170,8 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         except InvalidAuth:
             errors["base"] = "invalid_auth"
         except qrc.QRCError as err:  # pylint: disable=broad-except
-            if e.error["code"] == 10:
+            code = getattr(err, "error", {}).get("code")
+            if code == 10:
                 errors["base"] = "invalid_auth"
             else:
                 _LOGGER.warning("Unexpected error: %s", repr(err))

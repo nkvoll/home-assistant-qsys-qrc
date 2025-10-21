@@ -255,10 +255,21 @@ CONFIG_SCHEMA = vol.Schema(
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Your controller/hub specific code."""
     # Data that you want to share with your platforms
-    hass.data[DOMAIN] = {
-        CONF_CONFIG: config[DOMAIN],
-        CONF_CACHED_CORES: {},
-    }
+    # Gracefully handle missing YAML config (component is config-flow driven)
+    domain_conf = config.get(DOMAIN)
+    if domain_conf is None:
+        # Use empty validated config when not present
+        domain_conf = CONFIG_SCHEMA({DOMAIN: {}})[DOMAIN]
+        _LOGGER.debug("No '%s:' section found in configuration.yaml; proceeding with empty config", DOMAIN)
+    else:
+        # Validate provided YAML against schema
+        try:
+            domain_conf = CONFIG_SCHEMA({DOMAIN: domain_conf})[DOMAIN]
+        except vol.Invalid as ex:
+            _LOGGER.error("Invalid %s configuration: %s", DOMAIN, ex)
+            return False
+
+    hass.data[DOMAIN] = {CONF_CONFIG: domain_conf, CONF_CACHED_CORES: {}}
 
     async def handle_call_method(call: ServiceCall):
         """Handle the service call."""

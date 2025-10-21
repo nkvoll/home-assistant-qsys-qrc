@@ -4,4 +4,6 @@ set -e
 
 cd "$(dirname "$0")/.."
 
+ln -s $(pwd)/custom_components $(pwd)/config/custom_components
+
 python3 -m pip install --requirement requirements.test.txt

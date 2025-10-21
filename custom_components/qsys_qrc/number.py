@@ -177,11 +177,7 @@ class QRCNumberEntity(QSysComponentControlBase, NumberEntity):
         self._change_template = change_template
         self._value_template = value_template
 
-        self._position_lower_limit_factor = (
-            self._position_lower_limit
-            * self._attr_native_max_value
-            / self._position_upper_limit
-        )
+        # Deprecated scaling factor removed; direct interpolation used instead.
 
         self._round_decimals = -1 * decimal.Decimal(str(step)).as_tuple().exponent
 
@@ -194,12 +190,14 @@ class QRCNumberEntity(QSysComponentControlBase, NumberEntity):
         value = change["Value"]
 
         if self._use_position:
-            # value = change["Position"] * self._attr_native_max_value / self._position_upper_limit
-            value = (
-                change["Position"]
-                * (self._attr_native_max_value + self._position_lower_limit_factor)
-                - self._position_lower_limit_factor
-            ) / self._position_upper_limit
+            # Convert raw position (within [position_lower_limit, position_upper_limit]) to user-facing 0-100 scale.
+            raw_position = change["Position"]
+            span = self._position_upper_limit - self._position_lower_limit
+            if span <= 0:
+                # Avoid division by zero; treat as midpoint or 0.
+                value = 0.0
+            else:
+                value = (raw_position - self._position_lower_limit) / span * 100.0
 
         if self._change_template:
             # TODO: a better way to have defaults available?
@@ -220,10 +218,14 @@ class QRCNumberEntity(QSysComponentControlBase, NumberEntity):
     async def async_set_native_value(self, value: float) -> None:
         """Update the current value."""
         if self._use_position:
-            position = (
-                (value + self._position_lower_limit_factor)
-                / (self._attr_native_max_value + self._position_lower_limit_factor)
-            ) * self._position_upper_limit
+            # Map user percentage (0-100) to actual position range [position_lower_limit, position_upper_limit].
+            percent = max(0.0, min(100.0, value))  # Clamp
+            span = self._position_upper_limit - self._position_lower_limit
+            if span <= 0:
+                # Degenerate span; just send lower limit (or 0 if both are 0).
+                position = self._position_lower_limit
+            else:
+                position = self._position_lower_limit + (percent / 100.0) * span
             await self.update_control({"Position": position})
             return
 

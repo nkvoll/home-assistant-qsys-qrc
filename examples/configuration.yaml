@@ -31,7 +31,9 @@ qsys_qrc:
         number:
         - component: bathroom_f2_gain
           control: gain
+          # control the position instead of the value (positions are from 0 -> 100)
           use_position: true
+          # optional: to clamp values
           position_lower_limit: 0.30
           position_upper_limit: 0.83333331
           #unit_of_measurement: "%"
