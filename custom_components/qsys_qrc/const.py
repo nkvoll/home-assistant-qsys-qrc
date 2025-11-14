@@ -55,6 +55,8 @@ CONF_TEXT_PATTERN = "pattern"
 CONF_ENTITY_NAME = "name"
 
 CALL_CORE_NAME = "core"
+CALL_METHOD_DEVICE_ID = "device_id"
+CALL_METHOD_ENTITY_ID = "entity_id"
 CALL_METHOD_NAME = "method"
 CALL_METHOD_PARAMS = "params"
 

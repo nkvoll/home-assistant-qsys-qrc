@@ -9,6 +9,7 @@ from homeassistant.components import media_player, number, sensor, switch, text
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import SERVICE_RELOAD, Platform
 from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
+from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.reload import async_integration_yaml_config
 from homeassistant.helpers.service import async_register_admin_service
@@ -284,14 +285,24 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
         config_entry_ids = set()
 
-        for entity_id in call.data.get("entity_id", []):
+        # we supported a list of device ids at one point, so keep that for backwards compatibility
+        entity_ids = call.data.get(CALL_METHOD_ENTITY_ID, [])
+        if isinstance(entity_ids, str):
+            entity_ids = [entity_ids]
+
+        for entity_id in entity_ids:
             entity: er.EntityEntry = er.async_get(hass).entities.get(entity_id, None)
             if not entity:
                 continue
 
             config_entry_ids.add(entity.config_entry_id)
 
-        for device_id in call.data.get("device_id", []):
+        # we supported a list of device ids at one point, so keep that for backwards compatibility
+        device_ids = call.data.get(CALL_METHOD_DEVICE_ID, [])
+        if isinstance(device_ids, str):
+            device_ids = [device_ids]
+
+        for device_id in device_ids:
             device: dr.DeviceEntry = registry.devices.get(device_id, None)
             if not device:
                 continue
@@ -313,13 +324,22 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             method = call.data.get(CALL_METHOD_NAME)
             params = call.data.get(CALL_METHOD_PARAMS)
 
-            response = await core.call(method, params)
-            _LOGGER.debug("Call response: %s", response)
-            if call.return_response:
-                return response
-            return
+            try:
+                response = await core.call(method, params)
+                _LOGGER.debug("Call response: %s", response)
+                if call.return_response:
+                    return response
+                return
+            except qrc.QRCError as err:
+                # Extract error message from QRCError and raise ServiceValidationError
+                error_dict = err.error if hasattr(err, 'error') else {}
+                error_code = error_dict.get('code', 'unknown')
+                error_message = error_dict.get('message', str(err))
+                raise ServiceValidationError(
+                    f"QRC Error (code {error_code}): {error_message}"
+                ) from err
 
-        raise qrc.QRCError({"message": "No matching Q-Sys device found for call."})
+        raise ServiceValidationError("No matching Q-Sys device found for call.")
 
     hass.services.async_register(
         DOMAIN,
