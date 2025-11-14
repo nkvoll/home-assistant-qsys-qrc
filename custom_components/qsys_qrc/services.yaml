@@ -15,13 +15,14 @@ call_method:
     method:
       name: Method
       description: Name of the method to invoke
-      required: True
+      required: true
       example: Component.Set
       selector:
         text:
     params:
       name: Parameters
       description: Parameters to the method
+      required: true
       example: |
         Name: my apm
         Controls:

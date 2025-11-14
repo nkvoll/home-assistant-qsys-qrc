@@ -285,61 +285,47 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
         config_entry_ids = set()
 
-        # we supported a list of device ids at one point, so keep that for backwards compatibility
-        entity_ids = call.data.get(CALL_METHOD_ENTITY_ID, [])
-        if isinstance(entity_ids, str):
-            entity_ids = [entity_ids]
-
-        for entity_id in entity_ids:
-            entity: er.EntityEntry = er.async_get(hass).entities.get(entity_id, None)
-            if not entity:
-                continue
-
-            config_entry_ids.add(entity.config_entry_id)
-
-        # we supported a list of device ids at one point, so keep that for backwards compatibility
         device_ids = call.data.get(CALL_METHOD_DEVICE_ID, [])
+        # support single string device_id as well as list of device_ids
         if isinstance(device_ids, str):
             device_ids = [device_ids]
 
         for device_id in device_ids:
             device: dr.DeviceEntry = registry.devices.get(device_id, None)
-            if not device:
-                continue
 
             for config_entry_id in device.config_entries:
                 config_entry_ids.add(config_entry_id)
 
-        # TODO: support more than one config entry match?
+        if not config_entry_ids:
+            raise ServiceValidationError("No matching Q-SYS device found for call")
+
         for config_entry_id in config_entry_ids:
             config_entry = hass.data[DOMAIN][CONF_CONFIG_ENTRIES].get(config_entry_id)
 
             if not config_entry:
                 continue
 
-            core: qrc.Core = hass.data[DOMAIN][CONF_CACHED_CORES].get(
-                config_entry.data.get(CONF_USER_DATA, {}).get(CONF_CORE_NAME)
-            )
+        core: qrc.Core = hass.data[DOMAIN][CONF_CACHED_CORES].get(
+            config_entry.data.get(CONF_USER_DATA, {}).get(CONF_CORE_NAME)
+        )
 
-            method = call.data.get(CALL_METHOD_NAME)
-            params = call.data.get(CALL_METHOD_PARAMS)
+        method = call.data.get(CALL_METHOD_NAME)
+        params = call.data.get(CALL_METHOD_PARAMS)
 
-            try:
-                response = await core.call(method, params)
-                _LOGGER.debug("Call response: %s", response)
-                if call.return_response:
-                    return response
-                return
-            except qrc.QRCError as err:
-                # Extract error message from QRCError and raise ServiceValidationError
-                error_dict = err.error if hasattr(err, 'error') else {}
-                error_code = error_dict.get('code', 'unknown')
-                error_message = error_dict.get('message', str(err))
-                raise ServiceValidationError(
-                    f"QRC Error (code {error_code}): {error_message}"
-                ) from err
-
-        raise ServiceValidationError("No matching Q-Sys device found for call.")
+        try:
+            response = await core.call(method, params)
+            _LOGGER.debug("Call response: %s", response)
+            if call.return_response:
+                return response
+            return
+        except qrc.QRCError as err:
+            # Extract error message from QRCError and raise ServiceValidationError
+            error_dict = err.error if hasattr(err, 'error') else {}
+            error_code = error_dict.get('code', 'unknown')
+            error_message = error_dict.get('message', str(err))
+            raise ServiceValidationError(
+                f"QRC Error (code {error_code}): {error_message}"
+            ) from err
 
     hass.services.async_register(
         DOMAIN,
