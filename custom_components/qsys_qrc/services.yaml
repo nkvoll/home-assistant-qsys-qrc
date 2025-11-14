@@ -7,9 +7,6 @@ call_method:
   target:
     device:
       integration: qsys_qrc
-    entity:
-      - integration: qsys_qrc
-        domain: sensor
   fields:
     method:
       name: Method
