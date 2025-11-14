@@ -100,6 +100,7 @@ Used to call any method via [QRC Commands](https://q-syshelp.qsc.com/Index.htm#E
 ```yaml
 service: qsys_qrc.call_method
 data:
+  device_id: 7b7be23f1d37293589c28bee4dbb5b4d
   method: Component.Set
   params:
     Name: bathroom_f2_gain
@@ -107,8 +108,6 @@ data:
       - Name: gain
         Position: 0.5
         Ramp: 2
-target:
-  device_id: 7b7be23f1d37293589c28bee4dbb5b4d
 ```
 
 #### Example: setting a mute control:
@@ -116,14 +115,13 @@ target:
 ```yaml
 service: qsys_qrc.call_method
 data:
+  device_id: 7b7be23f1d37293589c28bee4dbb5b4d
   method: Component.Set
   params:
     Name: bathroom_f2_gain
     Controls:
       - Name: mute
         Value: true
-target:
-  device_id: 7b7be23f1d37293589c28bee4dbb5b4d
 ```
 
 ### TODO
