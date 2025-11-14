@@ -260,7 +260,12 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     if domain_conf is None:
         # Use empty validated config when not present
         domain_conf = CONFIG_SCHEMA({DOMAIN: {}})[DOMAIN]
-        _LOGGER.debug("No '%s:' section found in configuration.yaml; proceeding with empty config", DOMAIN)
+        _LOGGER.warning(
+            "No `qsys_qrc:` key found in configuration.yaml. See "
+            "https://github.com/nkvoll/home-assistant-qsys-qrc/ "
+            "for qsys_qrc entity configuration documentation"
+        )
+
     else:
         # Validate provided YAML against schema
         try:
