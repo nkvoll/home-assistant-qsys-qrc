@@ -35,6 +35,7 @@ class QRCError(Exception):
 
 class ConnectionState(Enum):
     """Connection state for the Q-Sys Core."""
+
     DISCONNECTED = auto()
     CONNECTING = auto()
     CONNECTED = auto()
@@ -184,7 +185,7 @@ class Core:
         # Clear pending dict to prevent memory leaks
         self._pending.clear()
 
-        for request_id, future in pending:
+        for _request_id, future in pending:
             if not future.done():
                 future.set_exception(
                     QRCError({"code": -1, "message": "disconnected"})
@@ -255,7 +256,7 @@ class Core:
                     # Wait either for stop or backoff expiration
                     await asyncio.wait_for(self._stop_event.wait(), timeout=backoff)
                     break  # stop requested
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     pass  # timeout -> attempt reconnect
                 backoff = min(backoff * self._backoff_multiplier, max_backoff)
 

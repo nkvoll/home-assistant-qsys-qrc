@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import sys
 from enum import Enum, auto
 import contextlib
 
@@ -241,7 +240,7 @@ class ChangeGroupPoller:
             graceful_timeout = self._poll_interval + self._request_timeout + 0.2
             try:
                 await asyncio.wait_for(self._loop_task, timeout=graceful_timeout)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 _LOGGER.debug("Graceful stop timeout; cancelling poller task")
                 self._loop_task.cancel()
                 with contextlib.suppress(asyncio.CancelledError):

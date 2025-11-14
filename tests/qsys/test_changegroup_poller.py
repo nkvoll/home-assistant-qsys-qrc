@@ -28,6 +28,7 @@ class FakeChangeGroup:
 
 class FakeCore:
     """Minimal stub of Core needed by ChangeGroupPoller tests."""
+
     def __init__(self):
         self._connected_event = asyncio.Event()
         self._connected_event.set()  # immediately "connected"
@@ -174,6 +175,7 @@ async def test_backward_compat_run_while_core_running(fake_core):
 
 class ReconnectingCore(FakeCore):
     """Core stub that can disconnect/reconnect and yields new change group instances each time."""
+
     def __init__(self):
         super().__init__()
         self._connected_event = asyncio.Event()

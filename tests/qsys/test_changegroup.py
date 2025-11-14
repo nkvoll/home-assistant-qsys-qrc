@@ -114,7 +114,7 @@ async def test_timeout_handling(core):
     poller.start()
     await poller.wait_until_running(timeout=1)
 
-    poller.cg._poll_side_effects.append(asyncio.TimeoutError())
+    poller.cg._poll_side_effects.append(TimeoutError())
     # let loop process timeout without crashing
     await asyncio.sleep(0.05)
     assert poller._state == PollerState.RUNNING  # still running after timeout

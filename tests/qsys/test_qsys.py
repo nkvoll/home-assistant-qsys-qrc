@@ -1,8 +1,7 @@
 import asyncio
 import contextlib
-import json
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch, call
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from custom_components.qsys_qrc import qrc
 from custom_components.qsys_qrc.qsys.qrc import Core, ConnectionState, QRCError, DELIMITER
@@ -903,9 +902,6 @@ async def test_writer_close_failure(mock_open_connection):
 @patch('asyncio.open_connection', new_callable=AsyncMock)
 async def test_unexpected_exception_during_read(mock_open_connection):
     """Test that unexpected exceptions during read are handled and reconnection occurs."""
-    mock_reader = AsyncMock()
-    mock_writer = MagicMock()
-
     connection_count = [0]
 
     async def multi_connection(*args, **kwargs):
