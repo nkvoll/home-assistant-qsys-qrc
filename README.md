@@ -124,6 +124,20 @@ data:
         Value: true
 ```
 
+### Example: setting a mixer crosspoint mute:
+
+```yaml
+service: qsys_qrc.call_method
+data:
+  device_id: 7b7be23f1d37293589c28bee4dbb5b4d
+  method: Mixer.SetCrossPointMute
+  params:
+    Name: main_mixer
+    Inputs: "*"
+    Outputs: "*"
+    Value: true
+```
+
 ### TODO
 
 - Add (more) tests, especially around the code that integrates with home-assistant itself, see [`pytest-homeassistant-custom-component`](https://github.com/MatthewFlamm/pytest-homeassistant-custom-component) to get started.
