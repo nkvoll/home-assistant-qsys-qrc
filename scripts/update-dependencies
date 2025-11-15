@@ -1,0 +1,110 @@
+#!/usr/bin/env bash
+set -e
+
+cd "$(dirname "$0")/.."
+
+# Function to get the latest version of a package from PyPI
+get_latest_version() {
+    local package=$1
+    # Use PyPI JSON API to get the latest version
+    local latest=$(curl -sL "https://pypi.org/pypi/${package}/json" 2>/dev/null | python3 -c "import sys, json; data = json.load(sys.stdin); print(data['info']['version'])" 2>/dev/null)
+    echo "$latest"
+}
+
+# Function to update a requirements file
+update_requirements_file() {
+    local file=$1
+    echo "Checking $file..."
+
+    if [[ ! -f "$file" ]]; then
+        echo "  File not found, skipping."
+        return
+    fi
+
+    local temp_file=$(mktemp)
+    local updated=0
+
+    while IFS= read -r line; do
+        # Skip empty lines and comments
+        if [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]]; then
+            echo "$line" >> "$temp_file"
+            continue
+        fi
+
+        # Parse package name and version constraint
+        if [[ "$line" =~ ^([a-zA-Z0-9_-]+)([><=!]+)(.+)$ ]]; then
+            local package="${BASH_REMATCH[1]}"
+            local operator="${BASH_REMATCH[2]}"
+            local current_version="${BASH_REMATCH[3]}"
+
+            echo "  Checking $package (current: $operator$current_version)..."
+
+            # Get latest version
+            local latest_version=$(get_latest_version "$package")
+
+            if [[ -n "$latest_version" && "$latest_version" != "$current_version" ]]; then
+                # Compare versions (simple string comparison, works for most cases)
+                if [[ "$latest_version" > "$current_version" ]]; then
+                    echo "    -> Updating to $latest_version"
+                    echo "${package}${operator}${latest_version}" >> "$temp_file"
+                    updated=1
+                else
+                    echo "    -> Already at latest or newer ($current_version vs $latest_version)"
+                    echo "$line" >> "$temp_file"
+                fi
+            else
+                if [[ -z "$latest_version" ]]; then
+                    echo "    -> Could not fetch latest version, keeping current"
+                else
+                    echo "    -> Already at latest version"
+                fi
+                echo "$line" >> "$temp_file"
+            fi
+        else
+            # Line doesn't match expected format, keep as-is
+            echo "$line" >> "$temp_file"
+        fi
+    done < "$file"
+
+    if [[ $updated -eq 1 ]]; then
+        mv "$temp_file" "$file"
+        echo "  ✓ Updated $file"
+    else
+        rm "$temp_file"
+        echo "  ✓ No updates needed for $file"
+    fi
+    echo ""
+}
+
+function update_hacs_json() {
+    # Update hacs.json with homeassistant version from requirements.txt
+    echo "Updating hacs.json..."
+    if [[ -f "hacs.json" && -f "requirements.txt" ]]; then
+        # Extract homeassistant version from requirements.txt (remove >= prefix)
+        local ha_version=$(grep "^homeassistant>=" requirements.txt | sed 's/homeassistant>=//g')
+
+        if [[ -n "$ha_version" ]]; then
+            echo "  Setting homeassistant version to $ha_version in hacs.json"
+            # Update the homeassistant field in hacs.json
+            python3 -c "import json; f=open('hacs.json','r'); data=json.load(f); f.close(); data['homeassistant']='$ha_version'; f=open('hacs.json','w'); json.dump(data,f,indent=2); f.write('\n'); f.close()"
+            echo "  ✓ Updated hacs.json"
+        else
+            echo "  Could not find homeassistant version in requirements.txt"
+        fi
+    else
+        echo "  hacs.json or requirements.txt not found, skipping"
+    fi
+    echo ""
+}
+
+echo "Bumping dependencies..."
+echo ""
+
+# Update each requirements file
+update_requirements_file "requirements.txt"
+update_requirements_file "requirements.dev.txt"
+update_requirements_file "requirements.test.txt"
+
+update_hacs_json
+
+echo "Done!"

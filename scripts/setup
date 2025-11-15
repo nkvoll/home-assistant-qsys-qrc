@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-set -euo pipefail
+mise trust
+mise install
+
+eval "$(/home/vscode/.local/bin/mise activate bash)"
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
-
-VENV_PATH="/workspaces/.venv"
 
 if [ ! -d "$VENV_PATH" ]; then
 	echo "[setup] Creating uv virtual environment at $VENV_PATH"
@@ -17,18 +18,9 @@ echo "[setup] Activating virtual environment"
 source "$VENV_PATH/bin/activate"
 
 echo "[setup] Installing base requirements via uv pip"
-if [ -f requirements.txt ]; then
-	uv pip install --requirement requirements.txt
-else
-	echo "[setup] Skipping requirements.txt (file not found)"
-fi
-
-echo "[setup] Installing test requirements via uv pip"
-if [ -f requirements.test.txt ]; then
-	uv pip install --requirement requirements.test.txt
-else
-	echo "[setup] Skipping requirements.test.txt (file not found)"
-fi
+uv pip install -r requirements.txt
+uv pip install -r requirements.test.txt
+uv pip install -r requirements.dev.txt
 
 source /workspaces/.venv/bin/activate
 
@@ -47,7 +39,5 @@ if ! grep -F "export PYTHONPATH=\"\${PYTHONPATH}:${PWD}/custom_components\"" ~/.
 	echo "[setup] Adding PYTHONPATH to ~/.zshrc"
 	echo "export PYTHONPATH=\"\${PYTHONPATH}:${PWD}/custom_components\"" >> ~/.zshrc
 fi
-echo "[setup] Installing Python tools via uv pip"
-uv pip install black pycodestyle pydocstyle mypy pylint
 
 echo "[setup] Done. Venv located at $VENV_PATH"

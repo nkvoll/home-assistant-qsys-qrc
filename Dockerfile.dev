@@ -19,6 +19,7 @@ RUN apt update \
     libavformat-dev \
     libavutil-dev \
     libgammu-dev \
+    libncurses-dev \
     libpcap-dev \
     libswresample-dev \
     libswscale-dev \
@@ -26,16 +27,11 @@ RUN apt update \
     libudev-dev \
     libxml2 \
     libyaml-dev \
-    ripgrep \
     sudo \
     vim \
     zsh \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
-
-# Install uv (adds to ~/.local/bin by default); then relocate binary for global use
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh \
-    && mv ~/.local/bin/uv /usr/local/bin/uv
 
 # Add go2rtc binary from upstream image
 FROM ghcr.io/alexxit/go2rtc:latest AS go2rtc
@@ -75,12 +71,15 @@ WORKDIR /workspaces
 # Copy go2rtc binary
 COPY --from=go2rtc /usr/local/bin/go2rtc /usr/local/bin/go2rtc
 
-ENV SHELL=/bin/zsh
-
 USER vscode
 
 RUN  sudo -u vscode sh -c "$(curl -L https://github.com/deluan/zsh-in-docker/releases/download/v1.2.1/zsh-in-docker.sh)" -- \
     -p git
+
+ENV PATH="/home/vscode/.local/bin:$PATH"
+RUN curl https://mise.run | sh
+RUN echo "eval \"\$(/home/vscode/.local/bin/mise activate zsh)\"" >> "/home/vscode/.zshrc"
+RUN echo "eval \"\$(/home/vscode/.local/bin/mise activate bash)\"" >> "/home/vscode/.bashrc"
 
 # Default command (override in devcontainer.json if needed)
 CMD ["zsh"]

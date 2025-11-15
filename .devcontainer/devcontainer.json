@@ -2,7 +2,7 @@
   "name": "nkvoll/home-assistant-qsys-qrc",
   "context": "..",
   "dockerFile": "../Dockerfile.dev",
-  "postCreateCommand": "scripts/setup",
+  "postCreateCommand": ["scripts/setup"],
   "containerEnv": {
     "DEVCONTAINER": "1" ,
     "PYTHONASYNCIODEBUG": "1"
@@ -19,13 +19,14 @@
     "vscode": {
       "extensions": [
         "esbenp.prettier-vscode",
+        "github.copilot",
+        "github.copilot-chat",
         "github.vscode-pull-request-github",
         "ms-azuretools.vscode-docker",
         "ms-python.python",
         "ms-python.vscode-pylance",
         "redhat.vscode-yaml",
-        "ryanluker.vscode-coverage-gutters",
-        "visualstudioexptteam.vscodeintellicode"
+        "ryanluker.vscode-coverage-gutters"
       ],
       "settings": {
         "python.pythonPath": "/workspaces/.venv/bin/python",

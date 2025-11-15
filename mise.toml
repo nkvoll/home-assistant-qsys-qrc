@@ -1,0 +1,10 @@
+[tools]
+ripgrep = "15.1.0"
+uv = "0.9.9"
+
+[settings]
+pin = true
+
+[env]
+VENV_PATH = "/workspaces/.venv"
+UV_PROJECT_ENVIRONMENT = "/workspaces/.venv"
