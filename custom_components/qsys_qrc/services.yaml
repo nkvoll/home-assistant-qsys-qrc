@@ -4,14 +4,10 @@ call_method:
     Invokes a method on a Q-SYS device using QRC. See the
     QRC Commands Documentation (https://q-syshelp.qsc.com/Index.htm#External_Control_APIs/QRC/QRC_Commands.htm)
     for more details
+  target:
+    device:
+      integration: qsys_qrc
   fields:
-    device_id:
-      name: Q-SYS Device
-      description: The Q-SYS device to call the method on
-      required: true
-      selector:
-        device:
-          integration: qsys_qrc
     method:
       name: Method
       description: Name of the method to invoke
