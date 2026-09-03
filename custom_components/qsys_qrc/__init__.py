@@ -37,7 +37,7 @@ CONFIG_SCHEMA = vol.Schema(
             {
                 CONF_CORES: vol.Schema(
                     {
-                        vol.basestring: vol.Schema(
+                        str: vol.Schema(
                             {
                                 # TODO: this seems largely wasteful because we're not globbing components, but explicitly configuring them
                                 # leaving it in for now, but consider ripping it out for simplicity
