@@ -9,7 +9,7 @@ cd "$REPO_ROOT"
 
 if [ ! -d "$VENV_PATH" ]; then
 	echo "[setup] Creating uv virtual environment at $VENV_PATH"
-	uv venv --python 3.13 --prompt ha "$VENV_PATH"
+	uv venv --python 3.14 --prompt ha "$VENV_PATH"
 else
 	echo "[setup] Reusing existing virtual environment at $VENV_PATH"
 fi

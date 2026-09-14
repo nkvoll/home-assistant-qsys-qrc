@@ -23,9 +23,9 @@ RUN apt update \
     libpcap-dev \
     libswresample-dev \
     libswscale-dev \
-    libturbojpeg \
+    libturbojpeg0 \
     libudev-dev \
-    libxml2 \
+    libxml2-16 \
     libyaml-dev \
     sudo \
     vim \
