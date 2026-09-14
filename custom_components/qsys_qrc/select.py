@@ -52,6 +52,7 @@ async def async_setup_entry(
 
         ent = QRCSelectEntity(
             hass,
+            entry,
             core_name,
             core,
             id_for_component_control(core_name, component_name, control_name),
@@ -90,6 +91,7 @@ class QRCSelectEntity(QSysComponentControlBase, SelectEntity):
     def __init__(
         self,
         hass,
+        config_entry: ConfigEntry,
         core_name,
         core,
         unique_id,
@@ -99,7 +101,7 @@ class QRCSelectEntity(QSysComponentControlBase, SelectEntity):
         static_options,
     ) -> None:
         super().__init__(
-            hass, core_name, core, unique_id, entity_name, component, control
+            hass, config_entry, core_name, core, unique_id, entity_name, component, control
         )
         self._static_options = list(static_options) if static_options else []
         self._attr_options = list(self._static_options)

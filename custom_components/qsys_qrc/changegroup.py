@@ -1,4 +1,5 @@
 import asyncio
+import inspect
 import logging
 from enum import Enum, auto
 import contextlib
@@ -148,7 +149,7 @@ class ChangeGroupPoller:
 
         if not component_name:
             for listener in self._listeners_named_control_changes.get(control_name, []):
-                if asyncio.iscoroutine(listener) or asyncio.iscoroutinefunction(listener):
+                if asyncio.iscoroutine(listener) or inspect.iscoroutinefunction(listener):
                     await listener(self, change)
                 else:
                     listener(self, change)
@@ -157,7 +158,7 @@ class ChangeGroupPoller:
         for listener in self._listeners_component_control_changes.get(
             (component_name, control_name), []
         ):
-            if asyncio.iscoroutine(listener) or asyncio.iscoroutinefunction(listener):
+            if asyncio.iscoroutine(listener) or inspect.iscoroutinefunction(listener):
                 await listener(self, change)
             else:
                 listener(self, change)

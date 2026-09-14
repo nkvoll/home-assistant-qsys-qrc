@@ -1,5 +1,6 @@
 import asyncio
 import contextlib
+import inspect
 import json
 import logging
 from enum import Enum, auto
@@ -143,7 +144,7 @@ class Core:
         """Execute commands that should run when connected."""
         for cmd in self._on_connected_commands:
             try:
-                if asyncio.iscoroutine(cmd) or asyncio.iscoroutinefunction(cmd):
+                if asyncio.iscoroutine(cmd) or inspect.iscoroutinefunction(cmd):
                     await cmd()
                 elif callable(cmd):
                     cmd()
@@ -343,7 +344,7 @@ class ControlAPI:
     component. Component-backed controls should use ComponentAPI.
     """
 
-    def __init__(self, core: "Core"):
+    def __init__(self, core: Core):
         self._core = core
 
     async def get(self, names):

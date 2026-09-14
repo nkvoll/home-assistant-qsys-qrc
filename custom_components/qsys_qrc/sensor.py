@@ -55,6 +55,7 @@ async def async_setup_entry(
         # need to fetch component and control config first?
         control_sensor_entity = QRCComponentControlEntity(
             hass,
+            entry,
             core_name,
             core,
             id_for_component_control(
@@ -90,6 +91,7 @@ async def async_setup_entry(
 
     engine_status_sensor = EngineStatusEntity(
         hass,
+        entry,
         core_name,
         core,
         f"{core_name}_engine",
@@ -151,6 +153,7 @@ class QRCComponentControlEntity(QSysComponentControlBase, SensorEntity):
     def __init__(
         self,
         hass,
+        config_entry: ConfigEntry,
         core_name,
         core,
         unique_id,
@@ -163,7 +166,7 @@ class QRCComponentControlEntity(QSysComponentControlBase, SensorEntity):
         state_class,
     ) -> None:
         super().__init__(
-            hass, core_name, core, unique_id, entity_name, component, control
+            hass, config_entry, core_name, core, unique_id, entity_name, component, control
         )
         self.attribute = attribute
 
