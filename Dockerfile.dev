@@ -73,13 +73,17 @@ COPY --from=go2rtc /usr/local/bin/go2rtc /usr/local/bin/go2rtc
 
 USER vscode
 
-RUN  sudo -u vscode sh -c "$(curl -L https://github.com/deluan/zsh-in-docker/releases/download/v1.2.1/zsh-in-docker.sh)" -- \
-    -p git
+ENV LANG=C.UTF-8 \
+    LC_ALL=C.UTF-8 \
+    PATH="/home/vscode/.local/bin:$PATH"
 
-ENV PATH="/home/vscode/.local/bin:$PATH"
-RUN curl https://mise.run | sh
-RUN echo "eval \"\$(/home/vscode/.local/bin/mise activate zsh)\"" >> "/home/vscode/.zshrc"
-RUN echo "eval \"\$(/home/vscode/.local/bin/mise activate bash)\"" >> "/home/vscode/.bashrc"
+RUN mkdir -p /home/vscode/.local/bin /home/vscode/.config \
+    && curl -sS https://starship.rs/install.sh | sh -s -- -y -b /home/vscode/.local/bin \
+    && curl https://mise.run | sh \
+    && echo "eval \"\$(/home/vscode/.local/bin/mise activate bash)\"" >> "/home/vscode/.bashrc"
+
+COPY --chown=vscode:vscode .devcontainer/zshrc /home/vscode/.zshrc
+COPY --chown=vscode:vscode .devcontainer/starship.toml /home/vscode/.config/starship.toml
 
 # Default command (override in devcontainer.json if needed)
 CMD ["zsh"]

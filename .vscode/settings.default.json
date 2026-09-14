@@ -1,6 +1,7 @@
 {
     "autopep8.args": ["--max-line-length", "119"],
     "python.pythonPath": "/workspaces/.venv/bin/python",
+    "python.defaultInterpreterPath": "/workspaces/.venv/bin/python",
     "python.linting.enabled": true,
     "python.linting.pylintEnabled": true,
     "python.formatting.provider": "black",

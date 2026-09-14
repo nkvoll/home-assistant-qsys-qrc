@@ -1,0 +1,14 @@
+export LANG="${LANG:-C.UTF-8}"
+export LC_ALL="${LC_ALL:-C.UTF-8}"
+
+HISTFILE=~/.zsh_history
+HISTSIZE=10000
+SAVEHIST=10000
+setopt SHARE_HISTORY HIST_IGNORE_DUPS HIST_IGNORE_SPACE
+
+autoload -Uz compinit
+compinit
+zstyle ':completion:*' menu select
+
+eval "$(/home/vscode/.local/bin/mise activate zsh)"
+eval "$(starship init zsh)"

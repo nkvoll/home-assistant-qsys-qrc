@@ -1,0 +1,42 @@
+format = """
+$username\
+$directory\
+$git_branch\
+$git_status\
+$python\
+$cmd_duration\
+$character"""
+
+add_newline = false
+
+[username]
+show_always = true
+format = "[$user]($style) "
+style_user = "bold yellow"
+
+[directory]
+truncation_length = 1
+truncate_to_repo = false
+truncation_symbol = ""
+format = "[$path]($style) "
+style = "bold cyan"
+
+[git_branch]
+format = "[$branch]($style) "
+style = "bold purple"
+
+[git_status]
+format = "([$all_status$ahead_behind]($style) )"
+style = "bold red"
+
+[python]
+format = "[$virtualenv]($style) "
+style = "bold green"
+
+[character]
+success_symbol = "[❯](bold green)"
+error_symbol = "[✗](bold red)"
+
+[cmd_duration]
+min_time = 2000
+format = "[$duration]($style) "
