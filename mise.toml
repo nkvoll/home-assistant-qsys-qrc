@@ -2,6 +2,7 @@
 ripgrep = "15.1.0"
 uv = "0.9.9"
 python = "3.14"
+jq = "1.8.2"
 
 [settings]
 pin = true
