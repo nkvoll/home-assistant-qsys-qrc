@@ -155,7 +155,7 @@ class QRCNumberEntity(QSysComponentControlBase, NumberEntity):
         unit_of_measurement,
     ) -> None:
         super().__init__(
-            hass, core_name, core, unique_id, entity_name, component, control
+            hass, config_entry, core_name, core, unique_id, entity_name, component, control
         )
 
         self._attr_device_class = device_class

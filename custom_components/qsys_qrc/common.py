@@ -73,6 +73,7 @@ class QSysComponentControlBase(QSysComponentBase):
     def __init__(
         self,
         hass: HomeAssistant,
+        config_entry: ConfigEntry,
         core_name: str,
         core: qrc.Core,
         unique_id: str,
@@ -80,7 +81,7 @@ class QSysComponentControlBase(QSysComponentBase):
         component: str,
         control: str,
     ) -> None:
-        super().__init__(hass, core_name, core, unique_id, entity_name, component)
+        super().__init__(hass, config_entry, core_name, core, unique_id, entity_name, component)
         self.control = control
 
     async def on_core_change(self, core, change):
