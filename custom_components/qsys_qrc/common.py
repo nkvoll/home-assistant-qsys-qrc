@@ -1,6 +1,7 @@
 import re
 
 from homeassistant.core import HomeAssistant
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers import device_registry, entity
 
 from .const import *
@@ -9,6 +10,9 @@ from .qsys import qrc
 
 # TODO: consider entity.async_generate_entity_id
 def id_for_component_control(core_name, component, control):
+    if not component:
+        # Top-level Named Control (no backing component).
+        return f"{core_name}__nc__{control}"
     return f"{core_name}_{component}_{control}"
 
 
@@ -29,6 +33,7 @@ class QSysComponentBase(entity.Entity):
     def __init__(
         self,
         hass: HomeAssistant,
+        config_entry: ConfigEntry,
         core_name: str,
         core: qrc.Core,
         unique_id: str,
@@ -46,9 +51,11 @@ class QSysComponentBase(entity.Entity):
 
         self.component = component
 
-        core_device_entry = device_registry.async_get(hass).async_get_device(
-            {(DOMAIN, core_name)}
+        core_device_entry = device_registry.async_get(hass).async_get_device_by_identifier(
+            identifier = (DOMAIN, core_name),
+            config_entry_id=config_entry.entry_id,
         )
+
         self._attr_device_info = entity.DeviceInfo(
             identifiers=core_device_entry.identifiers,
         )
@@ -96,4 +103,8 @@ class QSysComponentControlBase(QSysComponentBase):
     async def update_control(self, control_values):
         payload = {"Name": self.control}
         payload.update(**control_values)
-        await self.core.component().set(self.component, controls=[payload])
+        if self.component:
+            await self.core.component().set(self.component, controls=[payload])
+        else:
+            # Top-level Named Control: Control.Set takes a single object.
+            await self.core.control().set(payload)

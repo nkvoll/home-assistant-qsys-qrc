@@ -10,7 +10,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import SERVICE_RELOAD, Platform
 from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
 from homeassistant.exceptions import ServiceValidationError
-from homeassistant.helpers import device_registry as dr, entity_registry as er
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.reload import async_integration_yaml_config
 from homeassistant.helpers.service import async_register_admin_service
 from homeassistant.helpers.typing import ConfigType
@@ -20,6 +20,7 @@ from .qsys import qrc
 
 PLATFORMS: list[Platform] = [
     Platform.NUMBER,
+    Platform.SELECT,
     Platform.SENSOR,
     Platform.SWITCH,
     Platform.TEXT,
@@ -36,7 +37,7 @@ CONFIG_SCHEMA = vol.Schema(
             {
                 CONF_CORES: vol.Schema(
                     {
-                        vol.basestring: vol.Schema(
+                        str: vol.Schema(
                             {
                                 # TODO: this seems largely wasteful because we're not globbing components, but explicitly configuring them
                                 # leaving it in for now, but consider ripping it out for simplicity
@@ -102,9 +103,10 @@ CONFIG_SCHEMA = vol.Schema(
                                                             CONF_UNIT_OF_MEASUREMENT,
                                                             default=None,
                                                         ): vol.Any(None, str),
-                                                        vol.Required(
-                                                            CONF_COMPONENT
-                                                        ): str,
+                                                        vol.Optional(
+                                                            CONF_COMPONENT,
+                                                            default=None,
+                                                        ): vol.Any(None, str),
                                                         vol.Required(CONF_CONTROL): str,
                                                         vol.Optional(
                                                             CONF_NUMBER_USE_POSITION,
@@ -174,9 +176,10 @@ CONFIG_SCHEMA = vol.Schema(
                                                             CONF_UNIT_OF_MEASUREMENT,
                                                             default=None,
                                                         ): vol.Any(None, str),
-                                                        vol.Required(
-                                                            CONF_COMPONENT
-                                                        ): str,
+                                                        vol.Optional(
+                                                            CONF_COMPONENT,
+                                                            default=None,
+                                                        ): vol.Any(None, str),
                                                         vol.Required(CONF_CONTROL): str,
                                                         vol.Optional(
                                                             CONF_SENSOR_ATTRIBUTE,
@@ -201,9 +204,10 @@ CONFIG_SCHEMA = vol.Schema(
                                                             None,
                                                             switch.DEVICE_CLASSES_SCHEMA,
                                                         ),
-                                                        vol.Required(
-                                                            CONF_COMPONENT
-                                                        ): str,
+                                                        vol.Optional(
+                                                            CONF_COMPONENT,
+                                                            default=None,
+                                                        ): vol.Any(None, str),
                                                         vol.Required(CONF_CONTROL): str,
                                                     }
                                                 )
@@ -217,9 +221,10 @@ CONFIG_SCHEMA = vol.Schema(
                                                             CONF_ENTITY_NAME,
                                                             default=None,
                                                         ): vol.Any(None, str),
-                                                        vol.Required(
-                                                            CONF_COMPONENT
-                                                        ): str,
+                                                        vol.Optional(
+                                                            CONF_COMPONENT,
+                                                            default=None,
+                                                        ): vol.Any(None, str),
                                                         vol.Required(CONF_CONTROL): str,
                                                         vol.Optional(
                                                             CONF_TEXT_MODE, default=None
@@ -236,6 +241,29 @@ CONFIG_SCHEMA = vol.Schema(
                                                             CONF_TEXT_PATTERN,
                                                             default=None,
                                                         ): vol.Any(None, str),
+                                                    }
+                                                )
+                                            ]
+                                        ),
+                                        CONF_SELECT_PLATFORM: vol.Schema(
+                                            [
+                                                vol.Schema(
+                                                    {
+                                                        vol.Optional(
+                                                            CONF_ENTITY_NAME,
+                                                            default=None,
+                                                        ): vol.Any(None, str),
+                                                        vol.Optional(
+                                                            CONF_COMPONENT,
+                                                            default=None,
+                                                        ): vol.Any(None, str),
+                                                        vol.Required(CONF_CONTROL): str,
+                                                        vol.Optional(
+                                                            CONF_SELECT_OPTIONS,
+                                                            default=[],
+                                                        ): vol.All(
+                                                            list, [str]
+                                                        ),
                                                     }
                                                 )
                                             ]

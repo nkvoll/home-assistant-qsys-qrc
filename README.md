@@ -13,7 +13,6 @@ A custom component that integrates Q-Sys Core Devices with Home Assistant via [Q
 ### Features
 
 - `media_player` platform:
-
   - [Media Stream Receivers/ URL Receivers](https://q-syshelp.qsc.com/Index.htm#Schematic_Library/URL_receiver.htm)
     - On/Off (Enable/Disable)
     - Mute control
@@ -30,25 +29,32 @@ A custom component that integrates Q-Sys Core Devices with Home Assistant via [Q
     - Loop on/off
 
 - `number` platform:
-
   - `Value` controls (e.g gains)
     - Direct control (setting Value directly)
     - Position control (0.0 to 1.0)
     - Custom mapping via templated changes/values.
 
 - `sensor` platform:
-
   - `EngineStatus` exposed to HA
   - Any component control
 
 - `switch` platform:
-
   - Any float/int/bool where 1.0/1/True is considered on respectively
   - Toggling.
 
 - `text` platform:
-
   - `String` controls.
+
+- `select` platform:
+  - Q-Sys controls with a `Choices` list (e.g. multi-state buttons, source selectors).
+  - Options auto-populate from QRC; pin a static `options:` list in YAML to override.
+
+- **Top-level Named Controls:**
+  - For switch / number / sensor / text / select entries, omit the
+    `component:` key and the integration treats `control:` as a top-level
+    Q-Sys Named Control (i.e., entries in the Named Controls panel that
+    aren't pinned to a scriptable component). Existing component-backed
+    configs keep working unchanged.
 
 - `services`:
   - Invoking methods on the device via QRC (see `Services` section below)
@@ -88,6 +94,58 @@ See [the example configuration](examples/configuration.yaml) for an example of w
 In order to find the right component and control names, use the [Q-Sys Designer](https://www.qsc.com/resources/software-and-firmware/q-sys-designer-software/). To find the right control name, open the design file and use “Tools → View Component Controls Info” then select your component. See example screenshot.
 
 ![View Component Controls Info”](examples/qsys_designer_view_component_controls_info.png)
+
+### Named Controls (no component backing)
+
+Q-Sys designs often expose top-level **Named Controls** — entries in the
+Named Controls panel that aren't bound to a scriptable component. These are
+reachable via QRC's `Control.Get` / `Control.Set`, and this lets you
+map them to HA entities by **omitting the `component:` key** in YAML.
+
+Here's a real install — 23 Named Controls from a `melbourne_v10` design (touchscreen mode/timeouts, PTZ camera buttons, screen brightness) all loaded as switches, numbers, and sensors under one Q-Sys QRC device:
+
+![Q-Sys QRC entities in Home Assistant](examples/ha_entities_list.png)
+
+```yaml
+qsys_qrc:
+  cores:
+    MainCore:
+      platforms:
+        switch:
+          - name: "Apple Power"
+            control: "Apple.Power" # top-level Named Control
+          - name: "Roon Mute"
+            control: "Roon.Mute"
+
+        number:
+          - name: "Roon Volume"
+            control: "Roon.Volume"
+            unit_of_measurement: "dB"
+            min: -80
+            max: 0
+            step: 1
+
+        select:
+          - name: "Apple Lights"
+            control: "Apple.Lights" # options auto-populated from Choices
+
+        text:
+          - name: "Hue Lights"
+            control: "Hue.Lights"
+
+        sensor:
+          - name: "Roon Now Playing"
+            control: "Text_ControllerNowPlaying_Text"
+            attribute: "String"
+```
+
+Component-backed entries (the original style) keep working unchanged
+alongside top-level entries.
+
+To enumerate the Named Controls a Core exposes, you can call
+`Control.Get` with the `qsys_qrc.call_method` service (see below) using
+a flat list of names — or omit `Component.GetComponents` and look at the
+Named Controls panel in Q-Sys Designer.
 
 ### Services
 
@@ -147,6 +205,10 @@ data:
 ### Contributions are welcome!
 
 If you want to contribute to this please read the [Contribution guidelines](CONTRIBUTING.md)
+
+### Acknowledgements
+
+- [@itskevinb](https://github.com/itskevinb) Support for top-evel Q-Sys Named Controls (the entries in the Named Controls panel that aren't backed by a scriptable component) and a new `select` platform for controls with a `Choices` list and more.
 
 ### Trademarks
 

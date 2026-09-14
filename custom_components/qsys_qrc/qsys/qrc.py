@@ -1,5 +1,6 @@
 import asyncio
 import contextlib
+import inspect
 import json
 import logging
 from enum import Enum, auto
@@ -143,7 +144,7 @@ class Core:
         """Execute commands that should run when connected."""
         for cmd in self._on_connected_commands:
             try:
-                if asyncio.iscoroutine(cmd) or asyncio.iscoroutinefunction(cmd):
+                if asyncio.iscoroutine(cmd) or inspect.iscoroutinefunction(cmd):
                     await cmd()
                 elif callable(cmd):
                     cmd()
@@ -328,8 +329,32 @@ class Core:
     def component(self):
         return ComponentAPI(self)
 
+    def control(self):
+        return ControlAPI(self)
+
     def change_group(self, id_):
         return ChangeGroupAPI(self, id_)
+
+
+class ControlAPI:
+    """Top-level Named Control API (Control.Get / Control.Set).
+
+    Use this for Q-Sys "Named Controls" that exist at the top of the design
+    (Named Controls panel) rather than as inner controls of a scriptable
+    component. Component-backed controls should use ComponentAPI.
+    """
+
+    def __init__(self, core: Core):
+        self._core = core
+
+    async def get(self, names):
+        # Q-Sys accepts Control.Get with a flat list of name strings.
+        return await self._core.call("Control.Get", names)
+
+    async def set(self, params):
+        # params is a dict like {"Name": "Foo.Bar", "Value": 1.0} or
+        # {"Name": "Foo.Bar", "Position": 0.5}.
+        return await self._core.call("Control.Set", params=params)
 
 
 class ComponentAPI:
@@ -362,6 +387,13 @@ class ChangeGroupAPI:
         return await self._core.call(
             "ChangeGroup.AddComponentControl",
             params={"Id": self.id, "Component": component},
+        )
+
+    async def add_control(self, names):
+        # names is a list[str] of top-level Named Controls.
+        return await self._core.call(
+            "ChangeGroup.AddControl",
+            params={"Id": self.id, "Controls": names},
         )
 
     async def poll(self):

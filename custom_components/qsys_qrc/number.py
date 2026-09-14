@@ -80,6 +80,7 @@ async def async_setup_entry(
 
         control_number_entity = QRCNumberEntity(
             hass,
+            entry,
             core_name,
             core,
             id_for_component_control(
@@ -134,6 +135,7 @@ class QRCNumberEntity(QSysComponentControlBase, NumberEntity):
     def __init__(
         self,
         hass,
+        config_entry: ConfigEntry,
         core_name,
         core,
         unique_id,

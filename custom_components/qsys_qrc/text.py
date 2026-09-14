@@ -47,6 +47,7 @@ async def async_setup_entry(
         # need to fetch component and control config first?
         control_text_entity = QRCTextEntity(
             hass,
+            entry,
             core_name,
             core,
             id_for_component_control(
@@ -94,6 +95,7 @@ class QRCTextEntity(QSysComponentControlBase, TextEntity):
     def __init__(
         self,
         hass,
+        config_entry: ConfigEntry,
         core_name,
         core,
         unique_id,
@@ -106,7 +108,7 @@ class QRCTextEntity(QSysComponentControlBase, TextEntity):
         pattern,
     ) -> None:
         super().__init__(
-            hass, core_name, core, unique_id, entity_name, component, control
+            hass, config_entry, core_name, core, unique_id, entity_name, component, control
         )
 
         self._attr_mode = mode

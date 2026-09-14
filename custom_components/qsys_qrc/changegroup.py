@@ -1,4 +1,5 @@
 import asyncio
+import inspect
 import logging
 from enum import Enum, auto
 import contextlib
@@ -42,6 +43,7 @@ class ChangeGroupPoller:
         self._listeners_component_control = []  # (listener, filter)
         self._listeners_run_loop_iteration_ending = []
         self._listeners_component_control_changes = {}  # (component, control) -> [listeners]
+        self._listeners_named_control_changes = {}  # control -> [listeners]  (top-level Named Controls)
         self._change_group_name = change_group_name
         self.cg = None
         self._poll_interval = poll_interval
@@ -94,6 +96,11 @@ class ChangeGroupPoller:
     async def subscribe_component_control_changes(
         self, listener, component_name, control_name
     ):
+        # When component_name is falsy, route to the top-level Named Control path.
+        if not component_name:
+            await self.subscribe_named_control_changes(listener, control_name)
+            return
+
         self._listeners_component_control_changes.setdefault(
             (component_name, control_name), []
         ).append(listener)
@@ -118,14 +125,40 @@ class ChangeGroupPoller:
                     repr(ex),
                 )
 
+    async def subscribe_named_control_changes(self, listener, control_name):
+        self._listeners_named_control_changes.setdefault(control_name, []).append(listener)
+
+        # If change group already exists, add the named control immediately.
+        if self.cg:
+            try:
+                await asyncio.wait_for(
+                    self.cg.add_control([control_name]),
+                    timeout=self._request_timeout,
+                )
+            except Exception as ex:  # noqa: BLE001
+                _LOGGER.warning(
+                    "Unable to add named control immediately (%s): %s",
+                    control_name,
+                    repr(ex),
+                )
+
     async def _fire_on_component_control_change(self, change):
-        component_name = change["Component"]
+        # Top-level Named Controls come back without a "Component" field.
+        component_name = change.get("Component")
         control_name = change["Name"]
+
+        if not component_name:
+            for listener in self._listeners_named_control_changes.get(control_name, []):
+                if asyncio.iscoroutine(listener) or inspect.iscoroutinefunction(listener):
+                    await listener(self, change)
+                else:
+                    listener(self, change)
+            return
 
         for listener in self._listeners_component_control_changes.get(
             (component_name, control_name), []
         ):
-            if asyncio.iscoroutine(listener) or asyncio.iscoroutinefunction(listener):
+            if asyncio.iscoroutine(listener) or inspect.iscoroutinefunction(listener):
                 await listener(self, change)
             else:
                 listener(self, change)
@@ -133,14 +166,16 @@ class ChangeGroupPoller:
     async def _create_or_recreate_change_group(self):
         self.cg = self.core.change_group(self._change_group_name)
         _LOGGER.info(
-            "%s: creating changegroup with %d controls, poll interval: %f, request timeout: %f",
+            "%s: creating changegroup with %d component controls + %d named controls, "
+            "poll interval: %f, request timeout: %f",
             self._change_group_name,
             len(self._listeners_component_control_changes),
+            len(self._listeners_named_control_changes),
             self._poll_interval,
             self._request_timeout,
         )
         self._creation_count += 1
-        # add all subscribed controls
+        # add all subscribed component-controls
         for (component_name, control_name), _listeners in self._listeners_component_control_changes.items():
             try:
                 await asyncio.wait_for(
@@ -158,6 +193,22 @@ class ChangeGroupPoller:
                     self._change_group_name,
                     component_name,
                     control_name,
+                    repr(ex),
+                )
+
+        # add all subscribed top-level Named Controls in one batch
+        named_control_names = list(self._listeners_named_control_changes.keys())
+        if named_control_names:
+            try:
+                await asyncio.wait_for(
+                    self.cg.add_control(named_control_names),
+                    timeout=self._request_timeout,
+                )
+            except Exception as ex:  # noqa: BLE001
+                _LOGGER.warning(
+                    "%s: unable to add named controls %s: %s",
+                    self._change_group_name,
+                    named_control_names,
                     repr(ex),
                 )
 

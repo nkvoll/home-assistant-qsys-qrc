@@ -49,6 +49,7 @@ async def async_setup_entry(
         # need to fetch component and control config first?
         control_switch_entity = QRCSwitchEntity(
             hass,
+            entry,
             core_name,
             core,
             id_for_component_control(
@@ -93,6 +94,7 @@ class QRCSwitchEntity(QSysComponentControlBase, SwitchEntity):
     def __init__(
         self,
         hass,
+        config_entry: ConfigEntry,
         core_name,
         core,
         unique_id,
@@ -102,7 +104,7 @@ class QRCSwitchEntity(QSysComponentControlBase, SwitchEntity):
         device_class,
     ) -> None:
         super().__init__(
-            hass, core_name, core, unique_id, entity_name, component, control
+            hass, config_entry, core_name, core, unique_id, entity_name, component, control
         )
 
         self._attr_device_class = device_class

@@ -85,6 +85,7 @@ async def async_setup_entry_safe(
         if component_type == "URL_receiver":
             media_player_entity = QRCUrlReceiverEntity(
                 hass,
+                entry,
                 core_name,
                 core,
                 id_for_component(core_name, media_player_config[CONF_COMPONENT]),
@@ -95,6 +96,7 @@ async def async_setup_entry_safe(
         elif component_type == "audio_file_player":
             media_player_entity = QRCAudioFilePlayerEntity(
                 hass,
+                entry,
                 core_name,
                 core,
                 id_for_component(core_name, media_player_config[CONF_COMPONENT]),
@@ -105,6 +107,7 @@ async def async_setup_entry_safe(
         elif component_type == "gain":
             media_player_entity = QRCGainEntity(
                 hass,
+                entry,
                 core_name,
                 core,
                 id_for_component(core_name, media_player_config[CONF_COMPONENT]),
@@ -170,9 +173,9 @@ class QRCUrlReceiverEntity(QSysComponentBase, MediaPlayerEntity):
     )
 
     def __init__(
-        self, hass, core_name, core, unique_id, entity_name, component, device_class
+        self, hass, config_entry: ConfigEntry, core_name, core, unique_id, entity_name, component, device_class
     ) -> None:
-        super().__init__(hass, core_name, core, unique_id, entity_name, component)
+        super().__init__(hass, config_entry, core_name, core, unique_id, entity_name, component)
 
         self._attr_device_class = device_class
 
@@ -310,9 +313,9 @@ class QRCAudioFilePlayerEntity(QSysComponentBase, MediaPlayerEntity):
     )
 
     def __init__(
-        self, hass, core_name, core, unique_id, entity_name, component, device_class
+        self, hass, config_entry: ConfigEntry, core_name, core, unique_id, entity_name, component, device_class
     ) -> None:
-        super().__init__(hass, core_name, core, unique_id, entity_name, component)
+        super().__init__(hass, config_entry, core_name, core, unique_id, entity_name, component)
 
         self._attr_device_class = device_class
 
@@ -570,9 +573,9 @@ class QRCGainEntity(QSysComponentBase, MediaPlayerEntity):
     _attr_state = MediaPlayerState.ON
 
     def __init__(
-        self, hass, core_name, core, unique_id, entity_name, component, device_class
+        self, hass, config_entry: ConfigEntry, core_name, core, unique_id, entity_name, component, device_class
     ) -> None:
-        super().__init__(hass, core_name, core, unique_id, entity_name, component)
+        super().__init__(hass, config_entry, core_name, core, unique_id, entity_name, component)
 
         self._attr_device_class = device_class
 
