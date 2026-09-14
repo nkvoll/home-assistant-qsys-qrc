@@ -40,4 +40,32 @@ if ! grep -F "export PYTHONPATH=\"\${PYTHONPATH}:${PWD}/custom_components\"" ~/.
 	echo "export PYTHONPATH=\"\${PYTHONPATH}:${PWD}/custom_components\"" >> ~/.zshrc
 fi
 
+# Create config dir if not present
+if [[ ! -d "${PWD}/config" ]]; then
+    mkdir -p "${PWD}/config"
+    hass --config "${PWD}/config" --script ensure_config
+fi
+
+if ! grep -R "logger" config/configuration.yaml >> /dev/null;then
+echo "
+logger:
+  default: info
+  #logs:
+  #  homeassistant.components.cloud: debug
+" >> config/configuration.yaml
+fi
+
+# temporary fix for cffi issue
+rm -rf /workspaces/.venv/lib/python3.14/site-packages/cffi*
+rm -rf /workspaces/.venv/lib/python3.14/site-packages/_cffi*
+uv pip install cffi
+
+hass --script check_config -c config
+
+echo "--------------------------------"
+echo "To finish setting up homeassisant and download packages from discovery: run the following command before using the debugger (F5):"
+echo ""
+echo "$ hass -c config --debug"
+echo "--------------------------------"
+
 echo "[setup] Done. Venv located at $VENV_PATH"

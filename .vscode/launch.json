@@ -8,24 +8,28 @@
             "name": "Home Assistant",
             "type": "debugpy",
             "request": "launch",
+            "python": "${workspaceFolder}/../.venv/bin/python",
             "module": "homeassistant",
             "justMyCode": false,
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
             "args": [
                 "--debug",
-                "-c",
-                "config"
+                "--config", "config"
             ]
         },
         {
             "name": "Home Assistant (skip pip)",
             "type": "debugpy",
             "request": "launch",
+            "python": "${workspaceFolder}/../.venv/bin/python",
             "module": "homeassistant",
             "justMyCode": false,
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
             "args": [
                 "--debug",
-                "-c",
-                "config",
+                "--config", "config",
                 "--skip-pip"
             ],
         },

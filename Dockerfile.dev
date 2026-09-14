@@ -28,6 +28,7 @@ RUN apt update \
     libxml2-16 \
     libyaml-dev \
     sudo \
+    ssh \
     vim \
     zsh \
     && apt-get clean \
