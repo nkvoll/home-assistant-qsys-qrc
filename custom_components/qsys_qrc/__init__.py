@@ -18,7 +18,8 @@ from homeassistant.helpers.typing import ConfigType
 from .const import *
 from .qsys import qrc
 from .schema import CONFIG_SCHEMA
-from .mapping import resolve_configuration
+from .mapping import resolve_configuration, yaml_mappings
+from .portable import export_document
 from .changegroup import create_change_group_for_platform
 
 PLATFORMS: list[Platform] = [
@@ -58,6 +59,48 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             return False
 
     hass.data[DOMAIN] = {CONF_CONFIG: domain_conf, CONF_CACHED_CORES: {}}
+
+    async def export_configuration(call: ServiceCall):
+        core_name = call.data["core_name"]
+        entry = next(
+            (
+                item
+                for item in hass.config_entries.async_entries(DOMAIN)
+                if item.data.get(CONF_USER_DATA, {}).get(CONF_CORE_NAME) == core_name
+            ),
+            None,
+        )
+        if entry is None:
+            raise ServiceValidationError("Unknown Core name")
+        mappings = entry.options.get("mappings", [])
+        if call.data.get("effective", False):
+            config = hass.data[DOMAIN].get(CONF_ENTRY_CONFIG, {}).get(entry.entry_id)
+            if config is None:
+                raise ServiceValidationError(
+                    "Load the Core entry before exporting effective configuration"
+                )
+            mappings = yaml_mappings(config, core_name)
+        return {
+            "configuration": export_document(
+                core_name,
+                mappings,
+                entry.data.get(CONF_ENGINE_STATUS, {}).get("DesignName"),
+            )
+        }
+
+    async_register_admin_service(
+        hass,
+        DOMAIN,
+        "export_configuration",
+        export_configuration,
+        schema=vol.Schema(
+            {
+                vol.Required("core_name"): str,
+                vol.Optional("effective", default=False): bool,
+            }
+        ),
+        supports_response=SupportsResponse.ONLY,
+    )
 
     async def handle_call_method(call: ServiceCall):
         """Handle the service call."""

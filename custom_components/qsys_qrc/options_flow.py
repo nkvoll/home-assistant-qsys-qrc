@@ -9,6 +9,7 @@ from homeassistant.helpers import selector
 
 from .const import *
 from . import discovery
+from .portable import parse_document
 from .mapping import (
     MAPPING_VERSION,
     identity,
@@ -91,6 +92,8 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 "edit_entity",
                 "remove_entity",
                 "import_yaml",
+                "import_portable",
+                "export_portable",
                 "finish",
             ],
             description_placeholders={"inventory": inventory or "No entity mappings."},
@@ -459,3 +462,91 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         return self._form(
             "yaml_cleanup", definitions=json.dumps(self._transfer["selected"], indent=2)
         )
+
+    async def async_step_import_portable(self, user_input=None):
+        """Parse pasted JSON and preview all settings, collisions, and discovery findings."""
+        error = None
+        if user_input:
+            try:
+                document = parse_document(user_input["document"], self.core_name)
+                yaml = [
+                    item["mapping"]
+                    for item in self._inventory()
+                    if item["source"] == "yaml"
+                ]
+                proposed, changes = transfer_mappings(
+                    self.core_name,
+                    self._mappings(),
+                    document["mappings"],
+                    yaml,
+                    collision=user_input["collision"],
+                    transfer_yaml=user_input.get("transfer_yaml", False),
+                )
+                issues = []
+                for mapping in document["mappings"]:
+                    findings = await discovery.validate_mapping(self.core, mapping)
+                    issues.append(
+                        {
+                            "identity": identity(self.core_name, mapping),
+                            "issues": findings,
+                        }
+                    )
+                self._transfer = {
+                    "mappings": proposed,
+                    "changes": changes,
+                    "issues": issues,
+                    "document": document,
+                    "original": deepcopy(self.config_entry.options),
+                    "new_ids": document["core_name"] != self.core_name,
+                }
+                return await self.async_step_portable_review()
+            except vol.Invalid, ValueError, TypeError, RecursionError:
+                error = "invalid_document"
+            except discovery.DiscoveryError:
+                error = "discovery_failed"
+        return self._form(
+            "import_portable",
+            {
+                vol.Required("document"): selector.TextSelector(
+                    selector.TextSelectorConfig(multiline=True)
+                ),
+                vol.Required("collision", default="skip"): choose(["skip", "replace"]),
+                vol.Optional("transfer_yaml", default=False): bool,
+            },
+            error,
+        )
+
+    async def async_step_portable_review(self, user_input=None):
+        if user_input and user_input.get("confirm"):
+            if dict(self.config_entry.options) != self._transfer["original"]:
+                return self._form(
+                    "portable_review",
+                    error="configuration_changed",
+                    preview="",
+                    identity_notice="Restart import.",
+                )
+            self.hass.config_entries.async_update_entry(
+                self.config_entry,
+                options={
+                    **self.config_entry.options,
+                    "mapping_version": MAPPING_VERSION,
+                    "mappings": self._transfer["mappings"],
+                },
+            )
+            return await self.async_step_init()
+        return self._form(
+            "portable_review",
+            {vol.Required("confirm", default=False): bool},
+            preview=json.dumps(
+                {key: self._transfer[key] for key in ("document", "changes", "issues")},
+                indent=2,
+            ),
+            identity_notice="The target Core has a different name. Imported mappings create new Home Assistant unique IDs."
+            if self._transfer["new_ids"]
+            else "The target Core name supplies the entity identity prefix.",
+        )
+
+    async def async_step_export_portable(self, user_input=None):
+        if user_input is not None:
+            return await self.async_step_init()
+        return self._form("export_portable", core_name=self.core_name)

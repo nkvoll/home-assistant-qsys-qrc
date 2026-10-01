@@ -57,7 +57,9 @@
           "edit_entity": "Edit UI entity",
           "remove_entity": "Remove UI entity",
           "finish": "Finish",
-          "import_yaml": "Import from YAML"
+          "import_yaml": "Import from YAML",
+          "import_portable": "Import portable configuration",
+          "export_portable": "Export portable configuration"
         }
       },
       "add_entity": {
@@ -165,6 +167,26 @@
       "yaml_cleanup": {
         "title": "YAML cleanup",
         "description": "These mappings now belong to the UI. You can remove their old definitions from your YAML files, then reload. Remaining YAML settings are unchanged.\n\n{definitions}"
+      },
+      "import_portable": {
+        "title": "Import portable configuration",
+        "description": "Paste a versioned JSON document. Skip leaves colliding identities unchanged. Replace updates UI mappings; replacing YAML also requires explicit ownership transfer.",
+        "data": {
+          "document": "JSON document",
+          "collision": "Collision policy",
+          "transfer_yaml": "Transfer ownership of colliding YAML mappings"
+        }
+      },
+      "portable_review": {
+        "title": "Review portable import",
+        "description": "{identity_notice}\n\nReview every mapping, action, and validation finding before saving:\n{preview}",
+        "data": {
+          "confirm": "Save reviewed import"
+        }
+      },
+      "export_portable": {
+        "title": "Export portable configuration",
+        "description": "As an administrator, open Developer Tools \u2192 Actions and run qsys_qrc.export_configuration with core_name: {core_name}. Copy the configuration object from the response and save it as a JSON file. UI-owned mappings are exported by default. Set effective: true to include active YAML mappings. Connection credentials are excluded. Home Assistant backups remain the full-install backup mechanism."
       }
     },
     "error": {
@@ -173,7 +195,8 @@
       "duplicate_entity": "This identity is already configured. Edit its UI mapping or explicitly import its YAML mapping.",
       "invalid_settings": "Check the entity settings.",
       "invalid_selection": "Select an existing UI entity.",
-      "configuration_changed": "Configuration changed during review. Restart the import."
+      "configuration_changed": "Configuration changed during review. Restart the import.",
+      "invalid_document": "Invalid portable document, unsupported schema, size limit exceeded, or a YAML collision without explicit ownership transfer."
     }
   }
 }

@@ -166,3 +166,30 @@ async def test_yaml_import_outage_does_not_save():
     assert result["errors"]["base"] == "discovery_failed"
     flow.hass.config_entries.async_update_entry.assert_not_called()
     assert not entry.options["mappings"]
+
+
+@pytest.mark.asyncio
+async def test_portable_import_previews_collision_and_new_ids():
+    import json
+    from custom_components.qsys_qrc.portable import export_document
+
+    mapping = {"platform": "switch", "settings": {"control": "mute"}}
+    flow, entry = flow_for([mapping])
+    with patch(
+        "custom_components.qsys_qrc.options_flow.discovery.validate_mapping",
+        AsyncMock(return_value=["missing_control"]),
+    ):
+        result = await flow.async_step_import_portable(
+            {
+                "document": json.dumps(export_document("other_core", [mapping])),
+                "collision": "skip",
+                "transfer_yaml": False,
+            }
+        )
+    assert result["step_id"] == "portable_review"
+    assert "different name" in result["description_placeholders"]["identity_notice"]
+    assert "missing_control" in result["description_placeholders"]["preview"]
+    assert flow._transfer["changes"][0]["action"] == "skip"
+    flow.hass.config_entries.async_update_entry.assert_not_called()
+    await flow.async_step_portable_review({"confirm": True})
+    assert len(entry.options["mappings"]) == 1

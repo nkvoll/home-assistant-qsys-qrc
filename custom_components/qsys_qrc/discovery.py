@@ -12,6 +12,10 @@ class DiscoveryError(Exception):
     """Discovery failed; saved configuration must remain intact."""
 
 
+class MissingControlError(DiscoveryError):
+    """A successful response did not contain the requested Named Control."""
+
+
 async def _request(awaitable, timeout):
     try:
         response = await asyncio.wait_for(awaitable, timeout)
@@ -52,7 +56,7 @@ async def named_control(core, name, timeout=5):
     for control in result:
         if control["Name"] == name:
             return control
-    raise DiscoveryError("Named Control was not found")
+    raise MissingControlError("Named Control was not found")
 
 
 def writable(control):
@@ -144,7 +148,10 @@ async def validate_mapping(core, mapping, timeout=5):
         if control is None:
             return ["missing_control"]
     else:
-        control = await named_control(core, settings["control"], timeout)
+        try:
+            control = await named_control(core, settings["control"], timeout)
+        except MissingControlError:
+            return ["missing_control"]
     if platform not in compatible_platforms(control):
         return [
             "read_only_mismatch"
