@@ -84,11 +84,11 @@ class EntityFlowMixin:
         # UI state comes from current options even while an options-triggered reload is running.
         return resolve_configuration(self.core_name, yaml, self.config_entry.options)[1]
 
-    def _form(self, step, fields=None, error=None, **placeholders):
+    def _form(self, step, fields=None, error=None, field_errors=None, **placeholders):
         return self.async_show_form(
             step_id=step,
             data_schema=vol.Schema(fields or {}),
-            errors={"base": error} if error else {},
+            errors={**({"base": error} if error else {}), **(field_errors or {})},
             description_placeholders=placeholders,
         )
 
@@ -250,9 +250,14 @@ class EntityFlowMixin:
     async def async_step_settings(self, user_input=None):
         error = None
         settings = self._draft["settings"]
+        field_errors = {}
         if user_input is not None:
             try:
-                updated = {**settings, **user_input}
+                submitted = {
+                    key: None if value == "" and settings.get(key) is None else value
+                    for key, value in user_input.items()
+                }
+                updated = {**settings, **submitted}
                 self._draft = normalize_mapping({**self._draft, "settings": updated})
                 issues = await discovery.validate_mapping(self.core, self._draft)
                 blocking = [
@@ -277,11 +282,20 @@ class EntityFlowMixin:
                     error = "duplicate_entity"
                 else:
                     return await self.async_step_review()
-            except vol.Invalid, ValueError, TypeError:
+            except vol.Invalid as err:
+                error = "invalid_settings"
+                for item in getattr(err, "errors", [err]):
+                    for field in reversed(getattr(item, "path", [])):
+                        if isinstance(field, str) and field in settings:
+                            field_errors[field] = "invalid_settings"
+                            break
+            except ValueError, TypeError:
                 error = "invalid_settings"
             except discovery.DiscoveryError:
                 error = "discovery_failed"
-        return self._form("settings", self._settings_fields(), error)
+        return self._form(
+            "settings", self._settings_fields(), error, field_errors=field_errors
+        )
 
     def _settings_fields(self):
         fields = {}

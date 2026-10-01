@@ -329,3 +329,22 @@ async def test_invalid_yaml_selection_is_not_silently_dropped():
     )
     assert result["errors"]["base"] == "invalid_selection"
     flow.hass.config_entries.async_update_entry.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_switch_blank_device_class_is_unset_and_invalid_class_marks_field():
+    from custom_components.qsys_qrc.mapping import normalize_mapping
+
+    flow, _ = flow_for()
+    flow._draft = normalize_mapping(
+        {"platform": "switch", "settings": {"component": "example", "control": "mute"}}
+    )
+    with patch(
+        "custom_components.qsys_qrc.options_flow.discovery.validate_mapping",
+        AsyncMock(return_value=[]),
+    ):
+        result = await flow.async_step_settings({"name": "Mute", "device_class": ""})
+        assert result["step_id"] == "review"
+        assert flow._draft["settings"]["device_class"] is None
+        result = await flow.async_step_settings({"device_class": "invalid_class"})
+        assert result["errors"]["device_class"] == "invalid_settings"
