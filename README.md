@@ -137,13 +137,15 @@ set to **External** or **All** to appear in discovery. The question-mark icon
 beside **Components** explains this requirement. See the
 [Q-SYS Code Name and Script Access documentation](https://help.qsys.com/content/Control_Scripting/Code_Name_Script_Access.htm).
 
-1. Select one or more components. **Filter components** narrows the picker;
+1. Under **1. Choose components**, select one or more components. Selecting a
+   component displays its controls; it does not create entities yet. **Filter components** narrows the picker;
    **Select all** selects matching components, **Clear** clears the component
    selection, and **Single column** changes the picker layout. **Refresh** beside
    **Filter components** reloads the component list, keeping selections that
    still exist.
 2. To add a Named Control, enter its exact name in the separate **Named Controls**
-   box and click **Add Named Control**. Find names in Designer’s Named Controls
+   box and click **Look up control**. This displays the control in the table;
+   select its checkbox to include it in creation. Find names in Designer’s Named Controls
    panel. QRC has no documented command to list all Named Controls, so they
    require lookup rather than automatic discovery.
 3. Use **Filter controls** above the table to find controls. Rows are grouped by
@@ -151,7 +153,8 @@ beside **Components** explains this requirement. See the
    sort ascending or descending. **Refresh** beside **Filter controls** reloads
    controls for the selected components and mapping status, keeping component
    selections, selected controls, filters, and entered settings.
-4. Select the table checkboxes for the controls to add. Choose **Entity type** and
+4. Under **2. Choose controls to create entities**, select the table checkboxes
+   for the controls to add. Choose **Entity type** and
    **Entity name** for each row. Default display names follow `component / control`,
    preserving spaces and capitalization. Named Controls default to their control
    name, and component media players default to the component name.
@@ -174,6 +177,8 @@ values refresh while the browser is open.
 
 ![Component selection and controls](examples/screenshots/panel-components-controls.png)
 
+The sticky action bar shows the selection count and keeps **Review creation**
+available while scrolling. Select at least one control to enable it.
 Click **Review creation** to open the review dialog. Check the proposed mappings
 and discovery findings, then click **Create**. **Cancel** or Escape returns to
 the table with your selections intact.
