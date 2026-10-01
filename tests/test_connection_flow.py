@@ -35,10 +35,20 @@ def mock_yaml_config():
 @pytest.mark.parametrize("value", [0, -1, float("inf"), float("nan"), "invalid"])
 def test_invalid_polling_durations(field, value):
     import voluptuous as vol
-    from custom_components.qsys_qrc.config_flow import STEP_USER_DATA_SCHEMA
+    from custom_components.qsys_qrc.config_flow import STEP_USER_DATA_SCHEMA, positive_seconds
 
     with pytest.raises(vol.Invalid):
-        STEP_USER_DATA_SCHEMA({**DATA, field: value})
+        submitted = STEP_USER_DATA_SCHEMA({**DATA, field: value})
+        positive_seconds(submitted[field])
+
+
+def test_connection_form_schema_is_serializable():
+    from probatio import to_field_list
+    from custom_components.qsys_qrc.config_flow import STEP_USER_DATA_SCHEMA
+
+    fields = {field["name"]: field for field in to_field_list(STEP_USER_DATA_SCHEMA)}
+    assert fields[CONF_POLL_INTERVAL]["type"] == "float"
+    assert fields[CONF_REQUEST_TIMEOUT]["type"] == "float"
 
 
 @pytest.mark.asyncio

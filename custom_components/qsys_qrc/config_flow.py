@@ -40,8 +40,12 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
         ),
         vol.Required(CONF_USERNAME): str,
         vol.Required(CONF_PASSWORD): str,
-        vol.Required(CONF_POLL_INTERVAL, default=1.0): positive_seconds,
-        vol.Required(CONF_REQUEST_TIMEOUT, default=5.0): positive_seconds,
+        vol.Required(CONF_POLL_INTERVAL, default=1.0): vol.All(
+            vol.Coerce(float), vol.Range(min=0, min_included=False)
+        ),
+        vol.Required(CONF_REQUEST_TIMEOUT, default=5.0): vol.All(
+            vol.Coerce(float), vol.Range(min=0, min_included=False)
+        ),
     }
 )
 
@@ -153,6 +157,8 @@ class ConfigFlow(EntityFlowMixin, config_entries.ConfigFlow, domain=DOMAIN):
                 suggested[CONF_CORE_NAME] = entry.data[CONF_USER_DATA][CONF_CORE_NAME]
             try:
                 submitted = STEP_USER_DATA_SCHEMA(suggested)
+                for field in (CONF_POLL_INTERVAL, CONF_REQUEST_TIMEOUT):
+                    submitted[field] = positive_seconds(submitted[field])
                 if self._duplicate(submitted, entry.entry_id if entry else None):
                     return self.async_abort(reason="already_configured")
                 data = await validate_input(self.hass, submitted)
