@@ -9,6 +9,10 @@ from custom_components.qsys_qrc.options_flow import OptionsFlowHandler
 from custom_components.qsys_qrc.const import *
 
 
+class HassStub(SimpleNamespace):
+    __hash__ = object.__hash__
+
+
 def flow_for(mappings=None, inventory=None):
     entry = SimpleNamespace(
         entry_id="entry",
@@ -21,7 +25,7 @@ def flow_for(mappings=None, inventory=None):
     def update(entry, options):
         entry.options = MappingProxyType(options)
 
-    flow.hass = SimpleNamespace(
+    flow.hass = HassStub(
         data={
             DOMAIN: {
                 CONF_CACHED_CORES: {"core": Mock()},
@@ -33,6 +37,9 @@ def flow_for(mappings=None, inventory=None):
             async_update_entry=Mock(side_effect=update),
         ),
     )
+    from homeassistant.helpers import entity_registry as er
+
+    flow.hass.data[er.DATA_REGISTRY] = Mock(async_get_entity_id=Mock(return_value=None))
     return flow, entry
 
 
@@ -389,9 +396,9 @@ def test_edit_remove_choices_include_name_platform_and_control_path():
         ]
     )
     assert [item["label"] for item in flow._ui_choices()] == [
-        "Room mute · switch · mixer / mute",
-        "named_mute · switch · Named Control / named_mute",
-        "Music · media_player · player",
+        "switch.(not loaded) / Room mute (core: mixer/mute)",
+        "switch.(not loaded) / named_mute (core: Named Control/named_mute)",
+        "media_player.(not loaded) / Music (core: player)",
     ]
 
 
@@ -403,3 +410,37 @@ async def test_management_menu_does_not_list_entity_inventory():
     result = await flow.async_step_init()
     assert "inventory" not in result["description_placeholders"]
     assert result["description_placeholders"]["notices"] == ""
+
+
+def test_edit_remove_labels_use_registry_entity_id_and_user_name():
+    from homeassistant.helpers import entity_registry as er
+
+    flow, _ = flow_for(
+        [
+            {
+                "platform": "switch",
+                "settings": {
+                    "name": "Configured name",
+                    "component": "mixer",
+                    "control": "mute",
+                },
+            }
+        ]
+    )
+    registry = flow.hass.data[er.DATA_REGISTRY]
+    registry.async_get_entity_id.return_value = "switch.room_mute"
+    registry.async_get.return_value = SimpleNamespace(
+        name="My room mute", original_name="Original mute"
+    )
+    assert (
+        flow._ui_choices()[0]["label"]
+        == "switch.room_mute / My room mute (core: mixer/mute)"
+    )
+    registry.async_get_entity_id.assert_called_once_with(
+        "switch", DOMAIN, "core_mixer_mute"
+    )
+    registry.async_get.return_value.name = None
+    assert (
+        flow._ui_choices()[0]["label"]
+        == "switch.room_mute / Original mute (core: mixer/mute)"
+    )

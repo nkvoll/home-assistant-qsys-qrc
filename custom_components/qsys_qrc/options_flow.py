@@ -6,10 +6,11 @@ import logging
 
 import voluptuous as vol
 from homeassistant import config_entries
-from homeassistant.helpers import selector
+from homeassistant.helpers import selector, entity_registry as er
 
 from .const import *
 from . import discovery
+from .common import id_for_component, id_for_component_control
 from .portable import parse_document
 from .mapping import (
     MAPPING_VERSION,
@@ -364,23 +365,29 @@ class EntityFlowMixin:
         )
 
     def _ui_choices(self):
+        registry = er.async_get(self.hass)
         choices = []
         for index, mapping in enumerate(self._mappings()):
             settings = mapping["settings"]
-            component = settings.get("component")
-            control = settings.get("control")
+            component, control = settings.get("component"), settings.get("control")
+            platform = mapping["platform"]
+            unique_id = (
+                id_for_component(self.core_name, component)
+                if platform == "media_player"
+                else id_for_component_control(self.core_name, component, control)
+            )
+            entity_id = registry.async_get_entity_id(platform, DOMAIN, unique_id)
+            registered = registry.async_get(entity_id) if entity_id else None
+            # Resolve the user's registry name first, then the entity's original name.
+            name = (registered.name or registered.original_name) if registered else None
+            name = name or settings.get("name") or control or component
             target = (
-                f"{component} / {control}"
+                f"{component}/{control}"
                 if component and control
-                else component or f"Named Control / {control}"
+                else component or f"Named Control/{control}"
             )
-            name = settings.get("name") or control or component
-            choices.append(
-                {
-                    "value": str(index),
-                    "label": f"{name} · {mapping['platform']} · {target}",
-                }
-            )
+            label = f"{entity_id or platform + '.(not loaded)'} / {name} ({self.core_name}: {target})"
+            choices.append({"value": str(index), "label": label})
         return choices
 
     async def async_step_edit_entity(self, user_input=None):
