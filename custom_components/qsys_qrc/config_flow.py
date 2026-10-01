@@ -88,6 +88,10 @@ class ConfigFlow(EntityFlowMixin, config_entries.ConfigFlow, domain=DOMAIN):
         self._initial_entry.options = options
 
     async def async_step_init(self, user_input=None):
+        return await self.async_step_setup_entities()
+
+    async def async_step_setup_entities(self, user_input=None):
+        """Expose the registered initial entity menu step."""
         return self.async_show_menu(
             step_id="setup_entities", menu_options=["add_entity", "finish"]
         )

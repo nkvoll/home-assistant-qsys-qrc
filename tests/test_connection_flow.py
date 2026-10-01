@@ -137,3 +137,17 @@ async def test_initial_setup_offers_empty_core_or_assisted_entity():
     saved = await flow.async_step_finish()
     assert saved["options"]["mappings"][0]["settings"]["name"] == "Mute"
     flow.hass.config_entries.async_update_entry.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_flow_manager_accepts_initial_entity_menu():
+    from tests.flow_manager import TestFlowManager
+
+    flow = ConfigFlow()
+    flow.hass = Mock()
+    manager = TestFlowManager(flow.hass)
+    manager._progress[flow.flow_id] = flow
+    result = await manager._async_handle_step(flow, "init", None)
+    assert result["step_id"] == "setup_entities"
+    result = await manager._async_handle_step(flow, "setup_entities", None)
+    assert result["menu_options"] == ["add_entity", "finish"]

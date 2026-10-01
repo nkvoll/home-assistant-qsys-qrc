@@ -193,3 +193,40 @@ async def test_portable_import_previews_collision_and_new_ids():
     flow.hass.config_entries.async_update_entry.assert_not_called()
     await flow.async_step_portable_review({"confirm": True})
     assert len(entry.options["mappings"]) == 1
+
+
+@pytest.mark.asyncio
+async def test_flow_manager_accepts_component_menu_and_following_steps():
+    from tests.flow_manager import TestFlowManager
+
+    flow, _ = flow_for()
+    manager = TestFlowManager(flow.hass)
+    manager._progress[flow.flow_id] = flow
+    with (
+        patch(
+            "custom_components.qsys_qrc.options_flow.discovery.components",
+            AsyncMock(return_value=[{"Name": "gain", "Type": "gain"}]),
+        ),
+        patch(
+            "custom_components.qsys_qrc.options_flow.discovery.controls",
+            AsyncMock(
+                return_value=[
+                    {"Name": "mute", "Type": "Boolean", "Direction": "Read/Write"}
+                ]
+            ),
+        ),
+    ):
+        result = await manager._async_handle_step(
+            flow, "component", {"component": "gain"}
+        )
+        assert result["step_id"] == "component_kind"
+        result = await manager._async_handle_step(flow, "component_kind", None)
+        assert result["menu_options"] == ["control", "media_player"]
+        result = await manager._async_handle_step(flow, "control", {"control": "mute"})
+        assert result["step_id"] == "entity_type"
+        result = await manager._async_handle_step(
+            flow, "entity_type", {"platform": "switch"}
+        )
+        assert result["step_id"] == "settings"
+        result = await manager._async_handle_step(flow, "media_player", None)
+        assert result["step_id"] == "settings"

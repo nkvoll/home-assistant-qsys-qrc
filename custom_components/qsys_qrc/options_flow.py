@@ -128,10 +128,7 @@ class EntityFlowMixin:
                 self._component = item["Name"]
                 self._component_type = item.get("Type")
                 if self._component_type in discovery.MEDIA_COMPONENT_TYPES:
-                    return self.async_show_menu(
-                        step_id="component_kind",
-                        menu_options=["control", "media_player"],
-                    )
+                    return await self.async_step_component_kind()
                 return await self.async_step_control()
         except discovery.DiscoveryError:
             error = "discovery_failed"
@@ -149,6 +146,12 @@ class EntityFlowMixin:
                 )
             },
             error,
+        )
+
+    async def async_step_component_kind(self, user_input=None):
+        """Expose the registered menu step for supported media components."""
+        return self.async_show_menu(
+            step_id="component_kind", menu_options=["control", "media_player"]
         )
 
     async def async_step_media_player(self, user_input=None):
