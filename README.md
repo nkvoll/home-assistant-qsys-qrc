@@ -105,7 +105,7 @@ All six entity platforms share one change group per Core connection. YAML `chang
 
 Existing YAML definitions continue to work. See [the example configuration](examples/configuration.yaml). UI and YAML entities can coexist across multiple Core entries. The same control can intentionally appear on different platforms; duplicate identities within one platform are rejected.
 
-Ordinary collisions use the YAML definition. The Configure menu lists YAML and UI sources and whether each mapping is active or overridden. YAML mappings are read-only until you explicitly transfer ownership:
+Ordinary collisions use the YAML definition. Use Home Assistant’s entity views to browse existing entities. Edit and remove selectors identify UI mappings by name, platform, and component/control. YAML mappings are read-only until you explicitly transfer ownership:
 
 1. Choose **Import from YAML** and select individual mappings or all mappings for this Core.
 2. Choose **skip** or **replace** for existing UI copies. Review every copied setting, including templates, ranges, choices, and discovery findings.

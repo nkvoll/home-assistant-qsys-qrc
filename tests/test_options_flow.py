@@ -368,3 +368,38 @@ async def test_review_failure_is_not_reported_as_invalid_entity_settings(caplog)
         result = await flow.async_step_settings({"name": "Mute"})
     assert result["errors"]["base"] == "configuration_error"
     assert "Unable to prepare the entity review" in caplog.text
+
+
+def test_edit_remove_choices_include_name_platform_and_control_path():
+    flow, _ = flow_for(
+        [
+            {
+                "platform": "switch",
+                "settings": {
+                    "name": "Room mute",
+                    "component": "mixer",
+                    "control": "mute",
+                },
+            },
+            {"platform": "switch", "settings": {"control": "named_mute"}},
+            {
+                "platform": "media_player",
+                "settings": {"name": "Music", "component": "player"},
+            },
+        ]
+    )
+    assert [item["label"] for item in flow._ui_choices()] == [
+        "Room mute · switch · mixer / mute",
+        "named_mute · switch · Named Control / named_mute",
+        "Music · media_player · player",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_management_menu_does_not_list_entity_inventory():
+    flow, _ = flow_for(
+        [{"platform": "switch", "settings": {"name": "Room mute", "control": "mute"}}]
+    )
+    result = await flow.async_step_init()
+    assert "inventory" not in result["description_placeholders"]
+    assert result["description_placeholders"]["notices"] == ""

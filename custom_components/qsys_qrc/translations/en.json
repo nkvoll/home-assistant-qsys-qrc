@@ -133,7 +133,7 @@
     "step": {
       "init": {
         "title": "Manage entities",
-        "description": "YAML mappings are read-only. Imported mappings can be edited after ownership transfer.\n\n{inventory}",
+        "description": "Add, edit, remove, or transfer entity mappings. YAML mappings are read-only until imported.\n\n{notices}",
         "menu_options": {
           "add_entity": "Add entity",
           "edit_entity": "Edit UI entity",

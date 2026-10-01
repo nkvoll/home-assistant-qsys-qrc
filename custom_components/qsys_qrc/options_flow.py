@@ -97,15 +97,16 @@ class EntityFlowMixin:
         )
 
     async def async_step_init(self, user_input=None):
-        inventory = "\n".join(
-            f"{item['source'].upper()} · {item['mapping']['platform']} · "
-            f"{item['mapping']['settings'].get('component') or 'Named Control'} / "
-            f"{item['mapping']['settings'].get('control', '')} · "
-            f"{'active' if item['effective'] else 'overridden'}"
-            + (" · YAML cleanup pending" if item.get("cleanup_pending") else "")
-            + (" · YAML changed after transfer" if item.get("yaml_conflict") else "")
-            for item in self._inventory()
-        )
+        inventory = self._inventory()
+        notices = []
+        if any(item.get("cleanup_pending") for item in inventory):
+            notices.append(
+                "Imported mappings still have YAML copies that can be removed."
+            )
+        if any(item.get("yaml_conflict") for item in inventory):
+            notices.append(
+                "YAML changed after a transfer. Review the affected mapping before importing it again."
+            )
         return self.async_show_menu(
             step_id="init",
             menu_options=[
@@ -117,7 +118,7 @@ class EntityFlowMixin:
                 "export_portable",
                 "finish",
             ],
-            description_placeholders={"inventory": inventory or "No entity mappings."},
+            description_placeholders={"notices": "\n".join(notices)},
         )
 
     async def async_step_finish(self, user_input=None):
@@ -363,13 +364,24 @@ class EntityFlowMixin:
         )
 
     def _ui_choices(self):
-        return [
-            {
-                "value": str(index),
-                "label": f"{mapping['platform']} · {mapping['settings'].get('name') or mapping['settings'].get('control') or mapping['settings']['component']}",
-            }
-            for index, mapping in enumerate(self._mappings())
-        ]
+        choices = []
+        for index, mapping in enumerate(self._mappings()):
+            settings = mapping["settings"]
+            component = settings.get("component")
+            control = settings.get("control")
+            target = (
+                f"{component} / {control}"
+                if component and control
+                else component or f"Named Control / {control}"
+            )
+            name = settings.get("name") or control or component
+            choices.append(
+                {
+                    "value": str(index),
+                    "label": f"{name} · {mapping['platform']} · {target}",
+                }
+            )
+        return choices
 
     async def async_step_edit_entity(self, user_input=None):
         if user_input:
