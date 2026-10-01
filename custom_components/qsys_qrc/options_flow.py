@@ -514,6 +514,14 @@ class EntityFlowMixin:
                     "document": document,
                     "original": deepcopy(self.config_entry.options),
                     "new_ids": document["core_name"] != self.core_name,
+                    "yaml": yaml,
+                    "transfer_yaml": user_input.get("transfer_yaml", False),
+                    "policies": {
+                        str(index): user_input["collision"]
+                        for index, change in enumerate(changes)
+                        if change["action"] in {"skip", "replace"}
+                        or change.get("ownership_transfer")
+                    },
                 }
                 return await self.async_step_portable_review()
             except vol.Invalid, ValueError, TypeError, RecursionError:
@@ -533,6 +541,39 @@ class EntityFlowMixin:
         )
 
     async def async_step_portable_review(self, user_input=None):
+        if user_input:
+            replacements = user_input.get("replace_collisions")
+            policies = (
+                self._transfer["policies"]
+                if replacements is None
+                else {
+                    index: "replace" if index in replacements else "skip"
+                    for index in self._transfer["policies"]
+                }
+            )
+            if policies != self._transfer["policies"]:
+                try:
+                    proposed = deepcopy(self._transfer["original"].get("mappings", []))
+                    changes = []
+                    for index, mapping in enumerate(
+                        self._transfer["document"]["mappings"]
+                    ):
+                        proposed, action = transfer_mappings(
+                            self.core_name,
+                            proposed,
+                            [mapping],
+                            self._transfer["yaml"],
+                            collision=policies.get(str(index), "replace"),
+                            transfer_yaml=self._transfer["transfer_yaml"],
+                        )
+                        changes.extend(action)
+                    self._transfer["mappings"] = proposed
+                    self._transfer["changes"] = changes
+                    self._transfer["policies"] = policies
+                except vol.Invalid:
+                    return await self.async_step_import_portable()
+                # A changed policy needs a fresh review before confirmation.
+                return await self.async_step_portable_review()
         if user_input and user_input.get("confirm"):
             if dict(self.config_entry.options) != self._transfer["original"]:
                 return self._form(
@@ -551,9 +592,44 @@ class EntityFlowMixin:
             return await self.async_step_init()
         return self._form(
             "portable_review",
-            {vol.Required("confirm", default=False): bool},
+            {
+                vol.Required("confirm", default=False): bool,
+                vol.Optional(
+                    "replace_collisions",
+                    description={
+                        "suggested_value": [
+                            index
+                            for index, policy in self._transfer["policies"].items()
+                            if policy == "replace"
+                        ]
+                    },
+                ): choose(
+                    [
+                        {
+                            "value": index,
+                            "label": str(
+                                self._transfer["changes"][int(index)]["identity"]
+                            ),
+                        }
+                        for index in self._transfer["policies"]
+                    ],
+                    multiple=True,
+                ),
+            },
             preview=json.dumps(
-                {key: self._transfer[key] for key in ("document", "changes", "issues")},
+                {
+                    "counts": {
+                        action: sum(
+                            item["action"] == action
+                            for item in self._transfer["changes"]
+                        )
+                        for action in ("add", "replace", "skip")
+                    },
+                    **{
+                        key: self._transfer[key]
+                        for key in ("document", "changes", "issues")
+                    },
+                },
                 indent=2,
             ),
             identity_notice="The target Core has a different name. Imported mappings create new Home Assistant unique IDs."

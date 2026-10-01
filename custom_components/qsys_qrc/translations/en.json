@@ -263,9 +263,10 @@
       },
       "portable_review": {
         "title": "Review portable import",
-        "description": "{identity_notice}\n\nReview every mapping, action, and validation finding before saving:\n{preview}",
+        "description": "{identity_notice}\n\nReview every mapping, action, and validation finding before saving:\n{preview}\nSelect each collision to replace; unselected collisions are skipped. Changing that selection refreshes the preview before saving. YAML replacement still requires ownership transfer.",
         "data": {
-          "confirm": "Save reviewed import"
+          "confirm": "Save reviewed import",
+          "replace_collisions": "Colliding mappings to replace"
         }
       },
       "export_portable": {

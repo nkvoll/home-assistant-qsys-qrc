@@ -270,3 +270,39 @@ async def test_review_does_not_overwrite_concurrent_mapping_change():
     assert result["errors"]["base"] == "configuration_changed"
     flow.hass.config_entries.async_update_entry.assert_not_called()
     assert entry.options["mappings"][0]["settings"]["control"] == "other"
+
+
+@pytest.mark.asyncio
+async def test_portable_collision_choices_are_individual_and_repreviewed():
+    import json
+    from custom_components.qsys_qrc.portable import export_document
+
+    mappings = [
+        {"platform": "switch", "settings": {"control": name, "name": "old"}}
+        for name in ("first", "second")
+    ]
+    incoming = [
+        {"platform": "switch", "settings": {"control": name, "name": "new"}}
+        for name in ("first", "second")
+    ]
+    flow, entry = flow_for(mappings)
+    with patch(
+        "custom_components.qsys_qrc.options_flow.discovery.validate_mapping",
+        AsyncMock(return_value=[]),
+    ):
+        await flow.async_step_import_portable(
+            {
+                "document": json.dumps(export_document("core", incoming)),
+                "collision": "skip",
+                "transfer_yaml": False,
+            }
+        )
+    result = await flow.async_step_portable_review(
+        {"replace_collisions": ["0"], "confirm": True}
+    )
+    assert result["step_id"] == "portable_review"
+    flow.hass.config_entries.async_update_entry.assert_not_called()
+    assert '"replace": 1' in result["description_placeholders"]["preview"]
+    await flow.async_step_portable_review({"confirm": True})
+    assert entry.options["mappings"][0]["settings"]["name"] == "new"
+    assert entry.options["mappings"][1]["settings"]["name"] == "old"
