@@ -20,6 +20,8 @@ from custom_components.qsys_qrc.discovery import (
     ("metadata", "expected"),
     [
         ({"Type": "Boolean", "Direction": "Read/Write"}, ["binary_sensor", "sensor", "switch"]),
+        ({"Type": "Trigger", "Direction": "Read/Write", "Value": 0.0}, ["sensor", "switch"]),
+        ({"Type": "Trigger", "Direction": "Read Only", "Value": 0.0}, ["sensor"]),
         ({"Type": "Float", "Direction": "Read Only"}, ["sensor"]),
         ({"Value": 1.2}, ["sensor", "number"]),
         ({"Value": True}, ["binary_sensor", "sensor", "switch"]),
@@ -89,6 +91,37 @@ async def test_discovery_and_validation_never_write():
     )
     component_api.set.assert_not_called()
     control_api.set.assert_not_called()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "component", ["audio_player_doorbell_basement_apt", "audio_player_doorbell_main"]
+)
+async def test_audio_player_trigger_switch_migration(component):
+    core = Mock()
+    api = core.component.return_value
+    api.get_components = AsyncMock(
+        return_value={"result": [{"Name": component, "Type": "audio_file_player"}]}
+    )
+    api.get_controls = AsyncMock(
+        return_value={
+            "result": {
+                "Controls": [{
+                    "Name": "play.state.trigger",
+                    "Type": "Trigger",
+                    "Direction": "Read/Write",
+                    "Value": 0.0,
+                }]
+            }
+        }
+    )
+    assert await validate_mapping(
+        core,
+        {"platform": "switch", "settings": {
+            "component": component, "control": "play.state.trigger"
+        }},
+    ) == []
+    api.set.assert_not_called()
 
 
 @pytest.mark.asyncio

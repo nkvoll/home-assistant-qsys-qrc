@@ -90,7 +90,8 @@ def compatible_platforms(control):
     result = ["binary_sensor", "sensor"] if boolean else ["sensor"]
     if writable(control) is False:
         return result
-    if kind == "boolean" or isinstance(value, bool):
+    # Existing YAML switches also activate momentary Q-Sys trigger controls.
+    if kind in {"boolean", "trigger"} or isinstance(value, bool):
         result.append("switch")
     elif kind in {"float", "integer", "number"} or (
         isinstance(value, (int, float)) and not isinstance(value, bool)
