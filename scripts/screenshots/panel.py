@@ -503,6 +503,8 @@ async def capture(config):
                 await expect(panel.locator(".message")).to_contain_text("Created 3 entities.")
                 await panel.get_by_role("button", name="View entities", exact=True).click()
                 await expect(panel.locator("header h1")).to_have_text("Q-SYS · Entities")
+                await expect(panel.locator(".message")).to_have_count(0)
+                await expect(panel.get_by_role("button", name="View entities", exact=True)).to_have_count(0)
                 assert await panel.evaluate("el => {const tab=el.shadowRoot.querySelector('ha-tab-group-tab[active],.fallback-tabs [aria-selected=true]');return tab?.textContent.trim()==='Entities';}")
                 await expect(panel.get_by_role("button", name="Review edits (0)", exact=True)).to_be_disabled()
                 await expect(panel.get_by_role("button", name="Review deletion (0)", exact=True)).to_be_disabled()
@@ -711,6 +713,11 @@ async def capture(config):
                 await panel.locator("#show-migrated").uncheck()
                 await expect(panel.locator("tbody tr[data-entity-row]")).to_have_count(0)
                 await expect(panel.get_by_role("button", name="Review migration (0)", exact=True)).to_be_disabled()
+                await expect(panel.locator(".message")).to_contain_text("Migrated 1 entity.")
+                await panel.get_by_role("button", name="View entities", exact=True).click()
+                await expect(panel.locator("header h1")).to_have_text("Q-SYS · Entities")
+                await expect(panel.locator(".message")).to_have_count(0)
+                await expect(panel.get_by_role("button", name="View entities", exact=True)).to_have_count(0)
                 await panel.get_by_role("tab", name="Dashboard", exact=True).click()
                 await panel.get_by_role(
                     "button", name="Export YAML", exact=False
