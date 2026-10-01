@@ -177,7 +177,7 @@ values refresh while the browser is open.
 
 ![Component selection and controls](examples/screenshots/panel-components-controls.png)
 
-The sticky action bar shows the selection count and keeps **Review creation**
+The pinned action bar shows the selection count and keeps **Review creation**
 available while scrolling. Select at least one control to enable it.
 Click **Review creation** to open the review dialog. Check the proposed mappings
 and readable validation notices, then click **Create**. The dialog title includes

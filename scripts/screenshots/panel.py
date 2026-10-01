@@ -217,7 +217,7 @@ async def capture(config):
                 async def screenshot(filename, *, full_page=True):
                     await page.mouse.move(5, 5)
                     await panel.evaluate(
-                        "element => {element.scrollTop=0;element.shadowRoot.activeElement?.blur();}"
+                        "element => {element.scrollTop=0;element.shadowRoot.querySelector('main').scrollTop=0;element.shadowRoot.activeElement?.blur();}"
                     )
                     await page.evaluate("""() => {
                         const visit=root=>{for(const element of root.querySelectorAll('*')){
@@ -278,7 +278,12 @@ async def capture(config):
                 assert await panel.locator("section.card #named").count() == 1
                 await expect(panel.get_by_role("button", name="Review creation (0)", exact=True)).to_be_disabled()
                 await panel.get_by_role("button", name="Look up control", exact=True).wait_for()
-                assert await panel.locator(".action-bar").evaluate("el => getComputedStyle(el).position") == "sticky"
+                # Verify geometry while scrolling; the footer must stay visible.
+                footer = await panel.locator(".action-bar").bounding_box()
+                await panel.locator("main").evaluate("el => {el.scrollTop=el.scrollHeight;}")
+                assert await panel.locator(".action-bar").bounding_box() == footer
+                assert footer is not None and footer["y"] + footer["height"] <= page.viewport_size["height"]
+                await panel.locator("main").evaluate("el => {el.scrollTop=0;}")
                 await panel.get_by_role(
                     "textbox", name="Filter components", exact=True
                 ).fill("Room Gain")
@@ -458,7 +463,7 @@ async def capture(config):
                     "element => {const event=new Event('beforeunload',{cancelable:true});window.dispatchEvent(event);return event.defaultPrevented;}"
                 )
                 await panel.evaluate(
-                    "element => {element.scrollTop=0;element.shadowRoot.activeElement?.blur();}"
+                    "element => {element.scrollTop=0;element.shadowRoot.querySelector('main').scrollTop=0;element.shadowRoot.activeElement?.blur();}"
                 )
                 await screenshot("panel-components-controls.png")
                 await panel.get_by_role(
@@ -534,7 +539,7 @@ async def capture(config):
                     == "ascending"
                 )
                 await panel.evaluate(
-                    "element => {element.scrollTop=0;element.shadowRoot.activeElement?.blur();}"
+                    "element => {element.scrollTop=0;element.shadowRoot.querySelector('main').scrollTop=0;element.shadowRoot.activeElement?.blur();}"
                 )
                 await panel.locator('[data-select="0"]').check()
                 await panel.locator('[data-select="2"]').check()
@@ -698,7 +703,7 @@ async def capture(config):
                     and "mappings:" in displayed_document
                 )
                 await panel.evaluate(
-                    "element => {element.scrollTop=0;element.shadowRoot.activeElement?.blur();}"
+                    "element => {element.scrollTop=0;element.shadowRoot.querySelector('main').scrollTop=0;element.shadowRoot.activeElement?.blur();}"
                 )
                 await screenshot("panel-yaml-export.png")
                 await page.context.grant_permissions(
