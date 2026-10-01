@@ -42,6 +42,7 @@ class EntityFlowMixin:
         self._controls = []
         self._warnings = []
         self._transfer = None
+        self._review_original = None
 
     @property
     def core_name(self):
@@ -290,7 +291,17 @@ class EntityFlowMixin:
         return fields
 
     async def async_step_review(self, user_input=None):
+        if user_input is None:
+            self._review_original = deepcopy(self.config_entry.options)
         if user_input and user_input.get("confirm"):
+            if self._review_original != dict(self.config_entry.options):
+                return self._form(
+                    "review",
+                    error="configuration_changed",
+                    mapping="",
+                    identity="",
+                    warnings="Restart the edit to review current settings.",
+                )
             mappings = self._mappings()
             if self._editing is None:
                 mappings.append(self._draft)

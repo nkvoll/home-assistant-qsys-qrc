@@ -253,3 +253,20 @@ def test_settings_forms_serialize_for_home_assistant_frontend(platform):
         "component",
         "control",
     }
+
+
+@pytest.mark.asyncio
+async def test_review_does_not_overwrite_concurrent_mapping_change():
+    mapping = {"platform": "switch", "settings": {"control": "mute"}}
+    flow, entry = flow_for([mapping])
+    with patch(
+        "custom_components.qsys_qrc.options_flow.discovery.validate_mapping",
+        AsyncMock(return_value=[]),
+    ):
+        await flow.async_step_edit_entity({"entity": "0"})
+        await flow.async_step_settings({"name": "Reviewed"})
+    entry.options = {"mappings": [{**mapping, "settings": {"control": "other"}}]}
+    result = await flow.async_step_review({"confirm": True})
+    assert result["errors"]["base"] == "configuration_changed"
+    flow.hass.config_entries.async_update_entry.assert_not_called()
+    assert entry.options["mappings"][0]["settings"]["control"] == "other"
