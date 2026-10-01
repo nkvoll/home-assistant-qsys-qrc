@@ -136,13 +136,16 @@ async def dispatch(hass, msg):
         for entry in hass.config_entries.async_entries(DOMAIN):
             name = entry.data[CONF_USER_DATA][CONF_CORE_NAME]
             core = hass.data[DOMAIN][CONF_CACHED_CORES].get(name)
+            last_status = getattr(core, "last_status", None)
             rows.append(
                 {
                     "entry_id": entry.entry_id,
                     "name": name,
                     "status": (await core.get_state()).name if core else "UNLOADED",
                     "last_error": core.last_error if core else None,
-                    "engine": entry.data.get(CONF_ENGINE_STATUS, {}),
+                    "engine": last_status
+                    if isinstance(last_status, dict)
+                    else entry.data.get(CONF_ENGINE_STATUS, {}),
                     "entities": len(
                         hass.data[DOMAIN]
                         .get(CONF_ENTRY_INVENTORY, {})

@@ -91,6 +91,7 @@ class Core:
         # Hooks
         self._on_connected_commands = []
         self.last_error = None
+        self.last_status = None
         self.protocol_capture = False
         self.protocol_frames = deque(maxlen=500)
         self._protocol_sequence = 0
@@ -375,7 +376,10 @@ class Core:
         return await self.call("Logon", params={"User": username, "Password": password})
 
     async def status_get(self):
-        return await self.call("StatusGet")
+        response = await self.call("StatusGet")
+        if isinstance(response, dict) and isinstance(response.get("result"), dict):
+            self.last_status = deepcopy(response["result"])
+        return response
 
     def component(self):
         return ComponentAPI(self)

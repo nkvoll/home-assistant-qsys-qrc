@@ -15,6 +15,43 @@ def mapping(control="mute", platform="switch", **settings):
     return {"platform": platform, "settings": {"control": control, **settings}}
 
 
+@pytest.mark.asyncio
+async def test_last_status_preserves_successful_response_through_failure():
+    core = Core("core")
+    response = {"result": {"DesignName": "Current design", "Status": {"Code": 0}}}
+    core.call = AsyncMock(return_value=response)
+    assert await core.status_get() == response
+    response["result"]["Status"]["Code"] = 2
+    assert core.last_status["Status"]["Code"] == 0
+    core.call.side_effect = OSError("offline")
+    with pytest.raises(OSError):
+        await core.status_get()
+    assert core.last_status["Status"]["Code"] == 0
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("latest", [None, {"DesignName": "Current design", "Status": {"Code": 0}}])
+async def test_overview_uses_last_polled_status_without_requesting_it(latest):
+    from custom_components.qsys_qrc.const import (
+        DOMAIN, CONF_CACHED_CORES, CONF_USER_DATA, CONF_CORE_NAME, CONF_ENGINE_STATUS
+    )
+
+    saved = {"DesignName": "Setup design"}
+    entry = SimpleNamespace(entry_id="entry", data={
+        CONF_USER_DATA: {CONF_CORE_NAME: "core"}, CONF_ENGINE_STATUS: saved
+    })
+    core = Core("core")
+    core.last_status = latest
+    core.call = AsyncMock()
+    hass = SimpleNamespace(
+        config_entries=SimpleNamespace(async_entries=Mock(return_value=[entry])),
+        data={DOMAIN: {CONF_CACHED_CORES: {"core": core}}},
+    )
+    result = await panel.dispatch(hass, {"operation": "overview"})
+    assert result["cores"][0]["engine"] == (saved if latest is None else latest)
+    core.call.assert_not_called()
+
+
 def test_batch_delete_warns_about_yaml_reactivation():
     item = mapping()
     result, changes = panel.build_changes(

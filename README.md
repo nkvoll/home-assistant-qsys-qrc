@@ -112,7 +112,7 @@ action under **Settings → Devices & services**. Reconfigure preserves mappings
 and the Core name. Keep the Core name unchanged when migrating: it is part of
 entity unique IDs and identifies the Core in Home Assistant YAML.
 
-Use **Core settings** in the panel header to open the Q-SYS integration page.
+Use **Configure Integration** below the dashboard’s **Core** section to open the Q-SYS integration page.
 Choose the relevant entry and **Reconfigure** to update it. To connect another
 Core, use **Add integration** under **Settings → Devices & services** and choose
 Q-Sys QRC again, using a different Core name. Select the Core from the panel’s
@@ -122,8 +122,10 @@ than deleting controls from the Q-SYS design.
 
 #### Dashboard
 
-Start with **Add entities** or **Manage entities** on the dashboard. Core cards
-show connection status and design information.
+Start with **Add entities** or **Manage entities** on the dashboard. The **Core** section
+shows the selected Core’s connection status and last known `StatusGet` response.
+It uses the response collected by the existing engine-status polling, falling
+back to the response saved during setup until a new one is available.
 Use the navigation tabs to open **Components / Controls**, **Entities**, or
 **QRC Protocol Monitor**. The active tab is highlighted; browser Back/Forward also updates its selected state.
 The **Import & migration** group contains **Import YAML**,

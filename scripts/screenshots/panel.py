@@ -240,7 +240,7 @@ async def capture(config):
                             }};visit(document);
                         }""")
 
-                await panel.get_by_role("heading", name="Cores", exact=True).wait_for()
+                await panel.get_by_role("heading", name="Core", exact=True).wait_for()
                 await panel.evaluate(
                     "element => element.dispatchEvent(new CustomEvent('show-dialog',{detail:{dialogTag:'qsys-discard-dialog',dialogImport:()=>Promise.resolve(),addHistory:false,dialogParams:{confirm:()=>{},cancel:()=>{}}},bubbles:true,composed:true}))"
                 )
@@ -250,6 +250,10 @@ async def capture(config):
                 await page.get_by_role("dialog").wait_for(state="hidden")
                 await panel.get_by_role("button", name="Add entities", exact=False).wait_for()
                 await panel.get_by_role("button", name="Manage entities", exact=False).wait_for()
+                assert await panel.locator('header [data-action="core-settings"]').count() == 0
+                await panel.get_by_role("heading", name="Last known StatusGet response", exact=True).wait_for()
+                await expect(panel.locator(".core-status pre")).to_contain_text('"Status"')
+                await panel.get_by_role("button", name="Configure Integration", exact=True).wait_for()
                 await screenshot("panel-dashboard.png")
                 await panel.get_by_role(
                     "tab", name="Components / Controls", exact=True
@@ -492,6 +496,7 @@ async def capture(config):
                 }""")
                 await expect(panel.locator(".message")).to_contain_text("Created 3 entities.")
                 await panel.get_by_role("button", name="View entities", exact=True).click()
+                await expect(panel.locator("header h1")).to_have_text("Q-SYS · Entities")
                 assert await panel.evaluate("el => {const tab=el.shadowRoot.querySelector('ha-tab-group-tab[active],.fallback-tabs [aria-selected=true]');return tab?.textContent.trim()==='Entities';}")
                 await expect(panel.get_by_role("button", name="Review edits (0)", exact=True)).to_be_disabled()
                 await expect(panel.get_by_role("button", name="Review deletion (0)", exact=True)).to_be_disabled()
