@@ -113,7 +113,7 @@ Existing YAML definitions continue to work. See [the example configuration](exam
 
 Ordinary collisions use the YAML definition. Use Home Assistant’s entity views to browse existing entities. Edit and remove selectors identify UI mappings by name, platform, and component/control. YAML mappings are read-only until you explicitly transfer ownership:
 
-1. Choose **Import from YAML** and select individual mappings or all mappings for this Core.
+1. Choose **Import from Home Assistant YAML** and select individual mappings or all mappings for this Core.
 2. Choose **skip** or **replace** for existing UI copies. Review every copied setting, including templates, ranges, choices, and discovery findings.
 3. Confirm the ownership transfer. The UI copy becomes authoritative immediately, even while the old YAML definition remains.
 4. Remove only the transferred entity definitions from your YAML files, includes, or packages, then reload. The integration does not edit those files. Leave Core-level polling settings in YAML if you still use them.
@@ -126,9 +126,9 @@ Choose **Export portable configuration** from the Core's Configure menu. The dia
 
 The document includes a schema version, source Core name, optional design name, and platform settings. It excludes host, port, credentials, config-entry IDs, and entity-registry IDs. Ownership markers are local to the installation and are not exported. The admin-only `qsys_qrc.export_configuration` action remains available for programmatic export.
 
-Connect the destination Core first, then choose **Import portable configuration** in its Configure menu and paste the YAML. Review all mappings, discovery findings, and collision actions before confirming. Choose a default **skip** or **replace** policy, then select individual colliding mappings to replace in the review. Changing this selection refreshes the preview before saving. Replacing a YAML mapping also requires explicit ownership transfer. Validation never sends control Set commands. Missing components, missing controls, read-only mismatches, and unsupported media-player types appear in the preview. Discovery outages are retryable.
+Connect the destination Core first, then choose **Import portable configuration** in its Configure menu and paste the YAML. Review all mappings, discovery findings, and collision actions before confirming. Choose a default **skip** or **replace** policy, then select individual colliding mappings to replace in the review. Changing this selection refreshes the preview before saving. To replace mappings from Home Assistant YAML, select the option to manage them in the UI. Validation never sends control Set commands. Missing components, missing controls, read-only mismatches, and unsupported media-player types appear in the preview. Discovery outages are retryable.
 
-The destination Core name supplies the entity identity prefix. Moving definitions to a differently named Core creates new Home Assistant unique IDs. Documents are limited to 256 KiB and 1,000 mappings, use version 1, and reject unknown fields and duplicate identities. Native file upload/download is not part of this transport: copy/save YAML from the export dialog and paste YAML for import (legacy JSON imports are also accepted). Home Assistant backups remain the mechanism for backing up a full installation.
+The destination Core name supplies the entity identity prefix. Moving definitions to a differently named Core creates new Home Assistant unique IDs. Documents are limited to 256 KiB and 1,000 mappings, use version 1, and reject unknown fields and duplicate identities. Native file upload/download is not part of this transport: copy/save YAML from the export dialog and paste YAML for import. Home Assistant backups remain the mechanism for backing up a full installation.
 
 For YAML configuration, find component/control names in Q-Sys Designer using **Tools → View Component Controls Info**.
 

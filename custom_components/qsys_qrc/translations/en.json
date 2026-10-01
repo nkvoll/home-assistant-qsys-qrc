@@ -133,12 +133,12 @@
     "step": {
       "init": {
         "title": "Manage entities",
-        "description": "Add, edit, remove, or transfer entity mappings. Each confirmed change is saved immediately; close this dialog when done. YAML mappings are read-only until imported.\n\n{notices}",
+        "description": "{notices}",
         "menu_options": {
           "add_entity": "Add entity",
           "edit_entity": "Edit UI entity",
           "remove_entity": "Remove UI entity",
-          "import_yaml": "Import from YAML",
+          "import_yaml": "Import from Home Assistant YAML",
           "import_portable": "Import portable configuration",
           "export_portable": "Export portable configuration"
         }
@@ -224,11 +224,11 @@
         }
       },
       "import_yaml": {
-        "title": "Select YAML mappings",
+        "title": "Import from Home Assistant YAML",
         "description": "Select individual mappings or all mappings. Existing UI copies are skipped unless you explicitly choose replace. No YAML files are edited.",
         "data": {
-          "entities": "YAML mappings",
-          "all": "Select all YAML mappings",
+          "entities": "Home Assistant YAML mappings",
+          "all": "Select all Home Assistant YAML mappings",
           "existing": "Existing UI mapping policy"
         }
       },
@@ -245,11 +245,11 @@
       },
       "import_portable": {
         "title": "Import portable configuration",
-        "description": "Paste a versioned YAML document (legacy JSON is also accepted). Skip leaves colliding identities unchanged. Replace updates UI mappings; replacing YAML also requires explicit ownership transfer.",
+        "description": "Paste a portable YAML configuration. Skip keeps existing mappings; Replace updates them. To replace mappings from Home Assistant YAML, select the option below to manage them in the UI.",
         "data": {
           "document": "YAML configuration",
           "collision": "Collision policy",
-          "transfer_yaml": "Transfer ownership of colliding YAML mappings"
+          "transfer_yaml": "Manage replaced Home Assistant YAML mappings in the UI"
         }
       },
       "portable_review": {
