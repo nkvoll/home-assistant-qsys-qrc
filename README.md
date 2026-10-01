@@ -200,13 +200,15 @@ Each entity name has its Home Assistant icon. Click the icon or name to open the
 standard entity dialog. Expand **Settings** in the **Details** column to inspect
 the saved mapping and any YAML ownership notices.
 
-Select UI mappings with the table checkboxes:
+Select UI mappings with the table checkboxes. The pinned management bar keeps
+the selection count, setting editor, and review actions visible while scrolling.
+Both review buttons include the selected entity count:
 
 - To edit, choose a setting shared by the selected mappings and enter its new
   value. The editor uses a checkbox, numeric input, dropdown, text field, or
-  template/options textarea as appropriate. Click **Review bulk edit**, inspect
+  template/options textarea as appropriate. Click **Review edits (N)**, inspect
   the review dialog, then click **Save**.
-- To delete, click the red **Review deletion** button, inspect the review dialog,
+- To delete, click the red **Review deletion (N)** button, inspect the review dialog,
   then click **Delete**.
 
 For Select entities, choose **Select options (one per line)** to override QRC

@@ -492,8 +492,8 @@ async def capture(config):
                 }""")
                 await expect(panel.locator(".message")).to_contain_text("Created 3 entities.")
                 await panel.get_by_role("button", name="View entities", exact=True).click()
-                await expect(panel.get_by_role("button", name="Review bulk edit", exact=True)).to_be_disabled()
-                await expect(panel.get_by_role("button", name="Review deletion", exact=True)).to_be_disabled()
+                await expect(panel.get_by_role("button", name="Review edits (0)", exact=True)).to_be_disabled()
+                await expect(panel.get_by_role("button", name="Review deletion (0)", exact=True)).to_be_disabled()
                 assert (
                     await panel.get_by_role(
                         "columnheader", name="Status", exact=True
@@ -628,7 +628,7 @@ async def capture(config):
                 await panel.locator('[data-select="1"]').check()
                 await panel.locator("#edit-value").fill("Updated room control")
                 await panel.get_by_role(
-                    "button", name="Review bulk edit", exact=True
+                    "button", name="Review edits", exact=False
                 ).click()
                 await panel.locator("#review-title").wait_for()
                 await panel.get_by_role("button", name="Save", exact=True).click()
@@ -752,7 +752,7 @@ async def capture(config):
 
                 await panel.locator("#all").check()
                 await panel.get_by_role(
-                    "button", name="Review deletion", exact=True
+                    "button", name="Review deletion", exact=False
                 ).click()
                 await panel.get_by_text(
                     "Deleting this UI mapping reactivates", exact=False
