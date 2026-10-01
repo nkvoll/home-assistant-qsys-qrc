@@ -116,20 +116,13 @@ Migration preserves the Core name, settings, and existing unique-ID functions. R
 
 #### Portable export and import
 
-As an administrator, open **Developer Tools → Actions** and run:
+Choose **Export portable configuration** from the Core's Configure menu. The dialog displays generated YAML in a multiline text box with two-space indentation. Select and copy the text, then save it as a `.yaml` file. Enable **Include effective YAML mappings** and submit to regenerate the export with active YAML mappings included; by default it contains UI-owned mappings only.
 
-```yaml
-action: qsys_qrc.export_configuration
-data:
-  core_name: my_core
-  effective: false
-```
+The document includes a schema version, source Core name, optional design name, and platform settings. It excludes host, port, credentials, config-entry IDs, and entity-registry IDs. Ownership markers are local to the installation and are not exported. The admin-only `qsys_qrc.export_configuration` action remains available for programmatic export.
 
-Copy the `configuration` object from the action response and save it as JSON. The default exports UI-owned entity definitions. Set `effective: true` to include active YAML mappings. The document includes a schema version, source Core name, optional design name, and platform settings. It excludes host, port, credentials, config-entry IDs, and entity-registry IDs. Ownership markers are local to the installation and are not exported.
+Connect the destination Core first, then choose **Import portable configuration** in its Configure menu and paste the YAML. Review all mappings, discovery findings, and collision actions before confirming. Choose a default **skip** or **replace** policy, then select individual colliding mappings to replace in the review. Changing this selection refreshes the preview before saving. Replacing a YAML mapping also requires explicit ownership transfer. Validation never sends control Set commands. Missing components, missing controls, read-only mismatches, and unsupported media-player types appear in the preview. Discovery outages are retryable.
 
-Connect the destination Core first, then choose **Import portable configuration** in its Configure menu and paste the JSON. Review all mappings, discovery findings, and collision actions before confirming. Choose a default **skip** or **replace** policy, then select individual colliding mappings to replace in the review. Changing this selection refreshes the preview before saving. Replacing a YAML mapping also requires explicit ownership transfer. Validation never sends control Set commands. Missing components, missing controls, read-only mismatches, and unsupported media-player types appear in the preview. Discovery outages are retryable.
-
-The destination Core name supplies the entity identity prefix. Moving definitions to a differently named Core creates new Home Assistant unique IDs. Documents are limited to 256 KiB and 1,000 mappings, use version 1, and reject unknown fields and duplicate identities. Native file upload/download is not part of this transport: copy/save the export response and paste JSON for import. Home Assistant backups remain the mechanism for backing up a full installation.
+The destination Core name supplies the entity identity prefix. Moving definitions to a differently named Core creates new Home Assistant unique IDs. Documents are limited to 256 KiB and 1,000 mappings, use version 1, and reject unknown fields and duplicate identities. Native file upload/download is not part of this transport: copy/save YAML from the export dialog and paste YAML for import (legacy JSON imports are also accepted). Home Assistant backups remain the mechanism for backing up a full installation.
 
 For YAML configuration, find component/control names in Q-Sys Designer using **Tools → View Component Controls Info**.
 

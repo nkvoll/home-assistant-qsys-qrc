@@ -249,9 +249,9 @@
       },
       "import_portable": {
         "title": "Import portable configuration",
-        "description": "Paste a versioned JSON document. Skip leaves colliding identities unchanged. Replace updates UI mappings; replacing YAML also requires explicit ownership transfer.",
+        "description": "Paste a versioned YAML document (legacy JSON is also accepted). Skip leaves colliding identities unchanged. Replace updates UI mappings; replacing YAML also requires explicit ownership transfer.",
         "data": {
-          "document": "JSON document",
+          "document": "YAML configuration",
           "collision": "Collision policy",
           "transfer_yaml": "Transfer ownership of colliding YAML mappings"
         }
@@ -266,7 +266,11 @@
       },
       "export_portable": {
         "title": "Export portable configuration",
-        "description": "As an administrator, open Developer Tools \u2192 Actions and run qsys_qrc.export_configuration with core_name: {core_name}. Copy the configuration object from the response and save it as a JSON file. UI-owned mappings are exported by default. Set effective: true to include active YAML mappings. Connection credentials are excluded. Home Assistant backups remain the full-install backup mechanism."
+        "description": "Copy the YAML below and save it as a .yaml file. Indentation uses two spaces. To include active YAML mappings, enable effective configuration and submit to regenerate the export. Connection credentials and registry IDs are excluded.",
+        "data": {
+          "document": "Portable YAML configuration",
+          "effective": "Include effective YAML mappings"
+        }
       }
     },
     "error": {

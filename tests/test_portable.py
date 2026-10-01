@@ -61,3 +61,27 @@ def test_round_trip_excludes_ownership_and_identifiers():
 def test_reject_invalid_document(document):
     with pytest.raises(vol.Invalid):
         parse_document(document, "target")
+
+
+def test_yaml_round_trip_and_two_space_sequence_indentation():
+    from custom_components.qsys_qrc.portable import dump_document
+
+    document = export_document("source", [MAPPING])
+    text = dump_document(document)
+    assert (
+        "mappings:\n  - platform: number\n    settings:\n      component: gain" in text
+    )
+    assert parse_document(text, "target")["mappings"] == document["mappings"]
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "version: 1\nversion: 1\ncore_name: core\nmappings: []\n",
+        "version: 1\ncore_name: core\nmappings: &a [*a]\n",
+        "!!python/object/apply:os.system [echo unsafe]",
+    ],
+)
+def test_yaml_rejects_duplicate_keys_aliases_and_unsafe_tags(text):
+    with pytest.raises(vol.Invalid):
+        parse_document(text, "target")

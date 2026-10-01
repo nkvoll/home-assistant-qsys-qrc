@@ -309,7 +309,7 @@ async def test_portable_collision_choices_are_individual_and_repreviewed():
     )
     assert result["step_id"] == "portable_review"
     flow.hass.config_entries.async_update_entry.assert_not_called()
-    assert '"replace": 1' in result["description_placeholders"]["preview"]
+    assert "replace: 1" in result["description_placeholders"]["preview"]
     await flow.async_step_portable_review({"confirm": True})
     assert entry.options["mappings"][0]["settings"]["name"] == "new"
     assert entry.options["mappings"][1]["settings"]["name"] == "old"
@@ -444,3 +444,21 @@ def test_edit_remove_labels_use_registry_entity_id_and_user_name():
         flow._ui_choices()[0]["label"]
         == "switch.room_mute / Original mute (core: mixer/mute)"
     )
+
+
+@pytest.mark.asyncio
+async def test_export_dialog_contains_copyable_yaml_and_effective_scope():
+    from custom_components.qsys_qrc.portable import parse_document
+
+    mapping = {"platform": "switch", "settings": {"control": "mute"}}
+    yaml_mapping = {"platform": "sensor", "settings": {"control": "status"}}
+    flow, _ = flow_for(
+        [mapping], [{"source": "yaml", "effective": True, "mapping": yaml_mapping}]
+    )
+    result = await flow.async_step_export_portable()
+    defaults = {str(key): key.default() for key in result["data_schema"].schema}
+    assert defaults["document"].startswith("version: 1\n")
+    assert len(parse_document(defaults["document"], "core")["mappings"]) == 1
+    result = await flow.async_step_export_portable({"effective": True})
+    defaults = {str(key): key.default() for key in result["data_schema"].schema}
+    assert len(parse_document(defaults["document"], "core")["mappings"]) == 2

@@ -35,7 +35,7 @@ call_method:
 reload:
 export_configuration:
   name: Export entity configuration
-  description: Return a portable configuration object. Copy it from the response and save as JSON. Requires administrator access.
+  description: Return a portable configuration object. The Configure dialog also provides a portable YAML export. Requires administrator access.
   fields:
     core_name:
       name: Core name

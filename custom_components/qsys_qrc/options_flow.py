@@ -11,7 +11,7 @@ from homeassistant.helpers import selector, entity_registry as er
 from .const import *
 from . import discovery
 from .common import id_for_component, id_for_component_control
-from .portable import parse_document
+from .portable import parse_document, export_document, dump_document
 from .mapping import (
     MAPPING_VERSION,
     identity,
@@ -524,7 +524,7 @@ class EntityFlowMixin:
         return self._form(
             "yaml_review",
             {vol.Required("confirm", default=False): bool},
-            preview=json.dumps(
+            preview=dump_document(
                 {
                     key: self._transfer[key]
                     for key in ("selected", "skipped", "changes", "issues")
@@ -678,7 +678,7 @@ class EntityFlowMixin:
                     multiple=True,
                 ),
             },
-            preview=json.dumps(
+            preview=dump_document(
                 {
                     "counts": {
                         action: sum(
@@ -700,9 +700,28 @@ class EntityFlowMixin:
         )
 
     async def async_step_export_portable(self, user_input=None):
-        if user_input is not None:
-            return await self.async_step_init()
-        return self._form("export_portable", core_name=self.core_name)
+        """Display YAML directly, with an optional effective-configuration scope."""
+        effective = bool(user_input and user_input.get("effective"))
+        mappings = (
+            [item["mapping"] for item in self._inventory() if item["effective"]]
+            if effective
+            else self._mappings()
+        )
+        document = export_document(
+            self.core_name,
+            mappings,
+            self.config_entry.data.get(CONF_ENGINE_STATUS, {}).get("DesignName"),
+        )
+        text = dump_document(document)
+        return self._form(
+            "export_portable",
+            {
+                vol.Required("document", default=text): selector.TextSelector(
+                    selector.TextSelectorConfig(multiline=True)
+                ),
+                vol.Optional("effective", default=effective): bool,
+            },
+        )
 
 
 class OptionsFlowHandler(EntityFlowMixin, config_entries.OptionsFlow):
