@@ -195,10 +195,10 @@ async def test_portable_import_previews_collision_and_new_ids():
         )
     assert result["step_id"] == "portable_review"
     assert "different name" in result["description_placeholders"]["identity_notice"]
-    assert "missing_control" in result["description_placeholders"]["preview"]
+    assert "missing control" in result["description_placeholders"]["preview"]
     assert flow._transfer["changes"][0]["action"] == "skip"
     flow.hass.config_entries.async_update_entry.assert_not_called()
-    await flow.async_step_portable_review({"confirm": True})
+    await flow.async_step_portable_review({})
     assert len(entry.options["mappings"]) == 1
 
 
@@ -305,13 +305,11 @@ async def test_portable_collision_choices_are_individual_and_repreviewed():
                 "transfer_yaml": False,
             }
         )
-    result = await flow.async_step_portable_review(
-        {"replace_collisions": ["0"], "confirm": True}
-    )
+    result = await flow.async_step_portable_review({"replace_collisions": ["0"]})
     assert result["step_id"] == "portable_review"
     flow.hass.config_entries.async_update_entry.assert_not_called()
-    assert "replace: 1" in result["description_placeholders"]["preview"]
-    await flow.async_step_portable_review({"confirm": True})
+    assert "1 updated" in result["description_placeholders"]["preview"]
+    await flow.async_step_portable_review({})
     assert entry.options["mappings"][0]["settings"]["name"] == "new"
     assert entry.options["mappings"][1]["settings"]["name"] == "old"
 
@@ -463,3 +461,45 @@ async def test_export_dialog_contains_copyable_yaml_and_effective_scope():
     result = await flow.async_step_export_portable({"effective": True})
     defaults = {str(key): key.default() for key in result["data_schema"].schema}
     assert len(parse_document(defaults["document"], "core")["mappings"]) == 2
+
+
+@pytest.mark.asyncio
+async def test_portable_review_summarizes_actual_changes_and_submit_saves():
+    from custom_components.qsys_qrc.portable import dump_document, export_document
+
+    old = [
+        {"platform": "switch", "settings": {"control": name, "name": "Old"}}
+        for name in ("changed", "same")
+    ]
+    incoming = [
+        {"platform": "switch", "settings": {"control": "changed", "name": "New"}},
+        old[1],
+        {
+            "platform": "binary_sensor",
+            "settings": {"component": "mixer", "control": "mute", "name": "Muted"},
+        },
+    ]
+    flow, entry = flow_for(old)
+    with patch(
+        "custom_components.qsys_qrc.options_flow.discovery.validate_mapping",
+        AsyncMock(return_value=[]),
+    ):
+        result = await flow.async_step_import_portable(
+            {
+                "document": dump_document(export_document("core", incoming)),
+                "collision": "replace",
+                "transfer_yaml": False,
+            }
+        )
+    summary = result["description_placeholders"]["preview"]
+    assert summary.startswith("1 added · 1 updated · 1 unchanged · 0 skipped")
+    assert (
+        "Updated: New · switch (core: Named Control/changed) — changed: name" in summary
+    )
+    assert "Added: Muted · binary_sensor (core: mixer/mute)" in summary
+    assert "mappings:" not in summary
+    assert "confirm" not in {str(key) for key in result["data_schema"].schema}
+    flow.hass.config_entries.async_update_entry.assert_not_called()
+    result = await flow.async_step_portable_review({})
+    assert result["step_id"] == "init"
+    assert len(entry.options["mappings"]) == 3

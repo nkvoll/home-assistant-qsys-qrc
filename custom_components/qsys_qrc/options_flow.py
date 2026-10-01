@@ -602,6 +602,69 @@ class EntityFlowMixin:
             error,
         )
 
+    def _import_summary(self):
+        """Describe actual changes and validation findings without a document dump."""
+        original = {
+            identity(self.core_name, item): normalize_mapping(item)
+            for item in self._transfer["original"].get("mappings", [])
+        }
+        yaml = {
+            identity(self.core_name, item): normalize_mapping(item)
+            for item in self._transfer["yaml"]
+        }
+        counts = dict.fromkeys(("added", "updated", "unchanged", "skipped"), 0)
+        lines = []
+        findings = {
+            tuple(item["identity"]): item["issues"] for item in self._transfer["issues"]
+        }
+        for mapping, change in zip(
+            self._transfer["document"]["mappings"],
+            self._transfer["changes"],
+            strict=True,
+        ):
+            key = identity(self.core_name, mapping)
+            old = original.get(key) or yaml.get(key)
+            transferred = change.get("ownership_transfer") and not original.get(
+                key, {}
+            ).get("imported_from_yaml")
+            if change["action"] == "skip":
+                action = "skipped"
+                fields = []
+            elif old is None:
+                action = "added"
+                fields = []
+            else:
+                fields = [
+                    field
+                    for field, value in mapping["settings"].items()
+                    if old["settings"].get(field) != value
+                ]
+                action = "updated" if fields or transferred else "unchanged"
+            counts[action] += 1
+            settings = mapping["settings"]
+            component, control = settings.get("component"), settings.get("control")
+            target = (
+                f"{component}/{control}"
+                if component and control
+                else component or f"Named Control/{control}"
+            )
+            name = settings.get("name") or control or component
+            notes = []
+            if fields:
+                notes.append("changed: " + ", ".join(fields))
+            if transferred and action != "skipped":
+                notes.append("transfer YAML ownership")
+            notes.extend(issue.replace("_", " ") for issue in findings.get(key, []))
+            if action in {"added", "updated"} or notes:
+                line = f"{action.capitalize()}: {name} · {mapping['platform']} ({self.core_name}: {target})"
+                if notes:
+                    line += " — " + "; ".join(notes)
+                lines.append(line)
+        summary = " · ".join(f"{count} {action}" for action, count in counts.items())
+        return summary + (
+            "\n\n" + "\n".join(lines) if lines else "\n\nNo entity changes."
+        )
+
     async def async_step_portable_review(self, user_input=None):
         if user_input:
             replacements = user_input.get("replace_collisions")
@@ -636,7 +699,7 @@ class EntityFlowMixin:
                     return await self.async_step_import_portable()
                 # A changed policy needs a fresh review before confirmation.
                 return await self.async_step_portable_review()
-        if user_input and user_input.get("confirm"):
+        if user_input is not None:
             if dict(self.config_entry.options) != self._transfer["original"]:
                 return self._form(
                     "portable_review",
@@ -655,7 +718,6 @@ class EntityFlowMixin:
         return self._form(
             "portable_review",
             {
-                vol.Required("confirm", default=False): bool,
                 vol.Optional(
                     "replace_collisions",
                     description={
@@ -678,22 +740,7 @@ class EntityFlowMixin:
                     multiple=True,
                 ),
             },
-            preview=dump_document(
-                {
-                    "counts": {
-                        action: sum(
-                            item["action"] == action
-                            for item in self._transfer["changes"]
-                        )
-                        for action in ("add", "replace", "skip")
-                    },
-                    **{
-                        key: self._transfer[key]
-                        for key in ("document", "changes", "issues")
-                    },
-                },
-                indent=2,
-            ),
+            preview=self._import_summary(),
             identity_notice="The target Core has a different name. Imported mappings create new Home Assistant unique IDs."
             if self._transfer["new_ids"]
             else "The target Core name supplies the entity identity prefix.",
