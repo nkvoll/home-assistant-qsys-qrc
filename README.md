@@ -124,8 +124,9 @@ than deleting controls from the Q-SYS design.
 
 Start with **Add entities** or **Manage entities** on the dashboard. Core cards
 show connection status and design information.
-Use the header buttons to open **Components / Controls**, **Entities**, or
-**QRC Protocol Monitor**. The **Import & migration** group contains **Import YAML**,
+Use the navigation tabs to open **Components / Controls**, **Entities**, or
+**QRC Protocol Monitor**. The active tab is highlighted; browser Back/Forward also updates its selected state.
+The **Import & migration** group contains **Import YAML**,
 **Export YAML**, and **Migrate from Home Assistant YAML**.
 
 ![Q-SYS dashboard](examples/screenshots/panel-dashboard.png)

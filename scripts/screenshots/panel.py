@@ -252,7 +252,7 @@ async def capture(config):
                 await panel.get_by_role("button", name="Manage entities", exact=False).wait_for()
                 await screenshot("panel-dashboard.png")
                 await panel.get_by_role(
-                    "button", name="Components / Controls", exact=True
+                    "tab", name="Components / Controls", exact=True
                 ).click()
                 await panel.get_by_role(
                     "heading", name="Or look up Named Controls", exact=True
@@ -430,7 +430,7 @@ async def capture(config):
                 ).evaluate("button => button.matches(':focus')")
                 assert await media_checkbox.is_checked()
                 await media_checkbox.uncheck()
-                await panel.get_by_role("button", name="Entities", exact=True).click()
+                await panel.get_by_role("tab", name="Entities", exact=True).click()
                 await page.get_by_role(
                     "button", name="Keep editing", exact=True
                 ).click()
@@ -492,6 +492,7 @@ async def capture(config):
                 }""")
                 await expect(panel.locator(".message")).to_contain_text("Created 3 entities.")
                 await panel.get_by_role("button", name="View entities", exact=True).click()
+                assert await panel.evaluate("el => {const tab=el.shadowRoot.querySelector('ha-tab-group-tab[active],.fallback-tabs [aria-selected=true]');return tab?.textContent.trim()==='Entities';}")
                 await expect(panel.get_by_role("button", name="Review edits (0)", exact=True)).to_be_disabled()
                 await expect(panel.get_by_role("button", name="Review deletion (0)", exact=True)).to_be_disabled()
                 assert (
@@ -637,7 +638,7 @@ async def capture(config):
                 )
                 assert await panel.locator(".error").count() == 0
                 await panel.get_by_role(
-                    "button", name="QRC Protocol Monitor", exact=True
+                    "tab", name="QRC Protocol Monitor", exact=True
                 ).click()
                 await panel.get_by_role(
                     "button", name="Start capture", exact=True
@@ -675,7 +676,7 @@ async def capture(config):
                 ).fill("")
 
                 await screenshot("panel-monitor.png")
-                await panel.get_by_role("button", name="Dashboard", exact=True).click()
+                await panel.get_by_role("tab", name="Dashboard", exact=True).click()
                 await panel.get_by_role(
                     "button", name="Migrate from Home Assistant YAML", exact=False
                 ).click()
@@ -691,7 +692,7 @@ async def capture(config):
                     state="hidden"
                 )
                 assert await panel.locator(".error").count() == 0
-                await panel.get_by_role("button", name="Dashboard", exact=True).click()
+                await panel.get_by_role("tab", name="Dashboard", exact=True).click()
                 await panel.get_by_role(
                     "button", name="Export YAML", exact=False
                 ).click()
@@ -722,7 +723,7 @@ async def capture(config):
                     ).click()
                 document = Path(await (await download.value).path()).read_text()
                 assert document == displayed_document
-                await panel.get_by_role("button", name="Dashboard", exact=True).click()
+                await panel.get_by_role("tab", name="Dashboard", exact=True).click()
                 await panel.get_by_role(
                     "button", name="Import YAML", exact=False
                 ).click()
@@ -739,13 +740,13 @@ async def capture(config):
                 ).click()
                 await panel.locator("#review-title").wait_for()
                 await panel.get_by_role("button", name="Cancel", exact=True).click()
-                await panel.get_by_role("button", name="Entities", exact=True).click()
+                await panel.get_by_role("tab", name="Entities", exact=True).click()
                 await page.get_by_role(
                     "button", name="Keep editing", exact=True
                 ).click()
                 await page.get_by_role("dialog").wait_for(state="hidden")
                 assert await panel.locator("#document").input_value() == document
-                await panel.get_by_role("button", name="Entities", exact=True).click()
+                await panel.get_by_role("tab", name="Entities", exact=True).click()
                 await page.get_by_role(
                     "button", name="Discard changes", exact=True
                 ).click()
@@ -769,7 +770,7 @@ async def capture(config):
                     == 0
                 )
                 await page.set_viewport_size({"width": 390, "height": 844})
-                await panel.get_by_role("button", name="Dashboard", exact=True).click()
+                await panel.get_by_role("tab", name="Dashboard", exact=True).click()
                 await panel.get_by_role(
                     "heading", name="Import & migration", exact=True
                 ).wait_for()
