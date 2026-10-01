@@ -3,6 +3,9 @@ import contextlib
 import inspect
 import json
 import logging
+from collections import deque
+from datetime import datetime, UTC
+from copy import deepcopy
 from enum import Enum, auto
 
 _LOGGER = logging.getLogger(__name__)
@@ -87,6 +90,11 @@ class Core:
 
         # Hooks
         self._on_connected_commands = []
+        self.last_error = None
+        self.last_status = None
+        self.protocol_capture = False
+        self.protocol_frames = deque(maxlen=500)
+        self._protocol_sequence = 0
 
         # Timing configuration
         self._backoff_initial = backoff_initial
@@ -94,6 +102,41 @@ class Core:
         self._backoff_max = backoff_max
         self._connect_timeout = connect_timeout
         self._sleep = sleep_func
+
+    def capture_frame(self, direction, data):
+        """Keep a bounded, credential-redacted copy of protocol traffic."""
+        if not self.protocol_capture:
+            return
+        payload = deepcopy(data)
+
+        def redact(value):
+            if isinstance(value, dict):
+                return {
+                    key: "[redacted]"
+                    if key.lower()
+                    in {"password", "user", "username", "token", "secret"}
+                    else redact(item)
+                    for key, item in value.items()
+                }
+            if isinstance(value, list):
+                return [redact(item) for item in value]
+            return value
+
+        payload = redact(payload)
+        self._protocol_sequence += 1
+        encoded = json.dumps(payload)
+        self.protocol_frames.append(
+            {
+                "sequence": self._protocol_sequence,
+                "timestamp": datetime.now(UTC).isoformat(),
+                "direction": direction,
+                "id": data.get("id"),
+                "method": data.get("method"),
+                "payload": payload
+                if len(encoded) <= 32768
+                else {"truncated": True, "preview": encoded[:32768]},
+            }
+        )
 
     def set_on_connected_commands(self, commands: list):
         """Set commands to execute when connected."""
@@ -135,9 +178,14 @@ class Core:
         _LOGGER.info("Connecting to %s:%d", self._host, self._port)
         # TODO: make limit configurable
         opening = asyncio.open_connection(
-            self._host, self._port, limit=5 * 1024 * 1024,
+            self._host,
+            self._port,
+            limit=5 * 1024 * 1024,
         )
-        self._reader, self._writer = await asyncio.wait_for(opening, self._connect_timeout)
+        self._reader, self._writer = await asyncio.wait_for(
+            opening, self._connect_timeout
+        )
+        self.last_error = None
         _LOGGER.info("Connected")
 
     async def _execute_on_connected_commands(self):
@@ -151,8 +199,7 @@ class Core:
                 else:
                     # TODO: if not dict, log warning or fail?
                     await self.call(
-                        method=cmd["method"],
-                        params=cmd.get("params", None)
+                        method=cmd["method"], params=cmd.get("params", None)
                     )
             except Exception as ex:
                 _LOGGER.error("Error executing on-connected command: %s", repr(ex))
@@ -188,9 +235,7 @@ class Core:
 
         for _request_id, future in pending:
             if not future.done():
-                future.set_exception(
-                    QRCError({"code": -1, "message": "disconnected"})
-                )
+                future.set_exception(QRCError({"code": -1, "message": "disconnected"}))
 
         await self._set_state(ConnectionState.DISCONNECTED)
 
@@ -213,8 +258,10 @@ class Core:
             await self._reader_task
 
         except EOFError:
+            self.last_error = "Core closed the connection"
             _LOGGER.info("EOF from core at [%s]", self._host)
         except TimeoutError:
+            self.last_error = "Connection or protocol read timed out"
             state = await self.get_state()
             if state == ConnectionState.CONNECTED:
                 _LOGGER.warning(
@@ -229,6 +276,7 @@ class Core:
                     self._port,
                 )
         except Exception as ex:
+            self.last_error = str(ex)
             _LOGGER.exception("Error in connection cycle: %s", repr(ex))
         finally:
             await self._cleanup_connection()
@@ -243,7 +291,9 @@ class Core:
 
             try:
                 await self._handle_connection_cycle()
-                backoff = self._backoff_initial  # Reset backoff on successful connection
+                backoff = (
+                    self._backoff_initial
+                )  # Reset backoff on successful connection
             except asyncio.CancelledError:
                 _LOGGER.info("Core task cancelled")
                 raise
@@ -283,6 +333,7 @@ class Core:
         _LOGGER.debug("Sending message: %s", json.dumps(data).encode("utf8"))
         self._writer.write(json.dumps(data).encode("utf8"))
         self._writer.write(DELIMITER)
+        self.capture_frame("sent", data)
 
     async def call(self, method, params=None):
         params = {} if params is None else params
@@ -303,6 +354,7 @@ class Core:
         while True:
             raw_data = await self._reader.readuntil(DELIMITER)
             data = json.loads(raw_data[:-1])
+            self.capture_frame("received", data)
             if "id" in data:
                 _LOGGER.debug("Received response: %s", data)
                 await self._process_response(data)
@@ -324,7 +376,10 @@ class Core:
         return await self.call("Logon", params={"User": username, "Password": password})
 
     async def status_get(self):
-        return await self.call("StatusGet")
+        response = await self.call("StatusGet")
+        if isinstance(response, dict) and isinstance(response.get("result"), dict):
+            self.last_status = deepcopy(response["result"])
+        return response
 
     def component(self):
         return ComponentAPI(self)

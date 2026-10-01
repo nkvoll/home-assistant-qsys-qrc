@@ -10,3 +10,73 @@ pin = true
 [env]
 VENV_PATH = "/workspaces/.venv"
 UV_PROJECT_ENVIRONMENT = "/workspaces/.venv"
+
+[tasks.setup]
+description = "Initialize the devcontainer virtualenv, dependencies, browser, and HA config"
+run = "scripts/setup"
+
+[tasks.deps]
+description = "Install runtime, development, and test requirements into the existing virtualenv"
+run = 'uv pip install --python "$VENV_PATH/bin/python" -r requirements.txt -r requirements.dev.txt -r requirements.test.txt'
+
+[tasks.dev]
+description = "Run development Home Assistant on port 8123 (Ctrl-C to stop)"
+run = '"$VENV_PATH/bin/python" -m homeassistant --config config --debug'
+
+[tasks."config:check"]
+description = "Validate the local Home Assistant configuration"
+run = '"$VENV_PATH/bin/python" -m homeassistant --script check_config --config config'
+
+[tasks.lint]
+description = "Check Python code with Ruff without changing files"
+run = '"$VENV_PATH/bin/python" -m ruff check'
+
+[tasks."lint:fix"]
+description = "Apply Ruff's automatic fixes to Python code"
+run = '"$VENV_PATH/bin/python" -m ruff check --fix'
+
+[tasks.format]
+description = "Format Python code with Black"
+run = '"$VENV_PATH/bin/python" -m black .'
+
+[tasks."format:check"]
+description = "Check Black formatting without changing files"
+run = '"$VENV_PATH/bin/python" -m black --check .'
+
+[tasks.test]
+description = "Run pytest; accepts paths and pytest arguments"
+run = '"$VENV_PATH/bin/python" -m pytest'
+
+[tasks."test:qrc"]
+description = "Run the QRC client and change-group tests"
+run = '"$VENV_PATH/bin/python" -m pytest tests/qsys'
+
+[tasks.check]
+description = "Run lint, formatting checks, and the full test suite"
+depends = ["lint", "format:check", "test"]
+
+[tasks."dependencies:update"]
+description = "Update requirement versions from PyPI and the HACS minimum HA version"
+env = { PATH = "{{env.VENV_PATH}}/bin:{{env.PATH}}" }
+run = "scripts/update-dependencies"
+
+[tasks."release:prepare"]
+description = "Validate release prerequisites and print commands; args: current_version next_version"
+run = "scripts/release"
+
+[tasks."screenshots:browser"]
+description = "Install the pinned Playwright Chromium browser"
+env = { PLAYWRIGHT_HOST_PLATFORM_OVERRIDE = "ubuntu24.04-x64" }
+run = '"$VENV_PATH/bin/python" -m playwright install chromium'
+
+[tasks."screenshots:setup"]
+description = "Install Python and browser dependencies for README screenshots"
+run = [
+  'uv pip install --python "$VENV_PATH/bin/python" -r requirements.txt -r requirements.dev.txt',
+  'mise run screenshots:browser',
+]
+
+[tasks.screenshots]
+description = "Regenerate README screenshots using disposable HA and simulated QRC"
+depends = ["screenshots:setup"]
+run = '"$VENV_PATH/bin/python" scripts/screenshots/panel.py'

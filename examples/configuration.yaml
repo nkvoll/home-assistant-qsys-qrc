@@ -45,3 +45,16 @@ qsys_qrc:
         #  mode: slider
         #  change_template: "{{ round(100 * (math.pow(10, value/50)-0.01)/0.99, 1) }}"
         #  value_template: "{{ 50 * math.log(value/100*0.99+0.01, 10) }}"%
+
+        select:
+          - name: "Apple Lights"
+            control: "Apple.Lights" # options auto-populated from Choices
+
+        text:
+          - name: "Hue Lights"
+            control: "Hue.Lights"
+
+        sensor:
+          - name: "Roon Now Playing"
+            control: "Text_ControllerNowPlaying_Text"
+            attribute: "String"

@@ -1,12 +1,23 @@
 {
   "config": {
     "abort": {
-      "already_configured": "Device is already configured"
+      "already_configured": "Device is already configured",
+      "reconfigure_successful": "Core configuration updated",
+      "reauth_successful": "Core credentials updated"
     },
     "error": {
       "cannot_connect": "Failed to connect",
       "invalid_auth": "Invalid authentication",
-      "unknown": "Unexpected error"
+      "unknown": "Unexpected error",
+      "invalid_connection": "Enter a valid host, a port between 1 and 65535, and positive polling durations.",
+      "discovery_failed": "Discovery failed. Check the Core connection and current design, then retry. Saved mappings are unchanged.",
+      "incompatible_control": "This entity type is incompatible with the current control metadata.",
+      "duplicate_entity": "This identity is already configured. Edit its UI mapping or explicitly import its YAML mapping.",
+      "invalid_settings": "Check the entity settings.",
+      "invalid_selection": "Select an existing UI entity.",
+      "configuration_changed": "Configuration changed during review. Restart the import.",
+      "invalid_document": "Invalid portable document, unsupported schema, size limit exceeded, or a YAML collision without explicit ownership transfer.",
+      "configuration_error": "Unable to prepare the entity review from saved configuration. See the Home Assistant log for details."
     },
     "step": {
       "user": {
@@ -15,35 +26,274 @@
           "host": "Host",
           "port": "Port",
           "username": "Username",
-          "password": "Password"
+          "password": "Password",
+          "poll_interval": "Poll interval (seconds)",
+          "request_timeout": "Request timeout (seconds)"
         },
         "data_description": {
           "core_name": "Core Name is used as an identifier used in configuration.yaml.",
-          "password": "Password is usually a 4 digit PIN as configured in Q-Sys Administrator."
+          "password": "Password is usually a 4 digit PIN as configured in Q-Sys Administrator.",
+          "poll_interval": "Time between control polls. Saved values override YAML change_group settings.",
+          "request_timeout": "Maximum time to wait for a polling response."
+        }
+      },
+      "reconfigure": {
+        "title": "Reconfigure Core",
+        "description": "The Core name stays unchanged to preserve entity identities.",
+        "data": {
+          "host": "Host",
+          "port": "Port",
+          "username": "Username",
+          "password": "Password",
+          "poll_interval": "Poll interval (seconds)",
+          "request_timeout": "Request timeout (seconds)"
+        },
+        "data_description": {
+          "poll_interval": "Time between control polls. Saved values override YAML change_group settings.",
+          "request_timeout": "Maximum time to wait for a polling response."
+        }
+      },
+      "reauth_confirm": {
+        "title": "Update Core credentials",
+        "description": "The Core name stays unchanged to preserve entity identities.",
+        "data": {
+          "host": "Host",
+          "port": "Port",
+          "username": "Username",
+          "password": "Password",
+          "poll_interval": "Poll interval (seconds)",
+          "request_timeout": "Request timeout (seconds)"
+        },
+        "data_description": {
+          "poll_interval": "Time between control polls. Saved values override YAML change_group settings.",
+          "request_timeout": "Maximum time to wait for a polling response."
+        }
+      },
+      "add_entity": {
+        "title": "Choose control source",
+        "menu_options": {
+          "component": "Named component",
+          "named_control": "Top-level Named Control"
+        }
+      },
+      "component": {
+        "title": "Choose component",
+        "data": {
+          "component": "Component"
+        }
+      },
+      "component_kind": {
+        "title": "Choose component entity",
+        "menu_options": {
+          "control": "Choose a control",
+          "media_player": "Media player"
+        }
+      },
+      "control": {
+        "title": "Choose control",
+        "data": {
+          "control": "Control"
+        }
+      },
+      "named_control": {
+        "title": "Named Control",
+        "description": "Enter the exact name from the Named Controls panel. QRC does not provide a list of all Named Controls. The name is validated with Control.Get.",
+        "data": {
+          "control": "Exact control name"
+        }
+      },
+      "entity_type": {
+        "title": "Choose entity type",
+        "description": "{writability}",
+        "data": {
+          "platform": "Entity type"
+        }
+      },
+      "settings": {
+        "title": "Entity settings",
+        "description": "Review the metadata defaults and adjust settings where needed. Templates and other optional fields apply only to this entity.",
+        "data": {
+          "name": "Name",
+          "device_class": "Device class",
+          "unit_of_measurement": "Unit",
+          "state_class": "State class",
+          "attribute": "Sensor attribute",
+          "min": "Minimum",
+          "max": "Maximum",
+          "step": "Step",
+          "mode": "Mode",
+          "use_position": "Use position",
+          "position_lower_limit": "Lower position limit",
+          "position_upper_limit": "Upper position limit",
+          "change_template": "Incoming value template",
+          "value_template": "Outgoing value template",
+          "pattern": "Pattern",
+          "options": "Choices"
+        }
+      },
+      "review": {
+        "title": "Review entity",
+        "description": "Review the mapping below, then submit to save it.\n\nIdentity: {identity}\n\n```json\n{mapping}\n```\n\n{warnings}"
+      },
+      "setup_entities": {
+        "title": "Configure entities",
+        "description": "Your Core connection is ready. Choose Finish, then open Settings \u2192 Connectivity \u2192 Q-SYS to add multiple entities and manage them. You can also add one entity here before finishing. No YAML is required.",
+        "menu_options": {
+          "add_entity": "Add an entity",
+          "finish": "Finish"
         }
       }
     }
   },
   "options": {
-    "error": {
-      "cannot_connect": "Failed to connect",
-      "invalid_auth": "Invalid authentication",
-      "unknown": "Unexpected error"
-    },
     "step": {
       "init": {
-        "data": {
-          "core_name": "Core Name",
-          "host": "Host",
-          "port": "Port",
-          "username": "Username",
-          "password": "Password"
-        },
-        "data_description": {
-          "core_name": "Core Name is used as an identifier used in configuration.yaml.",
-          "password": "Password is usually a 4 digit PIN as configured in Q-Sys Administrator."
+        "title": "Manage entities",
+        "description": "{notices}",
+        "menu_options": {
+          "add_entity": "Add entity",
+          "edit_entity": "Edit UI entity",
+          "remove_entity": "Remove UI entity",
+          "import_yaml": "Import from Home Assistant YAML",
+          "import_portable": "Import portable configuration",
+          "export_portable": "Export portable configuration"
         }
+      },
+      "add_entity": {
+        "title": "Choose control source",
+        "menu_options": {
+          "component": "Named component",
+          "named_control": "Top-level Named Control"
+        }
+      },
+      "component": {
+        "title": "Choose component",
+        "data": {
+          "component": "Component"
+        }
+      },
+      "component_kind": {
+        "title": "Choose component entity",
+        "menu_options": {
+          "control": "Choose a control",
+          "media_player": "Media player"
+        }
+      },
+      "control": {
+        "title": "Choose control",
+        "data": {
+          "control": "Control"
+        }
+      },
+      "named_control": {
+        "title": "Named Control",
+        "description": "Enter the exact name from the Named Controls panel. QRC does not provide a list of all Named Controls. The name is validated with Control.Get.",
+        "data": {
+          "control": "Exact control name"
+        }
+      },
+      "entity_type": {
+        "title": "Choose entity type",
+        "description": "{writability}",
+        "data": {
+          "platform": "Entity type"
+        }
+      },
+      "settings": {
+        "title": "Entity settings",
+        "description": "Review the metadata defaults and adjust settings where needed. Templates and other optional fields apply only to this entity.",
+        "data": {
+          "name": "Name",
+          "device_class": "Device class",
+          "unit_of_measurement": "Unit",
+          "state_class": "State class",
+          "attribute": "Sensor attribute",
+          "min": "Minimum",
+          "max": "Maximum",
+          "step": "Step",
+          "mode": "Mode",
+          "use_position": "Use position",
+          "position_lower_limit": "Lower position limit",
+          "position_upper_limit": "Upper position limit",
+          "change_template": "Incoming value template",
+          "value_template": "Outgoing value template",
+          "pattern": "Pattern",
+          "options": "Choices"
+        }
+      },
+      "review": {
+        "title": "Review entity",
+        "description": "Review the mapping below, then submit to save it.\n\nIdentity: {identity}\n\n```json\n{mapping}\n```\n\n{warnings}"
+      },
+      "edit_entity": {
+        "title": "Edit UI entity",
+        "data": {
+          "entity": "Entity"
+        }
+      },
+      "remove_entity": {
+        "title": "Remove UI entity",
+        "description": "Only the UI mapping is removed. A remaining YAML definition can become active again.",
+        "data": {
+          "entity": "Entity",
+          "confirm": "Confirm removal"
+        }
+      },
+      "import_yaml": {
+        "title": "Import from Home Assistant YAML",
+        "description": "Select individual mappings or all mappings. Existing UI copies are skipped unless you explicitly choose replace. No YAML files are edited.",
+        "data": {
+          "entities": "Home Assistant YAML mappings",
+          "all": "Select all Home Assistant YAML mappings",
+          "existing": "Existing UI mapping policy"
+        }
+      },
+      "yaml_review": {
+        "title": "Review ownership transfer",
+        "description": "{cleanup}\n\nFull copied settings and validation findings:\n```yaml\n{preview}\n```",
+        "data": {
+          "confirm": "Transfer selected mappings to UI ownership"
+        }
+      },
+      "yaml_cleanup": {
+        "title": "YAML cleanup",
+        "description": "These mappings now belong to the UI. You can remove their old definitions from your YAML files, then reload. Remaining YAML settings are unchanged.\n\n```json\n{definitions}\n```"
+      },
+      "import_portable": {
+        "title": "Import portable configuration",
+        "description": "Paste a portable YAML configuration. Skip keeps existing mappings; Replace updates them. To replace mappings from Home Assistant YAML, select the option below to manage them in the UI.",
+        "data": {
+          "document": "YAML configuration",
+          "collision": "Collision policy",
+          "transfer_yaml": "Manage replaced Home Assistant YAML mappings in the UI"
+        }
+      },
+      "portable_review": {
+        "title": "Review portable import",
+        "description": "{identity_notice}\n\n{preview}\n\nSubmit to save. Select colliding mappings to replace; unselected collisions are skipped. Changing this selection refreshes the summary before saving.",
+        "data": {
+          "replace_collisions": "Colliding mappings to replace"
+        }
+      },
+      "export_portable": {
+        "title": "Export portable configuration",
+        "description": "Copy the YAML below and save it as a .yaml file. To also export active mappings from Home Assistant YAML, select the option below and choose Refresh export.",
+        "data": {
+          "document": "Portable YAML configuration",
+          "effective": "Include mappings from Home Assistant YAML"
+        },
+        "submit": "Refresh export"
       }
+    },
+    "error": {
+      "discovery_failed": "Discovery failed. Check the Core connection and current design, then retry. Saved mappings are unchanged.",
+      "incompatible_control": "This entity type is incompatible with the current control metadata.",
+      "duplicate_entity": "This identity is already configured. Edit its UI mapping or explicitly import its YAML mapping.",
+      "invalid_settings": "Check the entity settings.",
+      "invalid_selection": "Select an existing UI entity.",
+      "configuration_changed": "Configuration changed during review. Restart the import.",
+      "invalid_document": "Invalid portable document, unsupported schema, size limit exceeded, or a YAML collision without explicit ownership transfer.",
+      "configuration_error": "Unable to prepare the entity review from saved configuration. See the Home Assistant log for details."
     }
   }
 }

@@ -1,7 +1,7 @@
 """Platform for number integration."""
+
 from __future__ import annotations
 
-import asyncio
 import decimal
 import logging
 import math
@@ -14,8 +14,12 @@ from homeassistant.helpers import template
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers import entity_registry as er
 
-from . import changegroup
-from .common import QSysComponentControlBase, id_for_component_control, config_for_core
+from .common import (
+    QSysComponentControlBase,
+    id_for_component_control,
+    config_for_core,
+    poller_for_entry,
+)
 from .const import *
 from .qsys import qrc
 
@@ -32,19 +36,22 @@ async def async_setup_entry(
 
     # TODO: remove restored entities that are no longer used?
     core_name = entry.data[CONF_USER_DATA][CONF_CORE_NAME]
-    core: qrc.Core = hass.data[DOMAIN].get(
-        CONF_CACHED_CORES, {},
-    ).get(core_name)
+    core: qrc.Core = (
+        hass.data[DOMAIN]
+        .get(
+            CONF_CACHED_CORES,
+            {},
+        )
+        .get(core_name)
+    )
     if core is None:
         return
 
     entities = {}
 
-    core_config = config_for_core(hass, core_name)
+    core_config = config_for_core(hass, entry)
     # can platform name be more dynamic than this?
-    poller = changegroup.create_change_group_for_platform(
-        core, core_config.get(CONF_CHANGEGROUP), PLATFORM
-    )
+    poller = poller_for_entry(hass, entry)
 
     exclude_component_controls = core_config.get(CONF_FILTER, {}).get(
         CONF_EXCLUDE_COMPONENT_CONTROL, []
@@ -117,10 +124,6 @@ async def async_setup_entry(
                 control_name,
             )
 
-    if len(entities) > 0:
-        polling = asyncio.create_task(poller.run_while_core_running())
-        entry.async_on_unload(lambda: polling.cancel() and None)
-
     for entity_entry in er.async_entries_for_config_entry(
         er.async_get(hass), entry.entry_id
     ):
@@ -155,7 +158,14 @@ class QRCNumberEntity(QSysComponentControlBase, NumberEntity):
         unit_of_measurement,
     ) -> None:
         super().__init__(
-            hass, config_entry, core_name, core, unique_id, entity_name, component, control
+            hass,
+            config_entry,
+            core_name,
+            core,
+            unique_id,
+            entity_name,
+            component,
+            control,
         )
 
         self._attr_device_class = device_class
@@ -203,18 +213,17 @@ class QRCNumberEntity(QSysComponentControlBase, NumberEntity):
 
         if self._change_template:
             # TODO: a better way to have defaults available?
-            value = self._change_template.async_render({
-                "change": change,
-                "value": value,
-                "math": math,
-                "round": round
-            })
+            value = self._change_template.async_render(
+                {"change": change, "value": value, "math": math, "round": round}
+            )
 
         value = round(value, self._round_decimals)
         self._attr_native_value = max(
-            self._attr_native_min_value, min(
-                value, self._attr_native_max_value,
-            )
+            self._attr_native_min_value,
+            min(
+                value,
+                self._attr_native_max_value,
+            ),
         )
 
     async def async_set_native_value(self, value: float) -> None:
@@ -233,10 +242,8 @@ class QRCNumberEntity(QSysComponentControlBase, NumberEntity):
 
         if self._value_template:
             # TODO: a better way to have defaults available?
-            value = self._value_template.async_render({
-                "value": value,
-                "math": math,
-                "round": round
-            })
+            value = self._value_template.async_render(
+                {"value": value, "math": math, "round": round}
+            )
 
         await self.update_control({"Value": value})

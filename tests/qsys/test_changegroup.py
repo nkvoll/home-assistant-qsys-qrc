@@ -163,3 +163,15 @@ async def test_stop_idempotent(core):
     await poller.stop()  # second stop should not fail
     assert poller._loop_task is None
 
+
+
+async def test_stop_disconnected_poller_clears_state(core):
+    core._connected_event.clear()
+    poller = ChangeGroupPoller(core, 'shared', poll_interval=.001, request_timeout=.001)
+    poller.start()
+    await asyncio.sleep(.01)
+    assert poller._state == PollerState.STARTING
+    await poller.stop()
+    assert poller._state == PollerState.IDLE
+    assert poller.cg is None
+    assert poller._loop_task is None

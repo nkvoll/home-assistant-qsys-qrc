@@ -33,3 +33,19 @@ call_method:
       selector:
         object:
 reload:
+export_configuration:
+  name: Export entity configuration
+  description: Return a portable configuration object. The Configure dialog also provides a portable YAML export. Requires administrator access.
+  fields:
+    core_name:
+      name: Core name
+      description: The configured Core name whose entity definitions should be exported.
+      required: true
+      selector:
+        text:
+    effective:
+      name: Include effective YAML mappings
+      description: Export active YAML and UI mappings instead of only UI-owned mappings.
+      default: false
+      selector:
+        boolean:

@@ -10,6 +10,7 @@ CONF_SWITCH_PLATFORM = "switch"
 CONF_NUMBER_PLATFORM = "number"
 CONF_TEXT_PLATFORM = "text"
 CONF_SENSOR_PLATFORM = "sensor"
+CONF_BINARY_SENSOR_PLATFORM = "binary_sensor"
 CONF_MEDIA_PLAYER_PLATFORM = "media_player"
 CONF_SELECT_PLATFORM = "select"
 
@@ -70,3 +71,7 @@ CONF_ENGINE_STATUS = "engine_status"
 
 POSITION_0DB = 0.83333331
 CORE_MEDIA_CONTENT_TYPE = "qsys_core"
+
+CONF_ENTRY_CONFIG = "entry_config"
+CONF_ENTRY_INVENTORY = "entry_inventory"
+CONF_ENTRY_POLLERS = "entry_pollers"

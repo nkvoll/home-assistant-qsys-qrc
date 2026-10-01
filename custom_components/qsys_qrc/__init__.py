@@ -1,11 +1,11 @@
 """The Q-Sys QRC integration."""
+
 from __future__ import annotations
 
 import asyncio
 import logging
 
 import voluptuous as vol
-from homeassistant.components import media_player, number, sensor, switch, text
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import SERVICE_RELOAD, Platform
 from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
@@ -17,11 +17,16 @@ from homeassistant.helpers.typing import ConfigType
 
 from .const import *
 from .qsys import qrc
+from .schema import CONFIG_SCHEMA
+from .mapping import core_polling_settings, resolve_configuration, yaml_mappings
+from .portable import export_document
+from .changegroup import create_change_group_for_platform
 
 PLATFORMS: list[Platform] = [
     Platform.NUMBER,
     Platform.SELECT,
     Platform.SENSOR,
+    Platform.BINARY_SENSOR,
     Platform.SWITCH,
     Platform.TEXT,
     Platform.MEDIA_PLAYER,
@@ -30,255 +35,6 @@ PLATFORMS: list[Platform] = [
 _LOGGER = logging.getLogger(__name__)
 
 devices = {}
-
-CONFIG_SCHEMA = vol.Schema(
-    {
-        DOMAIN: vol.Schema(
-            {
-                CONF_CORES: vol.Schema(
-                    {
-                        str: vol.Schema(
-                            {
-                                # TODO: this seems largely wasteful because we're not globbing components, but explicitly configuring them
-                                # leaving it in for now, but consider ripping it out for simplicity
-                                vol.Optional(CONF_FILTER): vol.Schema(
-                                    {
-                                        vol.Optional(
-                                            CONF_EXCLUDE_COMPONENT_CONTROL
-                                        ): vol.Schema(
-                                            {CONF_COMPONENT: str, CONF_CONTROL: str}
-                                        )
-                                    }
-                                ),
-                                vol.Optional(CONF_CHANGEGROUP, default={CONF_POLL_INTERVAL: 1.0, CONF_REQUEST_TIMEOUT: 5.0}): vol.Schema(
-                                    {
-                                        vol.Optional(
-                                            CONF_POLL_INTERVAL, default=1.0
-                                        ): vol.Coerce(float),
-                                        vol.Optional(
-                                            CONF_REQUEST_TIMEOUT, default=5.0
-                                        ): vol.Coerce(float),
-                                    }
-                                ),
-                                vol.Optional(CONF_PLATFORMS): vol.Schema(
-                                    {
-                                        CONF_MEDIA_PLAYER_PLATFORM: vol.Schema(
-                                            [
-                                                vol.Schema(
-                                                    {
-                                                        vol.Optional(
-                                                            CONF_ENTITY_NAME,
-                                                            default=None,
-                                                        ): vol.Any(None, str),
-                                                        vol.Optional(
-                                                            CONF_DEVICE_CLASS,
-                                                            default=None,
-                                                        ): vol.Any(
-                                                            None,
-                                                            media_player.DEVICE_CLASSES_SCHEMA,
-                                                        ),
-                                                        vol.Required(
-                                                            CONF_COMPONENT
-                                                        ): str,
-                                                    }
-                                                )
-                                            ]
-                                        ),
-                                        CONF_NUMBER_PLATFORM: vol.Schema(
-                                            [
-                                                vol.Schema(
-                                                    {
-                                                        vol.Optional(
-                                                            CONF_ENTITY_NAME,
-                                                            default=None,
-                                                        ): vol.Any(None, str),
-                                                        vol.Optional(
-                                                            CONF_DEVICE_CLASS,
-                                                            default=None,
-                                                        ): vol.Any(
-                                                            None,
-                                                            number.DEVICE_CLASSES_SCHEMA,
-                                                        ),
-                                                        vol.Optional(
-                                                            CONF_UNIT_OF_MEASUREMENT,
-                                                            default=None,
-                                                        ): vol.Any(None, str),
-                                                        vol.Optional(
-                                                            CONF_COMPONENT,
-                                                            default=None,
-                                                        ): vol.Any(None, str),
-                                                        vol.Required(CONF_CONTROL): str,
-                                                        vol.Optional(
-                                                            CONF_NUMBER_USE_POSITION,
-                                                            default=False,
-                                                        ): bool,
-                                                        vol.Optional(
-                                                            CONF_NUMBER_MIN_VALUE,
-                                                            default=0.0,
-                                                        ): vol.Coerce(float),
-                                                        vol.Optional(
-                                                            CONF_NUMBER_MAX_VALUE,
-                                                            default=100.0,
-                                                        ): vol.Coerce(float),
-                                                        vol.Optional(
-                                                            CONF_NUMBER_POSITION_LOWER_LIMIT,
-                                                            default=0.0,
-                                                        ): vol.Coerce(float),
-                                                        vol.Optional(
-                                                            CONF_NUMBER_POSITION_UPPER_LIMIT,
-                                                            default=1.0,
-                                                        ): vol.Coerce(float),
-                                                        vol.Optional(
-                                                            CONF_NUMBER_STEP,
-                                                            default=1.0,
-                                                        ): vol.Coerce(float),
-                                                        vol.Optional(
-                                                            CONF_NUMBER_MODE,
-                                                            default=number.NumberMode.AUTO,
-                                                        ): vol.Coerce(
-                                                            number.NumberMode
-                                                        ),
-                                                        vol.Optional(
-                                                            CONF_NUMBER_CHANGE_TEMPLATE,
-                                                            default=None,
-                                                        ): vol.Any(None, str),
-                                                        vol.Optional(
-                                                            CONF_NUMBER_VALUE_TEMPLATE,
-                                                            default=None,
-                                                        ): vol.Any(None, str),
-                                                    }
-                                                )
-                                            ]
-                                        ),
-                                        CONF_SENSOR_PLATFORM: vol.Schema(
-                                            [
-                                                vol.Schema(
-                                                    {
-                                                        vol.Optional(
-                                                            CONF_ENTITY_NAME,
-                                                            default=None,
-                                                        ): vol.Any(None, str),
-                                                        vol.Optional(
-                                                            CONF_DEVICE_CLASS,
-                                                            default=None,
-                                                        ): vol.Any(
-                                                            None,
-                                                            sensor.DEVICE_CLASSES_SCHEMA,
-                                                        ),
-                                                        vol.Optional(
-                                                            CONF_STATE_CLASS,
-                                                            default=None,
-                                                        ): vol.Any(
-                                                            None,
-                                                            sensor.STATE_CLASSES_SCHEMA,
-                                                        ),
-                                                        vol.Optional(
-                                                            CONF_UNIT_OF_MEASUREMENT,
-                                                            default=None,
-                                                        ): vol.Any(None, str),
-                                                        vol.Optional(
-                                                            CONF_COMPONENT,
-                                                            default=None,
-                                                        ): vol.Any(None, str),
-                                                        vol.Required(CONF_CONTROL): str,
-                                                        vol.Optional(
-                                                            CONF_SENSOR_ATTRIBUTE,
-                                                            default="String",
-                                                        ): str,
-                                                    }
-                                                )
-                                            ]
-                                        ),
-                                        CONF_SWITCH_PLATFORM: vol.Schema(
-                                            [
-                                                vol.Schema(
-                                                    {
-                                                        vol.Optional(
-                                                            CONF_ENTITY_NAME,
-                                                            default=None,
-                                                        ): vol.Any(None, str),
-                                                        vol.Optional(
-                                                            CONF_DEVICE_CLASS,
-                                                            default=None,
-                                                        ): vol.Any(
-                                                            None,
-                                                            switch.DEVICE_CLASSES_SCHEMA,
-                                                        ),
-                                                        vol.Optional(
-                                                            CONF_COMPONENT,
-                                                            default=None,
-                                                        ): vol.Any(None, str),
-                                                        vol.Required(CONF_CONTROL): str,
-                                                    }
-                                                )
-                                            ]
-                                        ),
-                                        CONF_TEXT_PLATFORM: vol.Schema(
-                                            [
-                                                vol.Schema(
-                                                    {
-                                                        vol.Optional(
-                                                            CONF_ENTITY_NAME,
-                                                            default=None,
-                                                        ): vol.Any(None, str),
-                                                        vol.Optional(
-                                                            CONF_COMPONENT,
-                                                            default=None,
-                                                        ): vol.Any(None, str),
-                                                        vol.Required(CONF_CONTROL): str,
-                                                        vol.Optional(
-                                                            CONF_TEXT_MODE, default=None
-                                                        ): vol.Any(None, text.TextMode),
-                                                        vol.Optional(
-                                                            CONF_TEXT_MIN_LENGTH,
-                                                            default=None,
-                                                        ): vol.Any(None, int),
-                                                        vol.Optional(
-                                                            CONF_TEXT_MAX_LENGTH,
-                                                            default=None,
-                                                        ): vol.Any(None, int),
-                                                        vol.Optional(
-                                                            CONF_TEXT_PATTERN,
-                                                            default=None,
-                                                        ): vol.Any(None, str),
-                                                    }
-                                                )
-                                            ]
-                                        ),
-                                        CONF_SELECT_PLATFORM: vol.Schema(
-                                            [
-                                                vol.Schema(
-                                                    {
-                                                        vol.Optional(
-                                                            CONF_ENTITY_NAME,
-                                                            default=None,
-                                                        ): vol.Any(None, str),
-                                                        vol.Optional(
-                                                            CONF_COMPONENT,
-                                                            default=None,
-                                                        ): vol.Any(None, str),
-                                                        vol.Required(CONF_CONTROL): str,
-                                                        vol.Optional(
-                                                            CONF_SELECT_OPTIONS,
-                                                            default=[],
-                                                        ): vol.All(
-                                                            list, [str]
-                                                        ),
-                                                    }
-                                                )
-                                            ]
-                                        ),
-                                    }
-                                ),
-                            }
-                        )
-                    }
-                )
-            }
-        ),
-    },
-    extra=vol.ALLOW_EXTRA,
-)
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
@@ -304,6 +60,48 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             return False
 
     hass.data[DOMAIN] = {CONF_CONFIG: domain_conf, CONF_CACHED_CORES: {}}
+
+    async def export_configuration(call: ServiceCall):
+        core_name = call.data["core_name"]
+        entry = next(
+            (
+                item
+                for item in hass.config_entries.async_entries(DOMAIN)
+                if item.data.get(CONF_USER_DATA, {}).get(CONF_CORE_NAME) == core_name
+            ),
+            None,
+        )
+        if entry is None:
+            raise ServiceValidationError("Unknown Core name")
+        mappings = entry.options.get("mappings", [])
+        if call.data.get("effective", False):
+            config = hass.data[DOMAIN].get(CONF_ENTRY_CONFIG, {}).get(entry.entry_id)
+            if config is None:
+                raise ServiceValidationError(
+                    "Load the Core entry before exporting effective configuration"
+                )
+            mappings = yaml_mappings(config, core_name)
+        return {
+            "configuration": export_document(
+                core_name,
+                mappings,
+                entry.data.get(CONF_ENGINE_STATUS, {}).get("DesignName"),
+            )
+        }
+
+    async_register_admin_service(
+        hass,
+        DOMAIN,
+        "export_configuration",
+        export_configuration,
+        schema=vol.Schema(
+            {
+                vol.Required("core_name"): str,
+                vol.Optional("effective", default=False): bool,
+            }
+        ),
+        supports_response=SupportsResponse.ONLY,
+    )
 
     async def handle_call_method(call: ServiceCall):
         """Handle the service call."""
@@ -348,9 +146,9 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             return
         except qrc.QRCError as err:
             # Extract error message from QRCError and raise ServiceValidationError
-            error_dict = err.error if hasattr(err, 'error') else {}
-            error_code = error_dict.get('code', 'unknown')
-            error_message = error_dict.get('message', str(err))
+            error_dict = err.error if hasattr(err, "error") else {}
+            error_code = error_dict.get("code", "unknown")
+            error_message = error_dict.get("message", str(err))
             raise ServiceValidationError(
                 f"QRC Error (code {error_code}): {error_message}"
             ) from err
@@ -366,6 +164,9 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     # may use https://github.com/home-assistant/core/blob/dev/homeassistant/components/knx/__init__.py#L210
     # for inspiration
 
+    from .panel import async_setup_panel
+
+    await async_setup_panel(hass)
     return True
 
 
@@ -374,30 +175,56 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     config = CONFIG_SCHEMA({DOMAIN: {}})[DOMAIN]
 
     _conf = await async_integration_yaml_config(hass, DOMAIN)
-    if not _conf or DOMAIN not in _conf:
-        _LOGGER.warning(
-            "No `qsys_qrc:` key found in configuration.yaml. See "
-            "https://github.com/nkvoll/home-assistant-qsys-qrc/ "
-            "for qsys_qrc entity configuration documentation"
-        )
-    else:
+    if _conf and DOMAIN in _conf:
         config = _conf[DOMAIN]
-    # update stored config
-    hass.data[DOMAIN][CONF_CONFIG] = config
 
     # store config entry for lookup later
     hass.data[DOMAIN].setdefault(CONF_CONFIG_ENTRIES, {})[entry.entry_id] = entry
 
     user_data = entry.data[CONF_USER_DATA]
-    c = qrc.Core(user_data[CONF_HOST])
     core_name = user_data[CONF_CORE_NAME]
+    core_config = config.get(CONF_CORES, {}).get(core_name, {})
+    polling = core_polling_settings(core_config, user_data)
+    if any(field not in user_data for field in polling):
+        # Persist once before registering the reload listener, preserving saved overrides.
+        user_data = {**user_data, **polling}
+        hass.config_entries.async_update_entry(
+            entry, data={**entry.data, CONF_USER_DATA: user_data}
+        )
+    c = qrc.Core(user_data[CONF_HOST], user_data.get(CONF_PORT, qrc.PORT))
+    monitor = hass.data[DOMAIN].get("protocol_monitors", {}).get(entry.entry_id)
+    if monitor:
+        c.protocol_capture = monitor["capture"]
+        c.protocol_frames = monitor["frames"]
+        c._protocol_sequence = monitor["sequence"]
+    effective, inventory = resolve_configuration(
+        core_name, core_config, entry.options, user_data
+    )
+    hass.data[DOMAIN].setdefault(CONF_ENTRY_CONFIG, {})[entry.entry_id] = effective
+    hass.data[DOMAIN].setdefault(CONF_ENTRY_INVENTORY, {})[entry.entry_id] = inventory
+    poller = create_change_group_for_platform(
+        c, effective[CONF_CHANGEGROUP], "entities"
+    )
+    hass.data[DOMAIN].setdefault(CONF_ENTRY_POLLERS, {})[entry.entry_id] = poller
+
+    async def options_updated(hass, updated_entry):
+        await hass.config_entries.async_reload(updated_entry.entry_id)
+
+    entry.async_on_unload(entry.add_update_listener(options_updated))
 
     # set up automatic logon
     async def logon():
-        await c.logon(
-            user_data[CONF_USERNAME],
-            user_data[CONF_PASSWORD],
-        )
+        try:
+            response = await asyncio.wait_for(
+                c.logon(user_data[CONF_USERNAME], user_data[CONF_PASSWORD]), timeout=5
+            )
+        except qrc.QRCError as err:
+            if err.error.get("code") == 10:
+                entry.async_start_reauth(hass)
+            raise
+        else:
+            if not response.get("result", False):
+                entry.async_start_reauth(hass)
 
     c.set_on_connected_commands([logon])
     core_runner_task = asyncio.create_task(c.run_until_stopped())
@@ -412,10 +239,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     device_entry = registry.async_get_or_create(
         config_entry_id=entry.entry_id,
         # TODO: use design code? not sure how to link entities to device then...
-        identifiers={
-            (DOMAIN, core_name),
-            (DOMAIN, entry.data[CONF_ENGINE_STATUS].get("DesignName")),
-        },
+        identifiers={(DOMAIN, core_name)},
         name=entry.data[CONF_ENGINE_STATUS].get("DesignName", "Unknown"),
         manufacturer="Q-Sys",
         model=entry.data[CONF_ENGINE_STATUS].get("Platform", "Unknown"),
@@ -428,6 +252,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             registry.async_remove_device(de.id)
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    hass.bus.async_fire(f"{DOMAIN}_entities_ready", {"entry_id": entry.entry_id})
+    if any(effective[CONF_PLATFORMS].values()):
+        poller.start()
 
     async def _reload_integration(call: ServiceCall) -> None:
         """Reload the integration."""
@@ -441,16 +268,36 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
+    poller = hass.data[DOMAIN][CONF_ENTRY_POLLERS][entry.entry_id]
+    await poller.stop()
     if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
+        core = hass.data[DOMAIN][CONF_CACHED_CORES].get(
+            entry.data[CONF_USER_DATA][CONF_CORE_NAME]
+        )
+        if core is not None:
+            hass.data[DOMAIN].setdefault("protocol_monitors", {})[entry.entry_id] = {
+                "capture": core.protocol_capture,
+                "frames": core.protocol_frames,
+                "sequence": core._protocol_sequence,
+            }
         hass.data[DOMAIN][CONF_CACHED_CORES].pop(
             entry.data[CONF_USER_DATA][CONF_CORE_NAME], None
         )
 
         hass.data[DOMAIN].setdefault(CONF_CONFIG_ENTRIES, {}).pop(entry.entry_id, None)
 
-        device_entry = devices.get(entry.entry_id)
-        if device_entry:
-            registry = dr.async_get(hass)
-            registry.async_remove_device(device_entry.id)
+        hass.data[DOMAIN][CONF_ENTRY_POLLERS].pop(entry.entry_id)
+        hass.data[DOMAIN][CONF_ENTRY_CONFIG].pop(entry.entry_id, None)
+        hass.data[DOMAIN][CONF_ENTRY_INVENTORY].pop(entry.entry_id, None)
+        devices.pop(entry.entry_id, None)
+    elif any(
+        hass.data[DOMAIN][CONF_ENTRY_CONFIG][entry.entry_id][CONF_PLATFORMS].values()
+    ):
+        poller.start()
 
     return unload_ok
+
+
+async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Discard retained capture data when a Core is removed."""
+    hass.data[DOMAIN].get("protocol_monitors", {}).pop(entry.entry_id, None)

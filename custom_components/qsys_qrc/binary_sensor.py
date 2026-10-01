@@ -1,10 +1,10 @@
-"""Platform for switch integration."""
+"""Platform for binary sensor integration."""
 
 from __future__ import annotations
 
 import logging
 
-from homeassistant.components.switch import SwitchEntity
+from homeassistant.components.binary_sensor import BinarySensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -28,7 +28,7 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up switch entities."""
+    """Set up binary sensor entities."""
 
     # TODO: remove restored entities that are no longer used?
     core_name = entry.data[CONF_USER_DATA][CONF_CORE_NAME]
@@ -42,38 +42,38 @@ async def async_setup_entry(
     # can platform name be more dynamic than this?
     poller = poller_for_entry(hass, entry)
 
-    for switch_config in core_config.get(CONF_PLATFORMS, {}).get(
-        CONF_SWITCH_PLATFORM, []
+    for binary_sensor_config in core_config.get(CONF_PLATFORMS, {}).get(
+        CONF_BINARY_SENSOR_PLATFORM, []
     ):
-        component_name = switch_config[CONF_COMPONENT]
-        control_name = switch_config[CONF_CONTROL]
+        component_name = binary_sensor_config[CONF_COMPONENT]
+        control_name = binary_sensor_config[CONF_CONTROL]
 
         # need to fetch component and control config first?
-        control_switch_entity = QRCSwitchEntity(
+        binary_sensor_entity = QRCBinarySensorEntity(
             hass,
             entry,
             core_name,
             core,
             id_for_component_control(
                 core_name,
-                switch_config[CONF_COMPONENT],
-                switch_config[CONF_CONTROL],
+                binary_sensor_config[CONF_COMPONENT],
+                binary_sensor_config[CONF_CONTROL],
             ),
-            switch_config.get(CONF_ENTITY_NAME, None),
+            binary_sensor_config.get(CONF_ENTITY_NAME, None),
             component_name,
             control_name,
-            switch_config[CONF_DEVICE_CLASS],
+            binary_sensor_config[CONF_DEVICE_CLASS],
         )
 
-        if control_switch_entity.unique_id not in entities:
-            entities[control_switch_entity.unique_id] = control_switch_entity
-            async_add_entities([control_switch_entity])
+        if binary_sensor_entity.unique_id not in entities:
+            entities[binary_sensor_entity.unique_id] = binary_sensor_entity
+            async_add_entities([binary_sensor_entity])
 
             poller.subscribe_run_loop_iteration_ending(
-                control_switch_entity.on_core_polling_ending
+                binary_sensor_entity.on_core_polling_ending
             )
             await poller.subscribe_component_control_changes(
-                control_switch_entity.on_core_change,
+                binary_sensor_entity.on_core_change,
                 component_name,
                 control_name,
             )
@@ -88,7 +88,7 @@ async def async_setup_entry(
             er.async_get(hass).async_remove(entity_entry.entity_id)
 
 
-class QRCSwitchEntity(QSysComponentControlBase, SwitchEntity):
+class QRCBinarySensorEntity(QSysComponentControlBase, BinarySensorEntity):
     def __init__(
         self,
         hass,
@@ -115,25 +115,14 @@ class QRCSwitchEntity(QSysComponentControlBase, SwitchEntity):
         self._attr_device_class = device_class
 
     async def on_control_changed(self, core, change):
-        val = change["Value"]
-        if isinstance(val, float):
-            val = val == 1.0
-        elif isinstance(val, int):
-            val = val == 1
-
-        if not isinstance(val, bool):
-            _LOGGER.warning("Unable to convert change into bool value: %s", change)
-            return
-        self._attr_is_on = val
-
-    async def async_turn_on(self, **kwargs):
-        """Turn the entity on."""
-        await self.update_control({"Value": True})
-
-    async def async_turn_off(self, **kwargs):
-        """Turn the entity off."""
-        await self.update_control({"Value": False})
-
-    async def async_toggle(self, **kwargs):
-        """Toggle the entity."""
-        await self.update_control({"Value": not self.is_on})
+        """Expose Boolean or numeric 0/1 values without control writes."""
+        value = change.get("Value")
+        if isinstance(value, bool):
+            self._attr_is_on = value
+        elif isinstance(value, (int, float)) and value in (0, 1):
+            self._attr_is_on = bool(value)
+        else:
+            self._attr_is_on = None
+            _LOGGER.warning(
+                "Binary sensor received a value that is not Boolean or numeric 0/1"
+            )

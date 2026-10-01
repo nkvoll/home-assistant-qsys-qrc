@@ -1,4 +1,5 @@
 """Platform for media_player integration."""
+
 from __future__ import annotations
 
 import asyncio
@@ -26,10 +27,15 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers import entity_registry as er
 from homeassistant.util.dt import utcnow
 
-from . import changegroup
-from .common import QSysComponentBase, id_for_component, config_for_core
+from .common import (
+    QSysComponentBase,
+    id_for_component,
+    config_for_core,
+    poller_for_entry,
+)
 from .const import *  # pylint: disable=unused-wildcard-import,wildcard-import
 from .qsys import qrc
+from .discovery import components, controls, DiscoveryError
 
 _LOGGER = logging.getLogger(__name__)
 PLATFORM = __name__.rsplit(".", 1)[-1]
@@ -42,8 +48,10 @@ async def async_setup_entry(
 ) -> None:
     try:
         await async_setup_entry_safe(hass, entry, async_add_entities)
-    except TimeoutError as err:
-        raise PlatformNotReady("timeouterror during setup") from err
+    except (TimeoutError, DiscoveryError) as err:
+        raise PlatformNotReady(
+            "Unable to discover media player controls; retry later"
+        ) from err
 
 
 async def async_setup_entry_safe(
@@ -60,27 +68,23 @@ async def async_setup_entry_safe(
 
     entities = {}
 
-    core_config = config_for_core(hass, core_name)
+    core_config = config_for_core(hass, entry)
     # can platform name be more dynamic than this?
-    poller = changegroup.create_change_group_for_platform(
-        core, core_config.get(CONF_CHANGEGROUP), PLATFORM
-    )
+    poller = poller_for_entry(hass, entry)
 
-    # TODO: this is a little hard to reload at the moment, do via listener instead?
-    # TODO: timeouts for remote calls like these?
-    components = await core.component().get_components()
+    mappings = core_config.get(CONF_PLATFORMS, {}).get(CONF_MEDIA_PLAYER_PLATFORM, [])
     component_by_name = {}
-    for component in components["result"]:
-        component_by_name[component["Name"]] = component
+    if mappings:
+        component_by_name = {item["Name"]: item for item in await components(core)}
 
-    for media_player_config in core_config.get(CONF_PLATFORMS, {}).get(
-        CONF_MEDIA_PLAYER_PLATFORM, []
-    ):
+    for media_player_config in mappings:
         component_name = media_player_config[CONF_COMPONENT]
 
         component = component_by_name.get(component_name)
 
         media_player_entity = None
+        if component is None:
+            raise PlatformNotReady("Configured media player component is missing")
         component_type = component["Type"]
         if component_type == "URL_receiver":
             media_player_entity = QRCUrlReceiverEntity(
@@ -128,9 +132,7 @@ async def async_setup_entry_safe(
                 media_player_entity.on_core_polling_ending
             )
 
-            get_controls_result = await core.component().get_controls(component_name)
-
-            for control in get_controls_result["result"]["Controls"]:
+            for control in await controls(core, component_name):
                 # avoid polling peak levels for media players because we're not utilizing them on the HA side
                 if control["Name"].endswith(".peak.level"):
                     continue
@@ -139,11 +141,6 @@ async def async_setup_entry_safe(
                     component_name,
                     control["Name"],
                 )
-
-    if len(entities) > 0:
-        # TODO: handle poll exceptions, disconnections and re-connections
-        polling = asyncio.create_task(poller.run_while_core_running())
-        entry.async_on_unload(lambda: polling.cancel() and None)
 
     for entity_entry in er.async_entries_for_config_entry(
         er.async_get(hass), entry.entry_id
@@ -173,9 +170,19 @@ class QRCUrlReceiverEntity(QSysComponentBase, MediaPlayerEntity):
     )
 
     def __init__(
-        self, hass, config_entry: ConfigEntry, core_name, core, unique_id, entity_name, component, device_class
+        self,
+        hass,
+        config_entry: ConfigEntry,
+        core_name,
+        core,
+        unique_id,
+        entity_name,
+        component,
+        device_class,
     ) -> None:
-        super().__init__(hass, config_entry, core_name, core, unique_id, entity_name, component)
+        super().__init__(
+            hass, config_entry, core_name, core, unique_id, entity_name, component
+        )
 
         self._attr_device_class = device_class
 
@@ -313,9 +320,19 @@ class QRCAudioFilePlayerEntity(QSysComponentBase, MediaPlayerEntity):
     )
 
     def __init__(
-        self, hass, config_entry: ConfigEntry, core_name, core, unique_id, entity_name, component, device_class
+        self,
+        hass,
+        config_entry: ConfigEntry,
+        core_name,
+        core,
+        unique_id,
+        entity_name,
+        component,
+        device_class,
     ) -> None:
-        super().__init__(hass, config_entry, core_name, core, unique_id, entity_name, component)
+        super().__init__(
+            hass, config_entry, core_name, core, unique_id, entity_name, component
+        )
 
         self._attr_device_class = device_class
 
@@ -573,9 +590,19 @@ class QRCGainEntity(QSysComponentBase, MediaPlayerEntity):
     _attr_state = MediaPlayerState.ON
 
     def __init__(
-        self, hass, config_entry: ConfigEntry, core_name, core, unique_id, entity_name, component, device_class
+        self,
+        hass,
+        config_entry: ConfigEntry,
+        core_name,
+        core,
+        unique_id,
+        entity_name,
+        component,
+        device_class,
     ) -> None:
-        super().__init__(hass, config_entry, core_name, core, unique_id, entity_name, component)
+        super().__init__(
+            hass, config_entry, core_name, core, unique_id, entity_name, component
+        )
 
         self._attr_device_class = device_class
 

@@ -3,3 +3,8 @@ pycodestyle>=2.14.0
 pydocstyle>=6.3.0
 mypy>=2.3.1
 pylint>=4.0.8
+
+# Browser and revision pinned for reproducible documentation captures.
+playwright==1.58.0
+# Direct HTTP client dependency of the screenshot harness.
+aiohttp>=3.13
