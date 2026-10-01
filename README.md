@@ -122,7 +122,7 @@ Migration preserves the Core name, settings, and existing unique-ID functions. R
 
 #### Portable export and import
 
-Choose **Export portable configuration** from the Core's Configure menu. The dialog displays generated YAML in a multiline text box with two-space indentation. Select and copy the text, then save it as a `.yaml` file. Enable **Include effective YAML mappings** and submit to regenerate the export with active YAML mappings included; by default it contains UI-owned mappings only.
+Choose **Export portable configuration** from the Core's Configure menu. The dialog displays generated YAML in a multiline text box with two-space indentation. Select and copy the text, then save it as a `.yaml` file. Enable **Include mappings from Home Assistant YAML** and choose **Refresh export** to regenerate the export with active mappings from Home Assistant YAML included; by default it contains mappings managed in the UI only.
 
 The document includes a schema version, source Core name, optional design name, and platform settings. It excludes host, port, credentials, config-entry IDs, and entity-registry IDs. Ownership markers are local to the installation and are not exported. The admin-only `qsys_qrc.export_configuration` action remains available for programmatic export.
 

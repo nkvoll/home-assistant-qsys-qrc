@@ -261,10 +261,10 @@
       },
       "export_portable": {
         "title": "Export portable configuration",
-        "description": "Copy the YAML below and save it as a .yaml file. Indentation uses two spaces. The export is ready to copy; no submission is needed. To include active YAML mappings, enable effective configuration and choose Refresh export. Close this dialog when done. Connection credentials and registry IDs are excluded.",
+        "description": "Copy the YAML below and save it as a .yaml file. To also export active mappings from Home Assistant YAML, select the option below and choose Refresh export.",
         "data": {
           "document": "Portable YAML configuration",
-          "effective": "Include effective YAML mappings"
+          "effective": "Include mappings from Home Assistant YAML"
         },
         "submit": "Refresh export"
       }
