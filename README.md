@@ -6,11 +6,13 @@
 [![hacs][hacsbadge]][hacs]
 [![Community Forum][forum-shield]][forum]
 
-Note: This is a work in progress, but should work. If it doesn't, please open an issue.
-
-A custom component that integrates Q-Sys Core Devices with Home Assistant via [QRC](https://q-syshelp.qsc.com/Index.htm#External_Control_APIs/QRC/QRC_Overview.htm). This is useful to expose elements such as gain controls, mute buttons and different media players to HA.
+A custom integration that connects Q-SYS Core devices to Home Assistant via [QRC](https://q-syshelp.qsc.com/Index.htm#External_Control_APIs/QRC/QRC_Overview.htm). It exposes Q-SYS components/controls and media players as Home Assistant entities, letting you monitor their state, control them from dashboards, and include them in automations.
 
 ### Features
+
+- **Q-SYS management UI:** open **Settings → Connectivity → Q-SYS** to browse
+  components and controls, create entities in batches, edit or delete mappings,
+  monitor QRC traffic, and import, export, or migrate YAML configuration.
 
 - `media_player` platform:
   - [Media Stream Receivers/ URL Receivers](https://q-syshelp.qsc.com/Index.htm#Schematic_Library/URL_receiver.htm)
@@ -54,12 +56,11 @@ A custom component that integrates Q-Sys Core Devices with Home Assistant via [Q
   - Q-Sys controls with a `Choices` list (e.g. multi-state buttons, source selectors).
   - Options auto-populate from QRC; pin a static `options:` list in YAML to override.
 
-- **Top-level Named Controls:**
-  - For switch / number / sensor / binary_sensor / text / select entries, omit the
-    `component:` key and the integration treats `control:` as a top-level
-    Q-Sys Named Control (i.e., entries in the Named Controls panel that
-    aren't pinned to a scriptable component). Existing component-backed
-    configs keep working unchanged.
+- **Named Controls:**
+  - Look up exact names in the panel’s **Named Controls** box and create switch,
+    number, sensor, binary_sensor, text, or select entities.
+  - In Home Assistant YAML, omit `component:` to address `control:` directly as a
+    Named Control. Existing component-backed configurations keep working unchanged.
 
 - `services`:
   - Invoking methods on the device via QRC (see `Services` section below)
@@ -76,84 +77,202 @@ Add the custom component via your `custom_components` folder or via HACS (untest
 1. Fill in the form with `Repository: https://github.com/nkvoll/home-assistant-qsys-qrc`, `Category: Integration` and click "Add".
 1. Once it's added, you can search for `q-sys qrc`, click the integration and select "Download".
 1. Restart Home Assistant ("Settings" -> three dots top right corner -> "Restart Home Assistant")
-1. In the HA UI go to "Configuration" -> "Devices & Services" click "+ Add Integration" (bottom right corner) and search for "Q-Sys QRC Integration"
+1. In the HA UI go to "Settings" -> "Devices & services" click "+ Add Integration" (bottom right corner) and search for "Q-Sys QRC Integration"
 
 #### Manual installation
 
 1. Using the tool of choice open the directory (folder) for your HA configuration (where you find `configuration.yaml`).
 1. If you do not have a `custom_components` directory (folder) there, you need to create it.
 1. In the `custom_components` directory (folder) create a new folder called `qsys_qrc`.
-1. Download _all_ the files from the `custom_components/qsys_qrc/` directory (folder) in this repository.
+1. Download the entire `custom_components/qsys_qrc/` directory from this repository, including its `frontend/` and `qsys/` subdirectories. The frontend assets are required for the management UI.
 1. Place the files you downloaded in the new directory (folder) you created.
 1. Restart Home Assistant ("Settings" -> three dots top right corner -> "Restart Home Assistant")
-1. In the HA UI go to "Configuration" -> "Devices & Services" click "+ Add Integration" (bottom right corner) and search for "Q-Sys QRC Integration"
+1. In the HA UI go to "Settings" -> "Devices & services" click "+ Add Integration" (bottom right corner) and search for "Q-Sys QRC Integration"
 
 ### Configuring
 
-Add **Q-Sys QRC** in Home Assistant's Devices & Services page. Enter a Core name, host, QRC port, and credentials. After the connection is validated, choose **Add an entity** or **Finish**. An empty Core entry is valid and still provides the engine-status sensor.
+1. Add **Q-Sys QRC** under **Settings → Devices & services → Add integration**.
+2. Enter the Core name, host, QRC port, and credentials. After validation, choose
+   **Finish**. An empty Core entry still provides the engine-status sensor.
+3. Open **Settings → Connectivity → Q-SYS** to add and manage entities.
+   Administrator access is required. Select the Core from the header if you have
+   more than one integration entry.
 
-The Core name is part of existing entity unique IDs and is also the key used by YAML configuration. Keep it unchanged when migrating entity definitions. Use the entry's **Reconfigure** action to change connection settings; authentication failures offer credential recovery. Reconfigure preserves the Core name and entity mappings.
+The panel is bundled with the integration and is also available at `/qsys-qrc`.
+To change host, port, or credentials, use the integration entry’s **Reconfigure**
+action under **Settings → Devices & services**. Reconfigure preserves mappings
+and the Core name. Keep the Core name unchanged when migrating: it is part of
+entity unique IDs and identifies the Core in Home Assistant YAML.
 
-#### Add, edit, and remove entities
+#### Dashboard
 
-Open **Configure** on the integration entry to manage entities:
+The dashboard shows the selected Core’s connection status and design information.
+Use the header buttons to open **Components / Controls**, **Entities**, or
+**QRC Protocol Monitor**. The **Configuration** group contains **Import YAML**,
+**Export YAML**, and **Migrate from Home Assistant YAML**.
 
-![Entity management menu](examples/screenshots/manage-entities.png)
+![Q-SYS dashboard](examples/screenshots/panel-dashboard.png)
 
-1. Choose **Add entity**, then **Named component** or **Top-level Named Control**.
-2. For a component, choose from the current design's components and controls. The picker includes control type and direction metadata. Supported `URL_receiver`, `audio_file_player`, and `gain` components also offer a media player.
-3. For a Named Control, enter its exact name. QRC has no documented list-all command for top-level Named Controls, so the integration validates the name with `Control.Get`.
-4. Choose an entity type, review the metadata defaults and optional settings, then confirm the mapping. Read-only controls cannot become writable entities. When Named Control direction metadata is absent, writable choices are marked unverified.
-   Boolean controls offer **binary_sensor** first for read-only state reporting. Read/write controls also offer **switch** when you want control actions. Changing an existing sensor or switch to a binary sensor creates an entity in the `binary_sensor` domain; its old entity ID is not reused.
-5. Return to the menu to add another entity, edit a UI mapping, or remove one. Each saved change reloads the entry once. Discovery errors can be retried without deleting saved mappings.
+#### Components / Controls: add entities
 
-The control picker shows metadata from the connected Core:
+In Q-SYS Designer, each component must have a **Code Name** and **Script Access**
+set to **External** or **All** to appear in discovery. The question-mark icon
+beside **Components** explains this requirement. See the
+[Q-SYS Code Name and Script Access documentation](https://help.qsys.com/content/Control_Scripting/Code_Name_Script_Access.htm).
 
-![Control discovery](examples/screenshots/choose-control.png)
+1. Select one or more components. **Filter components** narrows the picker;
+   **Select all** selects matching components, **Clear** clears the component
+   selection, and **Single column** changes the picker layout.
+2. To add a Named Control, enter its exact name in the separate **Named Controls**
+   box and click **Add Named Control**. Find names in Designer’s Named Controls
+   panel. QRC has no documented command to list all Named Controls, so they
+   require lookup rather than automatic discovery.
+3. Use **Filter controls** above the table to find controls. Rows are grouped by
+   component. Controls default to alphabetical order; click a table header to
+   sort ascending or descending.
+4. Select the table checkboxes for the controls to add. Choose **Entity type** and
+   **Entity name** for each row. Default display names follow `component / control`,
+   preserving spaces and capitalization. Named Controls default to their control
+   name, and component media players default to the component name.
+   Number entities offer **Use position** for a 0–100
+   percentage scale instead of the control’s raw value.
 
-Review the suggested settings before saving:
+Supported `URL_receiver`, `audio_file_player`, and `gain` components also have a
+**Component media player** checkbox row with entity type `media_player`. Select
+it to include the component’s media player in the same creation batch.
 
-![Number entity settings](examples/screenshots/entity-settings.png)
+Rows that already have a mapping for the selected platform are gray and cannot
+be selected. Click **Already mapped** to open the existing entity’s Home
+Assistant dialog. The type selector remains available: choosing an unmapped
+platform lets you create another entity for that control.
 
-All entity platforms share one change group per Core connection. YAML `change_group` polling settings apply to that shared group.
+Selections and entered settings stay in place when adding components. Filtering
+hides rows without removing selected controls from the creation batch. Component
+values refresh while the browser is open.
 
-#### YAML coexistence and migration
+![Component selection and controls](examples/screenshots/panel-components-controls.png)
 
-Existing YAML definitions continue to work. See [the example configuration](examples/configuration.yaml). UI and YAML entities can coexist across multiple Core entries. The same control can intentionally appear on different platforms; duplicate identities within one platform are rejected.
+Click **Review creation** to open the review dialog. Check the proposed mappings
+and discovery findings, then click **Create**. **Cancel** or Escape returns to
+the table with your selections intact.
 
-Ordinary collisions use the YAML definition. Use Home Assistant’s entity views to browse existing entities. Edit and remove selectors identify UI mappings by name, platform, and component/control. YAML mappings are read-only until you explicitly transfer ownership:
+![Bulk creation review](examples/screenshots/panel-bulk-create.png)
 
-1. Choose **Import from Home Assistant YAML** and select individual mappings or all mappings for this Core.
-2. Choose **skip** or **replace** for existing UI copies. Review every copied setting, including templates, ranges, choices, and discovery findings.
-3. Confirm the ownership transfer. The UI copy becomes authoritative immediately, even while the old YAML definition remains.
-4. Remove only the transferred entity definitions from your YAML files, includes, or packages, then reload. The integration does not edit those files. Leave Core-level polling settings in YAML if you still use them.
+#### Entities: inspect, edit, and delete
 
-![YAML ownership transfer review](examples/screenshots/yaml-migration-review.png)
+**Entities** shows both UI mappings and definitions configured via Home Assistant
+YAML. Use **Filter entities** to narrow the table and click headers to change
+sorting. The default is alphabetical order by **Entity Name**.
 
-Migration preserves the Core name, settings, and existing unique-ID functions. Removing the old YAML afterward does not create a new entity. If that YAML copy changes after transfer, the menu reports a conflict. Removing a UI mapping while its old YAML remains can reactivate the YAML definition.
+Each entity name has its Home Assistant icon. Click the icon or name to open the
+standard entity dialog. Expand **Settings** in the **Details** column to inspect
+the saved mapping and any YAML ownership notices.
 
-#### Portable export and import
+Select UI mappings with the table checkboxes:
 
-Choose **Export portable configuration** from the Core's Configure menu. The dialog displays generated YAML in a multiline text box with two-space indentation. Select and copy the text, then save it as a `.yaml` file. Enable **Include mappings from Home Assistant YAML** and choose **Refresh export** to regenerate the export with active mappings from Home Assistant YAML included; by default it contains mappings managed in the UI only.
+- To edit, choose a setting shared by the selected mappings and enter its new
+  value. The editor uses a checkbox, numeric input, dropdown, text field, or
+  template/options textarea as appropriate. Click **Review bulk edit**, inspect
+  the review dialog, then click **Save**.
+- To delete, click the red **Review deletion** button, inspect the review dialog,
+  then click **Delete**.
 
-![Portable YAML export](examples/screenshots/export-portable.png)
+Review buttons become filled when mappings are selected. Definitions configured
+via Home Assistant YAML cannot be edited or deleted here until migrated.
 
-The document includes a schema version, source Core name, optional design name, and platform settings. It excludes host, port, credentials, config-entry IDs, and entity-registry IDs. Ownership markers are local to the installation and are not exported. The admin-only `qsys_qrc.export_configuration` action remains available for programmatic export.
+![Entities and bulk editing](examples/screenshots/panel-entities.png)
 
-Connect the destination Core first, then choose **Import portable configuration** in its Configure menu and paste the YAML. Review all mappings, discovery findings, and collision actions before confirming. Choose a default **skip** or **replace** policy, then select individual colliding mappings to replace in the review. Changing this selection refreshes the preview before saving. To replace mappings from Home Assistant YAML, select the option to manage them in the UI. Validation never sends control Set commands. Missing components, missing controls, read-only mismatches, and unsupported media-player types appear in the preview. Discovery outages are retryable.
+#### QRC Protocol Monitor
 
-![Portable import review](examples/screenshots/portable-import-review.png)
+Click **Start capture** to record sent and received JSON-RPC frames on this
+integration’s selected Core connection, including polling and notifications.
+Use the direction selector and text filter to narrow the table. Expand a frame
+to inspect its JSON payload, request ID, and timestamp.
 
-These screenshots use a simulated Conference Room Core. See [the screenshot capture instructions](scripts/screenshots/README.md) to regenerate them.
+**Pause display** freezes the displayed frames while capture continues.
+**Stop capture** stops recording; **Clear buffer** removes retained frames;
+**Download capture** saves the captured JSON. Refreshing the display sends no
+extra QRC requests.
 
-The destination Core name supplies the entity identity prefix. Moving definitions to a differently named Core creates new Home Assistant unique IDs. Documents are limited to 256 KiB and 1,000 mappings, use version 1, and reject unknown fields and duplicate identities. Native file upload/download is not part of this transport: copy/save YAML from the export dialog and paste YAML for import. Home Assistant backups remain the mechanism for backing up a full installation.
+Capture is off by default. When enabled, it continues while you visit other
+panel pages and survives a Core integration reload. The buffer holds up to 500
+frames, truncates frames above 32 KiB, and redacts login credentials. It is kept
+in memory and cleared on Home Assistant restart or Core removal. This view
+covers this integration’s connection; it does not monitor other Q-SYS clients.
 
-For YAML configuration, find component/control names in Q-Sys Designer using **Tools → View Component Controls Info**.
+![QRC Protocol Monitor](examples/screenshots/panel-monitor.png)
 
-![View Component Controls Info](examples/qsys_designer_view_component_controls_info.png)
+#### Migrate from Home Assistant YAML
 
+Existing definitions configured via Home Assistant YAML continue to work alongside
+UI mappings. See [the example configuration](examples/configuration.yaml).
+The same control can appear on different platforms; duplicate identities within
+one platform are rejected. A colliding definition configured via Home Assistant
+YAML remains authoritative until ownership is transferred.
 
-Example read-only mute mapping in YAML:
+1. Open **Migrate from Home Assistant YAML** from the dashboard’s **Configuration**
+   group. This view lists definitions configured via Home Assistant YAML and
+   excludes UI mappings. Select individual definitions or use the table checkbox.
+2. Choose **Skip** or **Replace** for existing UI mappings, then click
+   **Review migration**.
+3. Review the copied settings and discovery findings, then click **Confirm and
+   save**. The UI copy becomes authoritative immediately.
+4. Remove the transferred definitions from your YAML files, includes, or packages,
+   then reload. The integration does not edit those files. Leave Core-level
+   polling settings in YAML if you still use them.
+
+Migration preserves existing entity unique IDs. If the retained definition
+configured via Home Assistant YAML changes after migration, the mapping’s
+**Details** show a conflict. Deleting the UI mapping while its YAML definition
+remains can reactivate that definition.
+
+#### Export and import YAML
+
+Open **Export YAML** from the dashboard. The generated YAML appears immediately.
+Use **Copy to clipboard** or **Download** at the top of the page. Enable
+**Include active Home Assistant YAML mappings** to include those definitions;
+by default, the export contains mappings managed in the UI.
+
+![Portable YAML export](examples/screenshots/panel-yaml-export.png)
+
+To import, connect the destination Core, select it in the panel’s header, and
+open **Import YAML** from the dashboard. Upload a file or paste the YAML. Choose
+**Skip existing** or **Replace existing** for collisions. Enable **Transfer
+ownership of colliding Home Assistant YAML mappings** if you want to take over
+those definitions.
+
+Click **Review import** to inspect mappings, discovery findings, and proposed
+actions. Click **Confirm and save** to apply the batch. Missing components or
+controls, read-only mismatches, and unsupported media-player types appear in the
+review. Discovery failures can be retried.
+
+Portable documents contain a schema version, source Core name, optional design
+name, and mapping settings. They exclude connection credentials, installation
+IDs, entity-registry IDs, and local ownership markers. The destination Core name
+supplies the identity prefix; importing into a differently named Core creates
+new unique IDs. Imports are limited to 256 KiB and 1,000 mappings. The
+administrator-only `qsys_qrc.export_configuration` action also supports export.
+Home Assistant backups remain the way to back up a full installation.
+
+#### Saving and leaving the panel
+
+Creation, edits, deletion, migration, and import all have a review step.
+A saved batch validates together and reloads the Core entry once. Changes from
+another tab require a fresh review. Discovery and review never send control
+Set commands. Read-only controls cannot become writable entities; writable
+choices are marked unverified when direction metadata is absent.
+
+Unsaved edits prompt before leaving the panel or switching pages or Cores.
+Choose **Keep editing** or **Discard changes**. Refreshing or closing the tab
+uses the browser’s standard unsaved-changes warning. Filters and sorting do not
+trigger these warnings.
+
+#### Optional configuration via Home Assistant YAML
+
+You can also define entities in YAML. For component controls, use Designer’s
+**Tools → View Component Controls Info** to find component and control names.
+All entity platforms share one change group per Core connection; YAML
+`change_group` polling settings apply to that group.
 
 ```yaml
 qsys_qrc:
@@ -163,62 +282,21 @@ qsys_qrc:
         binary_sensor:
           - component: mixer
             control: mute
-            name: Room muted
-```
-
-Omit `component` for a top-level Named Control. These mappings can also be created, migrated, and imported/exported through Configure.
-
-### Named Controls (no component backing)
-
-Q-Sys designs often expose top-level **Named Controls** — entries in the
-Named Controls panel that aren't bound to a scriptable component. These are
-reachable via QRC's `Control.Get` / `Control.Set`, and this lets you
-map them to HA entities by **omitting the `component:` key** in YAML.
-
-Here's a real install — 23 Named Controls from a `melbourne_v10` design (touchscreen mode/timeouts, PTZ camera buttons, screen brightness) all loaded as switches, numbers, and sensors under one Q-Sys QRC device:
-
-![Q-Sys QRC entities in Home Assistant](examples/ha_entities_list.png)
-
-```yaml
-qsys_qrc:
-  cores:
-    MainCore:
-      platforms:
-        switch:
-          - name: "Apple Power"
-            control: "Apple.Power" # top-level Named Control
-          - name: "Roon Mute"
-            control: "Roon.Mute"
-
+            name: room_muted
         number:
-          - name: "Roon Volume"
-            control: "Roon.Volume"
-            unit_of_measurement: "dB"
+          - control: Room.Volume # Named Control: omit component
+            name: room_volume
             min: -80
             max: 0
             step: 1
-
-        select:
-          - name: "Apple Lights"
-            control: "Apple.Lights" # options auto-populated from Choices
-
-        text:
-          - name: "Hue Lights"
-            control: "Hue.Lights"
-
-        sensor:
-          - name: "Roon Now Playing"
-            control: "Text_ControllerNowPlaying_Text"
-            attribute: "String"
+            unit_of_measurement: dB
 ```
 
-Component-backed entries (the original style) keep working unchanged
-alongside top-level entries.
+See [examples/configuration.yaml](./examples/configuration.yaml) for a longer annotated example.
 
-To enumerate the Named Controls a Core exposes, you can call
-`Control.Get` with the `qsys_qrc.call_method` service (see below) using
-a flat list of names — or omit `Component.GetComponents` and look at the
-Named Controls panel in Q-Sys Designer.
+Named Controls use `Control.Get` / `Control.Set` directly. To read known names
+programmatically, use the `qsys_qrc.call_method` action; it does not enumerate
+unknown Named Controls, or use the UI.
 
 ### Services
 
@@ -269,19 +347,13 @@ data:
     Value: true
 ```
 
-### TODO
-
-- Add (more) tests, especially around the code that integrates with home-assistant itself, see [`pytest-homeassistant-custom-component`](https://github.com/MatthewFlamm/pytest-homeassistant-custom-component) to get started.
-- Share the integration on the [Home Assistant Forum](https://community.home-assistant.io/).
-- Anything else?
-
 ### Contributions are welcome!
 
 If you want to contribute to this please read the [Contribution guidelines](CONTRIBUTING.md)
 
 ### Acknowledgements
 
-- [@itskevinb](https://github.com/itskevinb) Support for top-evel Q-Sys Named Controls (the entries in the Named Controls panel that aren't backed by a scriptable component) and a new `select` platform for controls with a `Choices` list and more.
+- [@itskevinb](https://github.com/itskevinb) Support for top-level Q-SYS Named Controls and the `select` platform for controls with a `Choices` list.
 
 ### Trademarks
 

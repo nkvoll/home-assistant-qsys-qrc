@@ -21,7 +21,7 @@ container's newer Ubuntu release; both setup and capture select that build.
 The script starts a disposable Home Assistant instance on loopback port 18123
 and a minimal read-only QRC simulator on loopback port 11710. Both ports must be
 free. It uses a temporary configuration directory, links the current integration,
-creates a demo administrator, and drives actual Home Assistant options dialogs.
+creates a demo administrator, and drives the actual Q-SYS panel inside Home Assistant.
 It never uses your normal `config/` directory or connects to real hardware.
 The processes and temporary configuration are cleaned up after capture, including
 on failure. On failure the Home Assistant log is printed before cleanup.
@@ -35,3 +35,17 @@ the screenshot task also installs its dependencies when invoked directly.
 The simulator implements only the discovery and subscription methods this demo
 needs. Unsupported methods return a JSON-RPC error; it is not a general purpose
 Core emulator.
+
+The capture script, `scripts/screenshots/panel.py`, checks bulk creation, editing
+and deletion, protocol capture, YAML migration, export/download, import review,
+and unsaved-change confirmation. It generates these six current feature screenshots:
+
+- `panel-dashboard.png`: Core overview and YAML tools.
+- `panel-components-controls.png`: component selection and bulk creation table.
+- `panel-bulk-create.png`: the creation review dialog.
+- `panel-entities.png`: entity icons, settings, and bulk management.
+- `panel-monitor.png`: captured QRC requests and responses.
+- `panel-yaml-export.png`: YAML preview, copy, and download.
+
+The older options-dialog harness remains at `scripts/screenshots/capture.py` for
+manual testing; its screenshots are no longer part of the README gallery.

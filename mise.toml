@@ -79,4 +79,4 @@ run = [
 [tasks.screenshots]
 description = "Regenerate README screenshots using disposable HA and simulated QRC"
 depends = ["screenshots:setup"]
-run = '"$VENV_PATH/bin/python" scripts/screenshots/capture.py'
+run = '"$VENV_PATH/bin/python" scripts/screenshots/panel.py'
