@@ -89,3 +89,51 @@ async def test_reconnection_preserves_core_name_options_and_identity(step):
     kwargs = flow.async_update_reload_and_abort.call_args.kwargs
     assert kwargs["unique_id"] == "core"
     assert "options" not in kwargs
+
+
+@pytest.mark.asyncio
+async def test_initial_setup_offers_empty_core_or_assisted_entity():
+    flow = ConfigFlow()
+    flow.hass = Mock()
+    flow._async_current_entries = Mock(return_value=[])
+    flow.async_set_unique_id = AsyncMock()
+    flow._abort_if_unique_id_configured = Mock()
+    with (
+        patch(
+            "custom_components.qsys_qrc.config_flow.validate_input",
+            AsyncMock(
+                return_value={
+                    CONF_USER_DATA: DATA,
+                    CONF_ENGINE_STATUS: {"DesignName": "Example"},
+                }
+            ),
+        ),
+        patch(
+            "custom_components.qsys_qrc.config_flow.async_integration_yaml_config",
+            AsyncMock(return_value={}),
+        ),
+    ):
+        result = await flow.async_step_user(DATA)
+    assert result["step_id"] == "setup_entities"
+    assert result["menu_options"] == ["add_entity", "finish"]
+    empty = await flow.async_step_finish()
+    assert empty["options"] == {}
+    with (
+        patch(
+            "custom_components.qsys_qrc.options_flow.discovery.named_control",
+            AsyncMock(return_value={"Name": "mute", "Value": True}),
+        ),
+        patch(
+            "custom_components.qsys_qrc.options_flow.discovery.validate_mapping",
+            AsyncMock(return_value=["writability_unverified"]),
+        ),
+    ):
+        await flow.async_step_add_entity()
+        await flow.async_step_named_control({"control": "mute"})
+        await flow.async_step_entity_type({"platform": "switch"})
+        await flow.async_step_settings({"name": "Mute"})
+        result = await flow.async_step_review({"confirm": True})
+    assert result["step_id"] == "setup_entities"
+    saved = await flow.async_step_finish()
+    assert saved["options"]["mappings"][0]["settings"]["name"] == "Mute"
+    flow.hass.config_entries.async_update_entry.assert_not_called()

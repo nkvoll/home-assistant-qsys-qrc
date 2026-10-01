@@ -28,10 +28,11 @@ def choose(values, multiple=False):
     )
 
 
-class OptionsFlowHandler(config_entries.OptionsFlow):
+class EntityFlowMixin:
     """Manage UI-owned mappings without modifying YAML definitions."""
 
     def __init__(self):
+        super().__init__()
         self._component = None
         self._component_type = None
         self._control = None
@@ -297,9 +298,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 "mapping_version": MAPPING_VERSION,
                 "mappings": normalize_mappings(mappings, self.core_name),
             }
-            self.hass.config_entries.async_update_entry(
-                self.config_entry, options=options
-            )
+            self._save_options(options)
             return await self.async_step_init()
         return self._form(
             "review",
@@ -337,13 +336,12 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 mappings.pop(int(user_input["entity"]))
             except ValueError, IndexError:
                 return self._form("remove_entity", error="invalid_selection")
-            self.hass.config_entries.async_update_entry(
-                self.config_entry,
-                options={
+            self._save_options(
+                {
                     **self.config_entry.options,
                     "mapping_version": MAPPING_VERSION,
                     "mappings": mappings,
-                },
+                }
             )
             return await self.async_step_init()
         return self._form(
@@ -437,13 +435,12 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     preview="",
                     cleanup="Restart the import to review current settings.",
                 )
-            self.hass.config_entries.async_update_entry(
-                self.config_entry,
-                options={
+            self._save_options(
+                {
                     **self.config_entry.options,
                     "mapping_version": MAPPING_VERSION,
                     "mappings": self._transfer["mappings"],
-                },
+                }
             )
             return await self.async_step_yaml_cleanup()
         return self._form(
@@ -525,13 +522,12 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     preview="",
                     identity_notice="Restart import.",
                 )
-            self.hass.config_entries.async_update_entry(
-                self.config_entry,
-                options={
+            self._save_options(
+                {
                     **self.config_entry.options,
                     "mapping_version": MAPPING_VERSION,
                     "mappings": self._transfer["mappings"],
-                },
+                }
             )
             return await self.async_step_init()
         return self._form(
@@ -550,3 +546,10 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         if user_input is not None:
             return await self.async_step_init()
         return self._form("export_portable", core_name=self.core_name)
+
+
+class OptionsFlowHandler(EntityFlowMixin, config_entries.OptionsFlow):
+    """Persist reviewed options through one integration reload listener."""
+
+    def _save_options(self, options):
+        self.hass.config_entries.async_update_entry(self.config_entry, options=options)

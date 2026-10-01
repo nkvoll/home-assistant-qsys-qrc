@@ -9,7 +9,14 @@
       "cannot_connect": "Failed to connect",
       "invalid_auth": "Invalid authentication",
       "unknown": "Unexpected error",
-      "invalid_connection": "Enter a valid host and a port between 1 and 65535."
+      "invalid_connection": "Enter a valid host and a port between 1 and 65535.",
+      "discovery_failed": "Discovery failed. Check the Core connection and current design, then retry. Saved mappings are unchanged.",
+      "incompatible_control": "This entity type is incompatible with the current control metadata.",
+      "duplicate_entity": "This identity is already configured. Edit its UI mapping or explicitly import its YAML mapping.",
+      "invalid_settings": "Check the entity settings.",
+      "invalid_selection": "Select an existing UI entity.",
+      "configuration_changed": "Configuration changed during review. Restart the import.",
+      "invalid_document": "Invalid portable document, unsupported schema, size limit exceeded, or a YAML collision without explicit ownership transfer."
     },
     "step": {
       "user": {
@@ -43,6 +50,83 @@
           "port": "Port",
           "username": "Username",
           "password": "Password"
+        }
+      },
+      "add_entity": {
+        "title": "Choose control source",
+        "menu_options": {
+          "component": "Named component",
+          "named_control": "Top-level Named Control"
+        }
+      },
+      "component": {
+        "title": "Choose component",
+        "data": {
+          "component": "Component"
+        }
+      },
+      "component_kind": {
+        "title": "Choose component entity",
+        "menu_options": {
+          "control": "Choose a control",
+          "media_player": "Media player"
+        }
+      },
+      "control": {
+        "title": "Choose control",
+        "data": {
+          "control": "Control"
+        }
+      },
+      "named_control": {
+        "title": "Named Control",
+        "description": "Enter the exact name from the Named Controls panel. QRC does not provide a list of all Named Controls. The name is validated with Control.Get.",
+        "data": {
+          "control": "Exact control name"
+        }
+      },
+      "entity_type": {
+        "title": "Choose entity type",
+        "description": "{writability}",
+        "data": {
+          "platform": "Entity type"
+        }
+      },
+      "settings": {
+        "title": "Entity settings",
+        "description": "Review the metadata defaults and adjust settings where needed. Templates and other optional fields apply only to this entity.",
+        "data": {
+          "name": "Name",
+          "device_class": "Device class",
+          "unit_of_measurement": "Unit",
+          "state_class": "State class",
+          "attribute": "Sensor attribute",
+          "min": "Minimum",
+          "max": "Maximum",
+          "step": "Step",
+          "mode": "Mode",
+          "use_position": "Use position",
+          "position_lower_limit": "Lower position limit",
+          "position_upper_limit": "Upper position limit",
+          "change_template": "Incoming value template",
+          "value_template": "Outgoing value template",
+          "pattern": "Pattern",
+          "options": "Choices"
+        }
+      },
+      "review": {
+        "title": "Review entity",
+        "description": "Identity: {identity}\n\n{mapping}\n\n{warnings}",
+        "data": {
+          "confirm": "Save entity"
+        }
+      },
+      "setup_entities": {
+        "title": "Configure entities",
+        "description": "The Core connection is ready. Add an entity now or finish with an empty Core. You can add more entities later from Configure.",
+        "menu_options": {
+          "add_entity": "Add an entity",
+          "finish": "Finish"
         }
       }
     }

@@ -6,6 +6,7 @@ import asyncio
 from contextlib import suppress
 import logging
 from typing import Any
+from types import SimpleNamespace
 
 import voluptuous as vol
 from homeassistant import config_entries
@@ -14,7 +15,10 @@ from homeassistant.exceptions import HomeAssistantError
 
 from .const import *
 from .qsys import qrc
-from .options_flow import OptionsFlowHandler
+from .options_flow import OptionsFlowHandler, EntityFlowMixin
+from .discovery import FlowCore
+from .mapping import resolve_configuration
+from homeassistant.helpers.reload import async_integration_yaml_config
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -59,10 +63,44 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
     return {CONF_USER_DATA: data, CONF_ENGINE_STATUS: status_response.get("result", {})}
 
 
-class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
+class ConfigFlow(EntityFlowMixin, config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Q-Sys QRC."""
 
     VERSION = 1
+
+    def __init__(self):
+        super().__init__()
+        self._initial_entry = SimpleNamespace(entry_id=None, data={}, options={})
+        self._initial_inventory = []
+
+    @property
+    def config_entry(self):
+        return self._initial_entry
+
+    @property
+    def core(self):
+        return FlowCore(self._initial_entry.data[CONF_USER_DATA])
+
+    def _inventory(self):
+        return self._initial_inventory
+
+    def _save_options(self, options):
+        self._initial_entry.options = options
+
+    async def async_step_init(self, user_input=None):
+        return self.async_show_menu(
+            step_id="setup_entities", menu_options=["add_entity", "finish"]
+        )
+
+    async def async_step_finish(self, user_input=None):
+        data = self._initial_entry.data
+        return self.async_create_entry(
+            title=data[CONF_ENGINE_STATUS].get(
+                "DesignName", data[CONF_USER_DATA][CONF_CORE_NAME]
+            ),
+            data=data,
+            options=self._initial_entry.options,
+        )
 
     def _duplicate(self, data, entry_id=None):
         """Include unloaded and legacy entries when checking identities."""
@@ -118,12 +156,19 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     )
                 await self.async_set_unique_id(submitted[CONF_CORE_NAME])
                 self._abort_if_unique_id_configured()
-                return self.async_create_entry(
-                    title=data[CONF_ENGINE_STATUS].get(
-                        "DesignName", submitted[CONF_CORE_NAME]
-                    ),
-                    data=data,
+                self._initial_entry.data = data
+                yaml = await async_integration_yaml_config(self.hass, DOMAIN)
+                core_config = (
+                    (yaml or {})
+                    .get(DOMAIN, {})
+                    .get(CONF_CORES, {})
+                    .get(submitted[CONF_CORE_NAME], {})
                 )
+                _, self._initial_inventory = resolve_configuration(
+                    submitted[CONF_CORE_NAME], core_config, {}
+                )
+                return await self.async_step_init()
+
         schema = STEP_USER_DATA_SCHEMA
         if entry:
             # Core name is part of every entity ID. Reconnection preserves it.

@@ -163,3 +163,38 @@ async def validate_mapping(core, mapping, timeout=5):
         if platform != "sensor" and writable(control) is None
         else []
     )
+
+
+class FlowCore:
+    """Provide read-only discovery using a short-lived authenticated connection."""
+
+    def __init__(self, connection):
+        self.connection = connection
+
+    def component(self):
+        return qrc.ComponentAPI(self)
+
+    def control(self):
+        return qrc.ControlAPI(self)
+
+    async def call(self, method, params=None):
+        from contextlib import suppress
+        from .const import CONF_HOST, CONF_PORT, CONF_USERNAME, CONF_PASSWORD
+
+        core = qrc.Core(
+            self.connection[CONF_HOST], self.connection.get(CONF_PORT, qrc.PORT)
+        )
+        runner = asyncio.create_task(core.run_until_stopped())
+        try:
+            async with asyncio.timeout(5):
+                await core.wait_until_connected()
+                response = await core.logon(
+                    self.connection[CONF_USERNAME], self.connection[CONF_PASSWORD]
+                )
+                if not response.get("result", False):
+                    raise DiscoveryError("Authentication failed")
+                return await core.call(method, params)
+        finally:
+            runner.cancel()
+            with suppress(asyncio.CancelledError):
+                await runner
