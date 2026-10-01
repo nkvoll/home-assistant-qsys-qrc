@@ -301,6 +301,8 @@ class ChangeGroupPoller:
                 raise
             finally:
                 self._loop_task = None
+                self.cg = None
+                await self._set_state(PollerState.IDLE)
 
     # Backward compatible entrypoint
     async def run_while_core_running(self):  # pragma: no cover - thin wrapper

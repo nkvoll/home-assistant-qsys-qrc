@@ -241,7 +241,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             registry.async_remove_device(de.id)
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-    poller.start()
+    if any(effective[CONF_PLATFORMS].values()):
+        poller.start()
 
     async def _reload_integration(call: ServiceCall) -> None:
         """Reload the integration."""
@@ -255,6 +256,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
+    poller = hass.data[DOMAIN][CONF_ENTRY_POLLERS][entry.entry_id]
+    await poller.stop()
     if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
         hass.data[DOMAIN][CONF_CACHED_CORES].pop(
             entry.data[CONF_USER_DATA][CONF_CORE_NAME], None
@@ -262,10 +265,13 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
         hass.data[DOMAIN].setdefault(CONF_CONFIG_ENTRIES, {}).pop(entry.entry_id, None)
 
-        poller = hass.data[DOMAIN][CONF_ENTRY_POLLERS].pop(entry.entry_id)
-        await poller.stop()
+        hass.data[DOMAIN][CONF_ENTRY_POLLERS].pop(entry.entry_id)
         hass.data[DOMAIN][CONF_ENTRY_CONFIG].pop(entry.entry_id, None)
         hass.data[DOMAIN][CONF_ENTRY_INVENTORY].pop(entry.entry_id, None)
         devices.pop(entry.entry_id, None)
+    elif any(
+        hass.data[DOMAIN][CONF_ENTRY_CONFIG][entry.entry_id][CONF_PLATFORMS].values()
+    ):
+        poller.start()
 
     return unload_ok

@@ -125,3 +125,33 @@ async def test_export_action_admin_registration_and_effective_scope():
     assert len(result["configuration"]["mappings"]) == 2
     assert "password" not in str(result)
     assert "example.test" not in str(result)
+
+
+@pytest.mark.asyncio
+async def test_poller_stops_before_entities_unload_and_restarts_on_failure():
+    order = []
+
+    async def stop():
+        order.append("stop")
+
+    async def unload(entry, platforms):
+        order.append("unload")
+        return False
+
+    poller = Mock(stop=stop)
+    entry = SimpleNamespace(entry_id="entry")
+    hass = SimpleNamespace(
+        data={
+            DOMAIN: {
+                CONF_ENTRY_POLLERS: {"entry": poller},
+                CONF_ENTRY_CONFIG: {
+                    "entry": {CONF_PLATFORMS: {"switch": [{"control": "mute"}]}}
+                },
+            }
+        },
+        config_entries=SimpleNamespace(async_unload_platforms=unload),
+    )
+    assert not await integration.async_unload_entry(hass, entry)
+    assert order == ["stop", "unload"]
+    poller.start.assert_called_once()
+    assert hass.data[DOMAIN][CONF_ENTRY_POLLERS]["entry"] is poller
