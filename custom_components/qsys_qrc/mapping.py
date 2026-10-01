@@ -1,0 +1,126 @@
+"""Versioned entity mappings and explicit configuration ownership."""
+
+from copy import deepcopy
+import json
+
+import voluptuous as vol
+
+from .const import *
+from .schema import CONFIG_SCHEMA
+
+MAPPING_VERSION = 1
+PLATFORMS = ("switch", "number", "sensor", "text", "select", "media_player")
+
+
+def identity(core_name, mapping):
+    """Return the existing entity identity, including its platform."""
+    settings = mapping["settings"]
+    return (
+        core_name,
+        mapping["platform"],
+        settings.get(CONF_COMPONENT) or None,
+        None if mapping["platform"] == "media_player" else settings[CONF_CONTROL],
+    )
+
+
+def normalize_mapping(mapping):
+    """Validate one mapping using the same defaults as YAML."""
+    if not isinstance(mapping, dict) or set(mapping) - {
+        "platform",
+        "settings",
+        "imported_from_yaml",
+        "yaml_snapshot",
+    }:
+        raise vol.Invalid("Invalid mapping fields")
+    platform = mapping.get("platform")
+    if platform not in PLATFORMS:
+        raise vol.Invalid("Unsupported platform")
+    normalized = CONFIG_SCHEMA(
+        {
+            DOMAIN: {
+                CONF_CORES: {
+                    "core": {CONF_PLATFORMS: {platform: [mapping.get("settings")]}}
+                }
+            }
+        }
+    )[DOMAIN][CONF_CORES]["core"][CONF_PLATFORMS][platform][0]
+    result = {"platform": platform, "settings": normalized}
+    if "imported_from_yaml" in mapping:
+        if not isinstance(mapping["imported_from_yaml"], bool):
+            raise vol.Invalid("Invalid ownership marker")
+        result["imported_from_yaml"] = mapping["imported_from_yaml"]
+    if "yaml_snapshot" in mapping:
+        result["yaml_snapshot"] = normalize_mapping(
+            {"platform": platform, "settings": mapping["yaml_snapshot"]}
+        )["settings"]
+    # Round-trip enums into plain JSON values, retaining every setting.
+    return json.loads(json.dumps(result, allow_nan=False))
+
+
+def normalize_mappings(mappings, core_name):
+    """Reject duplicate identities within one configuration source."""
+    if not isinstance(mappings, list):
+        raise vol.Invalid("Mappings must be a list")
+    result = [normalize_mapping(mapping) for mapping in mappings]
+    keys = [identity(core_name, mapping) for mapping in result]
+    if len(set(keys)) != len(keys):
+        raise vol.Invalid("Duplicate entity identity")
+    return result
+
+
+def yaml_mappings(core_config, core_name):
+    """Normalize all six YAML platforms without losing settings."""
+    return normalize_mappings(
+        [
+            {"platform": platform, "settings": settings}
+            for platform, mappings in core_config.get(CONF_PLATFORMS, {}).items()
+            for settings in mappings
+        ],
+        core_name,
+    )
+
+
+def resolve_configuration(core_name, core_config, options):
+    """Resolve a fresh entry-local configuration and ownership inventory."""
+    if options.get("mapping_version", MAPPING_VERSION) != MAPPING_VERSION:
+        raise vol.Invalid("Unsupported mapping version")
+    yaml = yaml_mappings(core_config, core_name)
+    ui = normalize_mappings(options.get("mappings", []), core_name)
+    yaml_by_id = {identity(core_name, mapping): mapping for mapping in yaml}
+    ui_by_id = {identity(core_name, mapping): mapping for mapping in ui}
+    effective = dict(yaml_by_id)
+    inventory = []
+    for key, mapping in ui_by_id.items():
+        active = key not in yaml_by_id or mapping.get("imported_from_yaml", False)
+        if active:
+            effective[key] = mapping
+        inventory.append(
+            {
+                "mapping": deepcopy(mapping),
+                "source": "ui",
+                "effective": active,
+                "cleanup_pending": key in yaml_by_id
+                and mapping.get("imported_from_yaml", False),
+                "yaml_conflict": key in yaml_by_id
+                and "yaml_snapshot" in mapping
+                and mapping["yaml_snapshot"] != yaml_by_id[key]["settings"],
+            }
+        )
+    for key, mapping in yaml_by_id.items():
+        inventory.append(
+            {
+                "mapping": deepcopy(mapping),
+                "source": "yaml",
+                "effective": effective[key] is mapping,
+            }
+        )
+    config = deepcopy(core_config)
+    config[CONF_PLATFORMS] = {platform: [] for platform in PLATFORMS}
+    for mapping in effective.values():
+        config[CONF_PLATFORMS][mapping["platform"]].append(
+            deepcopy(mapping["settings"])
+        )
+    config.setdefault(
+        CONF_CHANGEGROUP, {CONF_POLL_INTERVAL: 1.0, CONF_REQUEST_TIMEOUT: 5.0}
+    )
+    return config, inventory
