@@ -133,12 +133,11 @@
     "step": {
       "init": {
         "title": "Manage entities",
-        "description": "Add, edit, remove, or transfer entity mappings. YAML mappings are read-only until imported.\n\n{notices}",
+        "description": "Add, edit, remove, or transfer entity mappings. Each confirmed change is saved immediately; close this dialog when done. YAML mappings are read-only until imported.\n\n{notices}",
         "menu_options": {
           "add_entity": "Add entity",
           "edit_entity": "Edit UI entity",
           "remove_entity": "Remove UI entity",
-          "finish": "Finish",
           "import_yaml": "Import from YAML",
           "import_portable": "Import portable configuration",
           "export_portable": "Export portable configuration"
@@ -224,9 +223,6 @@
           "confirm": "Confirm removal"
         }
       },
-      "finish": {
-        "title": "Finish"
-      },
       "import_yaml": {
         "title": "Select YAML mappings",
         "description": "Select individual mappings or all mappings. Existing UI copies are skipped unless you explicitly choose replace. No YAML files are edited.",
@@ -265,11 +261,12 @@
       },
       "export_portable": {
         "title": "Export portable configuration",
-        "description": "Copy the YAML below and save it as a .yaml file. Indentation uses two spaces. To include active YAML mappings, enable effective configuration and submit to regenerate the export. Connection credentials and registry IDs are excluded.",
+        "description": "Copy the YAML below and save it as a .yaml file. Indentation uses two spaces. The export is ready to copy; no submission is needed. To include active YAML mappings, enable effective configuration and choose Refresh export. Close this dialog when done. Connection credentials and registry IDs are excluded.",
         "data": {
           "document": "Portable YAML configuration",
           "effective": "Include effective YAML mappings"
-        }
+        },
+        "submit": "Refresh export"
       }
     },
     "error": {

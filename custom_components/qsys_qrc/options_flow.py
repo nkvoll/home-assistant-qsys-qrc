@@ -117,13 +117,9 @@ class EntityFlowMixin:
                 "import_yaml",
                 "import_portable",
                 "export_portable",
-                "finish",
             ],
             description_placeholders={"notices": "\n".join(notices)},
         )
-
-    async def async_step_finish(self, user_input=None):
-        return self.async_create_entry(title="", data=dict(self.config_entry.options))
 
     async def async_step_add_entity(self, user_input=None):
         self._editing = None

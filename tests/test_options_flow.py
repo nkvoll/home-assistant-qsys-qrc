@@ -407,6 +407,7 @@ async def test_management_menu_does_not_list_entity_inventory():
         [{"platform": "switch", "settings": {"name": "Room mute", "control": "mute"}}]
     )
     result = await flow.async_step_init()
+    assert "finish" not in result["menu_options"]
     assert "inventory" not in result["description_placeholders"]
     assert result["description_placeholders"]["notices"] == ""
 
@@ -455,12 +456,14 @@ async def test_export_dialog_contains_copyable_yaml_and_effective_scope():
         [mapping], [{"source": "yaml", "effective": True, "mapping": yaml_mapping}]
     )
     result = await flow.async_step_export_portable()
+    flow.hass.config_entries.async_update_entry.assert_not_called()
     defaults = {str(key): key.default() for key in result["data_schema"].schema}
     assert defaults["document"].startswith("version: 1\n")
     assert len(parse_document(defaults["document"], "core")["mappings"]) == 1
     result = await flow.async_step_export_portable({"effective": True})
     defaults = {str(key): key.default() for key in result["data_schema"].schema}
     assert len(parse_document(defaults["document"], "core")["mappings"]) == 2
+    flow.hass.config_entries.async_update_entry.assert_not_called()
 
 
 @pytest.mark.asyncio
