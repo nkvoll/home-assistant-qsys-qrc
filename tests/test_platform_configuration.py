@@ -13,7 +13,8 @@ from custom_components.qsys_qrc.const import *
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "platform", ["switch", "number", "sensor", "text", "select", "media_player"]
+    "platform",
+    ["switch", "number", "sensor", "binary_sensor", "text", "select", "media_player"],
 )
 async def test_migration_setup_preserves_entity_and_registry_identity(platform):
     module = import_module(f"custom_components.qsys_qrc.{platform}")

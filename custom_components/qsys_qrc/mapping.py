@@ -9,7 +9,15 @@ from .const import *
 from .schema import CONFIG_SCHEMA
 
 MAPPING_VERSION = 1
-PLATFORMS = ("switch", "number", "sensor", "text", "select", "media_player")
+PLATFORMS = (
+    "switch",
+    "number",
+    "sensor",
+    "binary_sensor",
+    "text",
+    "select",
+    "media_player",
+)
 
 
 def identity(core_name, mapping):
@@ -89,7 +97,7 @@ def normalize_mappings(mappings, core_name):
 
 
 def yaml_mappings(core_config, core_name):
-    """Normalize all six YAML platforms without losing settings."""
+    """Normalize all supported YAML platforms without losing settings."""
     return normalize_mappings(
         [
             {"platform": platform, "settings": settings}

@@ -8,7 +8,8 @@ import voluptuous as vol
 
 
 @pytest.mark.parametrize(
-    "platform", ["switch", "number", "sensor", "text", "select", "media_player"]
+    "platform",
+    ["switch", "number", "sensor", "binary_sensor", "text", "select", "media_player"],
 )
 def test_yaml_ui_defaults_and_identity(platform):
     settings = {"component": "component"}

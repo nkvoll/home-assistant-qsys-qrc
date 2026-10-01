@@ -240,7 +240,8 @@ async def test_flow_manager_accepts_component_menu_and_following_steps():
 
 
 @pytest.mark.parametrize(
-    "platform", ["switch", "number", "sensor", "text", "select", "media_player"]
+    "platform",
+    ["switch", "number", "sensor", "binary_sensor", "text", "select", "media_player"],
 )
 def test_settings_forms_serialize_for_home_assistant_frontend(platform):
     from homeassistant.helpers import config_validation as cv

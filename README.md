@@ -38,6 +38,11 @@ A custom component that integrates Q-Sys Core Devices with Home Assistant via [Q
   - `EngineStatus` exposed to HA
   - Any component control
 
+- `binary_sensor` platform:
+  - Read-only Boolean state such as mute, bypass, or switch indicators.
+  - Boolean values and numeric 0/1 are supported; other values show unknown.
+  - Supports optional Home Assistant binary-sensor device classes.
+
 - `switch` platform:
   - Any float/int/bool where 1.0/1/True is considered on respectively
   - Toggling.
@@ -50,7 +55,7 @@ A custom component that integrates Q-Sys Core Devices with Home Assistant via [Q
   - Options auto-populate from QRC; pin a static `options:` list in YAML to override.
 
 - **Top-level Named Controls:**
-  - For switch / number / sensor / text / select entries, omit the
+  - For switch / number / sensor / binary_sensor / text / select entries, omit the
     `component:` key and the integration treats `control:` as a top-level
     Q-Sys Named Control (i.e., entries in the Named Controls panel that
     aren't pinned to a scriptable component). Existing component-backed
@@ -97,9 +102,10 @@ Open **Configure** on the integration entry to manage entities:
 2. For a component, choose from the current design's components and controls. The picker includes control type and direction metadata. Supported `URL_receiver`, `audio_file_player`, and `gain` components also offer a media player.
 3. For a Named Control, enter its exact name. QRC has no documented list-all command for top-level Named Controls, so the integration validates the name with `Control.Get`.
 4. Choose an entity type, review the metadata defaults and optional settings, then confirm the mapping. Read-only controls cannot become writable entities. When Named Control direction metadata is absent, writable choices are marked unverified.
+   Boolean controls offer **binary_sensor** first for read-only state reporting. Read/write controls also offer **switch** when you want control actions. Changing an existing sensor or switch to a binary sensor creates an entity in the `binary_sensor` domain; its old entity ID is not reused.
 5. Return to the menu to add another entity, edit a UI mapping, or remove one. Each saved change reloads the entry once. Discovery errors can be retried without deleting saved mappings.
 
-All six entity platforms share one change group per Core connection. YAML `change_group` polling settings apply to that shared group.
+All entity platforms share one change group per Core connection. YAML `change_group` polling settings apply to that shared group.
 
 #### YAML coexistence and migration
 
@@ -127,6 +133,22 @@ The destination Core name supplies the entity identity prefix. Moving definition
 For YAML configuration, find component/control names in Q-Sys Designer using **Tools → View Component Controls Info**.
 
 ![View Component Controls Info](examples/qsys_designer_view_component_controls_info.png)
+
+
+Example read-only mute mapping in YAML:
+
+```yaml
+qsys_qrc:
+  cores:
+    my_core:
+      platforms:
+        binary_sensor:
+          - component: mixer
+            control: mute
+            name: Room muted
+```
+
+Omit `component` for a top-level Named Control. These mappings can also be created, migrated, and imported/exported through Configure.
 
 ### Named Controls (no component backing)
 

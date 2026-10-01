@@ -19,10 +19,10 @@ from custom_components.qsys_qrc.discovery import (
 @pytest.mark.parametrize(
     ("metadata", "expected"),
     [
-        ({"Type": "Boolean", "Direction": "Read/Write"}, ["sensor", "switch"]),
+        ({"Type": "Boolean", "Direction": "Read/Write"}, ["binary_sensor", "sensor", "switch"]),
         ({"Type": "Float", "Direction": "Read Only"}, ["sensor"]),
         ({"Value": 1.2}, ["sensor", "number"]),
-        ({"Value": True}, ["sensor", "switch"]),
+        ({"Value": True}, ["binary_sensor", "sensor", "switch"]),
         ({"Type": "String", "Choices": ["A", "B"]}, ["sensor", "text", "select"]),
         ({"Value": "A", "Direction": "Read Only", "Choices": ["A"]}, ["sensor"]),
     ],

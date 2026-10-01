@@ -1,7 +1,14 @@
 """Shared YAML and entity mapping validation."""
 
 import voluptuous as vol
-from homeassistant.components import media_player, number, sensor, switch, text
+from homeassistant.components import (
+    binary_sensor,
+    media_player,
+    number,
+    sensor,
+    switch,
+    text,
+)
 
 from .const import *
 
@@ -165,6 +172,30 @@ CONFIG_SCHEMA = vol.Schema(
                                                             CONF_SENSOR_ATTRIBUTE,
                                                             default="String",
                                                         ): str,
+                                                    }
+                                                )
+                                            ]
+                                        ),
+                                        CONF_BINARY_SENSOR_PLATFORM: vol.Schema(
+                                            [
+                                                vol.Schema(
+                                                    {
+                                                        vol.Optional(
+                                                            CONF_ENTITY_NAME,
+                                                            default=None,
+                                                        ): vol.Any(None, str),
+                                                        vol.Optional(
+                                                            CONF_DEVICE_CLASS,
+                                                            default=None,
+                                                        ): vol.Any(
+                                                            None,
+                                                            binary_sensor.DEVICE_CLASSES_SCHEMA,
+                                                        ),
+                                                        vol.Optional(
+                                                            CONF_COMPONENT,
+                                                            default=None,
+                                                        ): vol.Any(None, str),
+                                                        vol.Required(CONF_CONTROL): str,
                                                     }
                                                 )
                                             ]

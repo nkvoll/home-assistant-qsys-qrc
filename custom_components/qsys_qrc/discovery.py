@@ -74,11 +74,12 @@ def writable(control):
 
 def compatible_platforms(control):
     """Match the value handling used by the existing entity platforms."""
-    result = ["sensor"]
-    if writable(control) is False:
-        return result
     value = control.get("Value")
     kind = str(control.get("Type", "")).lower()
+    boolean = kind == "boolean" or isinstance(value, bool)
+    result = ["binary_sensor", "sensor"] if boolean else ["sensor"]
+    if writable(control) is False:
+        return result
     if kind == "boolean" or isinstance(value, bool):
         result.append("switch")
     elif kind in {"float", "integer", "number"} or (
@@ -160,7 +161,7 @@ async def validate_mapping(core, mapping, timeout=5):
         ]
     return (
         ["writability_unverified"]
-        if platform != "sensor" and writable(control) is None
+        if platform not in {"sensor", "binary_sensor"} and writable(control) is None
         else []
     )
 
