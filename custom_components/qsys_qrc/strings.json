@@ -137,7 +137,7 @@
       },
       "setup_entities": {
         "title": "Configure entities",
-        "description": "The Core connection is ready. Add an entity now or finish with an empty Core. You can add more entities later from Configure.",
+        "description": "Your Core connection is ready. Choose Finish, then open Settings \u2192 Connectivity \u2192 Q-SYS to add multiple entities and manage them. You can also add one entity here before finishing. No YAML is required.",
         "menu_options": {
           "add_entity": "Add an entity",
           "finish": "Finish"

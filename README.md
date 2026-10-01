@@ -91,9 +91,13 @@ Add the custom component via your `custom_components` folder or via HACS (untest
 
 ### Configuring
 
+No YAML is required: connect a Core through the integration, then create and
+manage entities in the Q-SYS panel. Existing YAML configurations remain supported.
+
 1. Add **Q-Sys QRC** under **Settings → Devices & services → Add integration**.
-2. Enter the Core name, host, QRC port, and credentials. After validation, choose
-   **Finish**. An empty Core entry still provides the engine-status sensor.
+2. Enter the Core name, host, QRC port, credentials, poll interval, and request
+   timeout. After validation, choose **Finish**. You can also add a single entity
+   during setup; the custom panel supports creating multiple entities together. An empty Core entry still provides the engine-status sensor.
 3. Open **Settings → Connectivity → Q-SYS** to add and manage entities.
    Administrator access is required. Select the Core from the header if you have
    more than one integration entry.
@@ -103,16 +107,25 @@ The URL tracks the selected view and Core, for example
 `/qsys-qrc/cores/my_core/entities`. Copy the address to bookmark or share a
 view. Browser Back/Forward restores previous views and Core selections; unsaved
 changes still require confirmation before leaving.
-To change host, port, or credentials, use the integration entry’s **Reconfigure**
+To change host, port, credentials, or polling durations, use the integration entry’s **Reconfigure**
 action under **Settings → Devices & services**. Reconfigure preserves mappings
 and the Core name. Keep the Core name unchanged when migrating: it is part of
 entity unique IDs and identifies the Core in Home Assistant YAML.
 
+Use **Core settings** in the panel header to open the Q-SYS integration page.
+Choose the relevant entry and **Reconfigure** to update it. To connect another
+Core, use **Add integration** under **Settings → Devices & services** and choose
+Q-Sys QRC again, using a different Core name. Select the Core from the panel’s
+header to switch between them. Remove a Core through its integration entry’s
+**Delete** action; this removes the integration entry and its entities, rather
+than deleting controls from the Q-SYS design.
+
 #### Dashboard
 
-The dashboard shows the selected Core’s connection status and design information.
+Start with **Add entities** or **Manage entities** on the dashboard. Core cards
+show connection status and design information.
 Use the header buttons to open **Components / Controls**, **Entities**, or
-**QRC Protocol Monitor**. The **Configuration** group contains **Import YAML**,
+**QRC Protocol Monitor**. The **Import & migration** group contains **Import YAML**,
 **Export YAML**, and **Migrate from Home Assistant YAML**.
 
 ![Q-SYS dashboard](examples/screenshots/panel-dashboard.png)
@@ -173,6 +186,9 @@ the table with your selections intact.
 YAML. Use **Filter entities** to narrow the table and click headers to change
 sorting. The default is alphabetical order by **Entity Name**.
 
+When the same entity is defined in both the UI and YAML, it appears once with
+source **ui + yaml**. YAML ownership still determines which definition is active.
+
 Each entity name has its Home Assistant icon. Click the icon or name to open the
 standard entity dialog. Expand **Settings** in the **Details** column to inspect
 the saved mapping and any YAML ownership notices.
@@ -185,6 +201,11 @@ Select UI mappings with the table checkboxes:
   the review dialog, then click **Save**.
 - To delete, click the red **Review deletion** button, inspect the review dialog,
   then click **Delete**.
+
+For Select entities, choose **Select options (one per line)** to override QRC
+choices. Leave the options editor blank to follow live QRC `Choices`; enter
+one option per line to save a static list. Discovery currently prefills a
+static copy of the choices, so clear that list to enable live choices.
 
 Review buttons become filled when mappings are selected. Definitions configured
 via Home Assistant YAML cannot be edited or deleted here until migrated.
@@ -219,7 +240,7 @@ The same control can appear on different platforms; duplicate identities within
 one platform are rejected. A colliding definition configured via Home Assistant
 YAML remains authoritative until ownership is transferred.
 
-1. Open **Migrate from Home Assistant YAML** from the dashboard’s **Configuration**
+1. Open **Migrate from Home Assistant YAML** from the dashboard’s **Import & migration**
    group. This view lists definitions configured via Home Assistant YAML and
    excludes UI mappings. Select individual definitions or use the table checkbox.
 2. Choose **Skip** or **Replace** for existing UI mappings, then click
