@@ -50,6 +50,16 @@ async def controls(core, component, timeout=5):
     return _named_items(result.get("Controls"))
 
 
+async def values(core, component, names, timeout=5):
+    """Read current component values without repeating metadata discovery."""
+    result = await _request(
+        core.component().get(component, [{"Name": name} for name in names]), timeout
+    )
+    if not isinstance(result, dict):
+        raise DiscoveryError("Invalid component response")
+    return _named_items(result.get("Controls"))
+
+
 async def named_control(core, name, timeout=5):
     """Validate an exact top-level Named Control name with Control.Get."""
     result = _named_items(await _request(core.control().get([name]), timeout))

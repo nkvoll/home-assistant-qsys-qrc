@@ -164,6 +164,9 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     # may use https://github.com/home-assistant/core/blob/dev/homeassistant/components/knx/__init__.py#L210
     # for inspiration
 
+    from .panel import async_setup_panel
+
+    await async_setup_panel(hass)
     return True
 
 
@@ -187,6 +190,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     user_data = entry.data[CONF_USER_DATA]
     c = qrc.Core(user_data[CONF_HOST], user_data.get(CONF_PORT, qrc.PORT))
     core_name = user_data[CONF_CORE_NAME]
+    monitor = hass.data[DOMAIN].get("protocol_monitors", {}).get(entry.entry_id)
+    if monitor:
+        c.protocol_capture = monitor["capture"]
+        c.protocol_frames = monitor["frames"]
+        c._protocol_sequence = monitor["sequence"]
     effective, inventory = resolve_configuration(
         core_name, config.get(CONF_CORES, {}).get(core_name, {}), entry.options
     )
@@ -260,6 +268,15 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     poller = hass.data[DOMAIN][CONF_ENTRY_POLLERS][entry.entry_id]
     await poller.stop()
     if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
+        core = hass.data[DOMAIN][CONF_CACHED_CORES].get(
+            entry.data[CONF_USER_DATA][CONF_CORE_NAME]
+        )
+        if core is not None:
+            hass.data[DOMAIN].setdefault("protocol_monitors", {})[entry.entry_id] = {
+                "capture": core.protocol_capture,
+                "frames": core.protocol_frames,
+                "sequence": core._protocol_sequence,
+            }
         hass.data[DOMAIN][CONF_CACHED_CORES].pop(
             entry.data[CONF_USER_DATA][CONF_CORE_NAME], None
         )
@@ -276,3 +293,8 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         poller.start()
 
     return unload_ok
+
+
+async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Discard retained capture data when a Core is removed."""
+    hass.data[DOMAIN].get("protocol_monitors", {}).pop(entry.entry_id, None)

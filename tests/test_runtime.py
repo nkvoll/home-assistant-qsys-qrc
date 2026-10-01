@@ -104,7 +104,10 @@ async def test_export_action_admin_registration_and_effective_scope():
         services=Mock(),
         config_entries=SimpleNamespace(async_entries=lambda _: [entry]),
     )
-    with patch.object(integration, "async_register_admin_service") as register:
+    with (
+        patch.object(integration, "async_register_admin_service") as register,
+        patch("custom_components.qsys_qrc.panel.async_setup_panel", AsyncMock()),
+    ):
         assert await integration.async_setup(hass, {})
     assert register.call_args.args[2] == "export_configuration"
     assert register.call_args.kwargs["supports_response"] is SupportsResponse.ONLY
