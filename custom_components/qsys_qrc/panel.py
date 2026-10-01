@@ -372,7 +372,7 @@ async def async_setup_panel(hass):
         frontend_url_path="qsys-qrc",
         webcomponent_name="qsys-qrc-panel",
         sidebar_icon="mdi:audio-input-xlr",
-        module_url="/qsys_qrc_static/panel.js?v=2",
+        module_url="/qsys_qrc_static/panel.js?v=3",
         require_admin=True,
         config_panel_domain=DOMAIN,
     )

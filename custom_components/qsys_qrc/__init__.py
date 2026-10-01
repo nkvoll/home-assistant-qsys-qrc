@@ -252,6 +252,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             registry.async_remove_device(de.id)
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    hass.bus.async_fire(f"{DOMAIN}_entities_ready", {"entry_id": entry.entry_id})
     if any(effective[CONF_PLATFORMS].values()):
         poller.start()
 

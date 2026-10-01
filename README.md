@@ -99,6 +99,10 @@ Add the custom component via your `custom_components` folder or via HACS (untest
    more than one integration entry.
 
 The panel is bundled with the integration and is also available at `/qsys-qrc`.
+The URL tracks the selected view and Core, for example
+`/qsys-qrc/cores/my_core/entities`. Copy the address to bookmark or share a
+view. Browser Back/Forward restores previous views and Core selections; unsaved
+changes still require confirmation before leaving.
 To change host, port, or credentials, use the integration entry’s **Reconfigure**
 action under **Settings → Devices & services**. Reconfigure preserves mappings
 and the Core name. Keep the Core name unchanged when migrating: it is part of
@@ -122,14 +126,18 @@ beside **Components** explains this requirement. See the
 
 1. Select one or more components. **Filter components** narrows the picker;
    **Select all** selects matching components, **Clear** clears the component
-   selection, and **Single column** changes the picker layout.
+   selection, and **Single column** changes the picker layout. **Refresh** beside
+   **Filter components** reloads the component list, keeping selections that
+   still exist.
 2. To add a Named Control, enter its exact name in the separate **Named Controls**
    box and click **Add Named Control**. Find names in Designer’s Named Controls
    panel. QRC has no documented command to list all Named Controls, so they
    require lookup rather than automatic discovery.
 3. Use **Filter controls** above the table to find controls. Rows are grouped by
    component. Controls default to alphabetical order; click a table header to
-   sort ascending or descending.
+   sort ascending or descending. **Refresh** beside **Filter controls** reloads
+   controls for the selected components and mapping status, keeping component
+   selections, selected controls, filters, and entered settings.
 4. Select the table checkboxes for the controls to add. Choose **Entity type** and
    **Entity name** for each row. Default display names follow `component / control`,
    preserving spaces and capitalization. Named Controls default to their control
@@ -142,8 +150,9 @@ Supported `URL_receiver`, `audio_file_player`, and `gain` components also have a
 it to include the component’s media player in the same creation batch.
 
 Rows that already have a mapping for the selected platform are gray and cannot
-be selected. Click **Already mapped · View entity** to open the **Entities**
-view and focus its mapping, even while Home Assistant is still creating the entity. The type selector remains available: choosing an unmapped
+be selected. Click **Already mapped** to open the entity’s Home Assistant
+dialog. While the entity is being registered, the label is non-clickable; it
+automatically becomes clickable when the Core finishes setting up its entities. The type selector remains available: choosing an unmapped
 platform lets you create another entity for that control.
 
 Selections and entered settings stay in place when adding components. Filtering

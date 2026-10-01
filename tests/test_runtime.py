@@ -32,6 +32,7 @@ async def test_setup_reload_and_unload_preserve_device(saved):
         add_update_listener=Mock(return_value=lambda: None),
     )
     hass = SimpleNamespace(
+        bus=Mock(),
         data={DOMAIN: {CONF_CACHED_CORES: {}}},
         config_entries=SimpleNamespace(
             async_forward_entry_setups=AsyncMock(),
@@ -69,6 +70,10 @@ async def test_setup_reload_and_unload_preserve_device(saved):
         patch.object(integration, "async_register_admin_service"),
     ):
         assert await integration.async_setup_entry(hass, entry)
+        hass.config_entries.async_forward_entry_setups.assert_awaited_once()
+        hass.bus.async_fire.assert_called_once_with(
+            f"{DOMAIN}_entities_ready", {"entry_id": "first"}
+        )
         expected = {CONF_POLL_INTERVAL: 2.5, CONF_REQUEST_TIMEOUT: 8.0, **saved}
         assert all(entry.data[CONF_USER_DATA][field] == value for field, value in expected.items())
         assert hass.config_entries.async_update_entry.call_count == (0 if len(saved) == 2 else 1)

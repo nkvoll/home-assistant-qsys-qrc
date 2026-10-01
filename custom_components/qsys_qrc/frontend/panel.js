@@ -1,6 +1,8 @@
 /* Bundled Q-SYS panel: no external assets or browser dependencies. */
 const escapeHTML = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const key = (name, mapping) => JSON.stringify(mapping.platform === 'media_player' ? [name, mapping.platform, mapping.settings.component || null] : [name, mapping.platform, mapping.settings.component || null, mapping.settings.control]);
+const panelViews = new Set(['overview','browser','entities','monitor','diagnostics','import','export','migrate']);
+const isPanelPath = path => path === '/qsys-qrc' || path.startsWith('/qsys-qrc/');
 class QsysDiscardDialog extends HTMLElement {
   constructor(){super();this.attachShadow({mode:'open'});}
   set hass(value){this._hass=value;}
@@ -23,7 +25,7 @@ class QsysPanel extends HTMLElement {
     this.shadowRoot.addEventListener('change', e => {if(e.target.id==='direction'){this.direction=e.target.value;this.updateMonitor();return;}if(e.target.matches('#core,#single-column,[data-component],[data-select],#all,[data-platform],[data-position],#file,#effective,#edit-field,#collision,#transfer'))this.run(()=>this.change(e.target));});
     this.shadowRoot.addEventListener('input', e => {if(e.target.id==='component-filter'){this.componentFilter=e.target.value;this.filterComponentChoices();} if(e.target.id==='monitor-search'){this.monitorSearch=e.target.value;this.updateMonitor();}if(e.target.id==='search') { this.filter=e.target.value; this.filterRows(); } });
   }
-  set hass(value) { this._hass=value;this.updateEntityIcons(); if(!this.started && this.isConnected) {this.started=true; this.run(()=>this.load());} }
+  set hass(value) { this._hass=value;this.updateEntityIcons(); if(!this.started && this.isConnected) {this.started=true; this.run(()=>this.initialize());} }
   hasUnsaved(){
     this.captureForm();
     if(this.review?.changes.some(change=>change.action!=='skip'))return true;
@@ -42,21 +44,88 @@ class QsysPanel extends HTMLElement {
   }
   discardEdits(){this.review=null;this.selected.clear();this.editValue='';this.cleanEditValue='';this.resetEditBaseline=true;this.document=this.cleanDocument||'';for(const c of this.controls){const clean=this.cleanControls.get(this.controlKey(c));if(clean){const [name,platform,position]=JSON.parse(clean);c.entityName=name;c.chosen=platform;c.usePosition=position;}}}
   installLeaveGuard(){
+    if(!Number.isInteger(history.state?.qsysRouteIndex))history.replaceState({...history.state,qsysRouteIndex:0},'',location.href);
     this.panelUrl=location.href;this.panelHistory=history.state;
     this.beforeUnload=event=>{if(this.hasUnsaved()){event.preventDefault();event.returnValue='';}};
     this.leaveClick=event=>{const link=event.composedPath().find(node=>node.tagName==='A');if(!link||link.target||link.hasAttribute('download')||event.button||event.ctrlKey||event.metaKey||event.shiftKey||!this.hasUnsaved())return;const target=new URL(link.href,location.href);if(target.href===location.href)return;event.preventDefault();event.stopImmediatePropagation();this.confirmLeave().then(discard=>{if(discard){if(target.origin===location.origin){history.pushState(null,'',target.href);window.dispatchEvent(new CustomEvent('location-changed'));}else location.assign(target.href);}});};
-    this.leaveLocation=event=>{if(location.href===this.panelUrl)return;if(!this.hasUnsaved()){this.panelUrl=location.href;this.panelHistory=history.state;return;}const target=location.href,state=history.state;event.stopImmediatePropagation();history.replaceState(this.panelHistory,'',this.panelUrl);this.confirmLeave().then(discard=>{if(discard){history.replaceState(state,'',target);this.panelUrl=target;window.dispatchEvent(new CustomEvent('location-changed'));}});};
-    this.leaveTraverse=event=>{if(event.navigationType!=='traverse'||!event.cancelable||!event.canIntercept||event.destination.url===this.panelUrl||!this.hasUnsaved())return;event.preventDefault();this.confirmLeave().then(discard=>{if(discard)window.navigation.traverseTo(event.destination.key);});};
+    this.leaveLocation=event=>{
+      if(location.href===this.panelUrl){
+        if(this.cancelledTraversal){event.stopImmediatePropagation();this.cancelledTraversal.restored=true;this.finishTraversal();return;}
+        this.routeChanged();return;
+      }
+      if(!this.hasUnsaved()){this.panelUrl=location.href;this.panelHistory=history.state;this.routeChanged();return;}
+      const target=location.href,state=history.state;event.stopImmediatePropagation();
+      const delta=state?.qsysRouteIndex-this.panelHistory?.qsysRouteIndex;
+      if(event.type==='popstate'&&isPanelPath(location.pathname)&&Number.isInteger(delta)&&delta!==0){
+        this.cancelledTraversal={delta,restored:false};history.go(-delta);
+        this.confirmLeave().then(discard=>{this.cancelledTraversal.discard=discard;this.finishTraversal();});return;
+      }
+      history.replaceState(this.panelHistory,'',this.panelUrl);
+      this.confirmLeave().then(discard=>{if(discard){history.replaceState(state,'',target);this.panelUrl=target;this.panelHistory=state;window.dispatchEvent(new CustomEvent('location-changed'));}});
+    };
+    this.leaveTraverse=event=>{if(event.navigationType!=='traverse'||!event.cancelable||!event.canIntercept||event.destination.url===this.panelUrl||!this.hasUnsaved())return;event.preventDefault();this.confirmLeave().then(discard=>{if(discard)setTimeout(()=>window.navigation.traverseTo(event.destination.key),0);});};
     window.navigation?.addEventListener('navigate',this.leaveTraverse);
     window.addEventListener('beforeunload',this.beforeUnload);window.addEventListener('click',this.leaveClick,true);window.addEventListener('location-changed',this.leaveLocation,true);window.addEventListener('popstate',this.leaveLocation,true);
   }
-  connectedCallback() { this.installLeaveGuard(); if(this._hass&&!this.started){this.started=true;this.run(()=>this.load());} this.timer=setInterval(()=>{if(this.view==='monitor'&&!this.paused&&!this.busy)this.refreshMonitor();if(this.view==='browser'&&this.selectedComponents.size&&this.controls.length&&!this.busy&&!this.polling)this.pollValues();},1500); }
-  disconnectedCallback(){ clearInterval(this.timer);this.started=false;window.navigation?.removeEventListener('navigate',this.leaveTraverse);window.removeEventListener('beforeunload',this.beforeUnload);window.removeEventListener('click',this.leaveClick,true);window.removeEventListener('location-changed',this.leaveLocation,true);window.removeEventListener('popstate',this.leaveLocation,true); }
+  finishTraversal(){
+    const pending=this.cancelledTraversal;
+    if(!pending?.restored||pending.discard===undefined)return;
+    this.cancelledTraversal=null;
+    if(pending.discard)history.go(pending.delta);
+  }
+  connectedCallback() { this.installLeaveGuard(); if(this._hass&&!this.started){this.started=true;this.run(()=>this.initialize());} this.timer=setInterval(()=>{if(this.view==='monitor'&&!this.paused&&!this.busy)this.refreshMonitor();if(this.view==='browser'&&this.selectedComponents.size&&this.controls.length&&!this.busy&&!this.polling)this.pollValues();},1500); }
+  disconnectedCallback(){ clearInterval(this.timer);this.entityEventGeneration=(this.entityEventGeneration||0)+1;this.entityEventsUnsubscribe?.();this.entityEventsUnsubscribe=null;this.pendingEntityInventory=null;this.started=false;window.navigation?.removeEventListener('navigate',this.leaveTraverse);window.removeEventListener('beforeunload',this.beforeUnload);window.removeEventListener('click',this.leaveClick,true);window.removeEventListener('location-changed',this.leaveLocation,true);window.removeEventListener('popstate',this.leaveLocation,true); }
   async api(operation,params={}) {return this._hass.callWS({type:'qsys_qrc/panel',operation,...(this.entry?{entry_id:this.entry}:{}),...params});}
-  async run(fn){if(this.busy)return;this.actionFocus=this.shadowRoot.activeElement?.dataset.action;this.captureForm();this.busy=true;this.error='';this.shadowRoot.querySelectorAll('button,input,select,textarea').forEach(b=>b.disabled=true);try{await fn();}catch(e){this.error=e.message||String(e);}finally{this.busy=false;this.render();}}
+  async run(fn){if(this.busy)return;this.actionFocus=this.shadowRoot.activeElement?.dataset.action;this.captureForm();this.busy=true;this.error='';this.shadowRoot.querySelectorAll('button,input,select,textarea').forEach(b=>b.disabled=true);try{await fn();}catch(e){this.error=e.message||String(e);}finally{this.busy=false;this.render();if(this.pendingRoute){this.pendingRoute=false;this.routeChanged();}this.refreshEntityInventory();}}
   async load(){const data=await this.api('overview');this.cores=data.cores;if(!this.cores.some(c=>c.entry_id===this.entry))this.entry=this.cores[0]?.entry_id;}
+  readRoute(){
+    const url=new URL(location.href),match=url.pathname.match(/^\/qsys-qrc\/cores\/([^/]+)\/([^/]+)\/?$/);
+    let view=url.searchParams.get('view')||'overview',core=url.searchParams.get('core');
+    if(match){
+      try{core=decodeURIComponent(match[1]);view=decodeURIComponent(match[2]);}
+      catch{core=null;view='overview';}
+    }
+    const selected=match?this.cores.find(c=>c.name===core)||this.cores.find(c=>c.entry_id===core):this.cores.find(c=>c.entry_id===core);
+    return {view:panelViews.has(view)?view:'overview',entry:selected?.entry_id||this.cores[0]?.entry_id};
+  }
+  writeRoute(mode='push'){
+    const url=new URL(location.href);
+    url.pathname=this.core?`/qsys-qrc/cores/${encodeURIComponent(this.core.name)}/${this.view}`:'/qsys-qrc';
+    url.searchParams.delete('view');url.searchParams.delete('core');
+    if(url.href!==location.href){
+      const index=(history.state?.qsysRouteIndex||0)+(mode==='replace'?0:1);
+      history[mode==='replace'?'replaceState':'pushState']({...history.state,qsysRouteIndex:index},'',url);
+    }
+    this.panelUrl=location.href;this.panelHistory=history.state;
+    window.dispatchEvent(new CustomEvent('location-changed'));
+  }
+  async subscribeEntityEvents(){
+    const connection=this._hass?.connection;
+    if(!connection?.subscribeEvents)return;
+    const generation=this.entityEventGeneration=(this.entityEventGeneration||0)+1;
+    const unsubscribe=await connection.subscribeEvents(event=>{
+      if(!this.isConnected||event.data.entry_id!==this.entry)return;
+      this.pendingEntityInventory=this.entry;this.refreshEntityInventory();
+    },'qsys_qrc_entities_ready');
+    if(!this.isConnected||generation!==this.entityEventGeneration)unsubscribe();
+    else this.entityEventsUnsubscribe=unsubscribe;
+  }
+  refreshEntityInventory(){
+    if(this.busy||!this.pendingEntityInventory)return;
+    const entry=this.pendingEntityInventory;this.pendingEntityInventory=null;
+    if(entry!==this.entry||!['browser','entities','migrate'].includes(this.view))return;
+    this.run(async()=>{await this.loadInventory();if(entry===this.entry&&this.message==='Changes saved. The Core integration is reloading.')this.message='Changes saved. The Core integration has reloaded.';});
+  }
+  async initialize(){await this.subscribeEntityEvents();await this.load();const route=this.readRoute();await this.navigate(route.view,{entry:route.entry,history:'replace'});}
+  routeChanged(){
+    if(!isPanelPath(location.pathname)||!this.started)return;
+    if(this.busy){this.pendingRoute=true;return;}
+    const route=this.readRoute();
+    if(route.view===this.view&&route.entry===this.entry)return;
+    this.run(()=>this.navigate(route.view,{entry:route.entry,history:'replace'}));
+  }
   get core(){return this.cores.find(c=>c.entry_id===this.entry);}
-  async navigate(view){if(!await this.confirmLeave())return;this.view=view;this.review=null;this.selected.clear();this.filter='';if(view==='overview'||view==='diagnostics')await this.load();if(view==='browser') {await this.loadInventory();this.components=(await this.api('components')).components.sort((a,b)=>this.collator.compare(a.Name,b.Name));this.controls=[];this.selectedComponents.clear();this.componentErrors={};this.cleanControls.clear();}if(view==='entities'||view==='migrate')await this.loadInventory();if(view==='monitor')await this.pollMonitor();if(view==='export')await this.loadExport();}
+  async navigate(view,{entry=this.entry,history:historyMode='push'}={}){if(!panelViews.has(view)||!await this.confirmLeave())return;this.entry=entry;this.view=view;this.review=null;this.selected.clear();this.filter='';if(view==='overview'||view==='diagnostics')await this.load();if(this.entry){if(view==='browser') {await this.loadInventory();this.components=(await this.api('components')).components.sort((a,b)=>this.collator.compare(a.Name,b.Name));this.controls=[];this.selectedComponents.clear();this.componentErrors={};this.cleanControls.clear();}if(view==='entities'||view==='migrate')await this.loadInventory();if(view==='monitor')await this.pollMonitor();if(view==='export')await this.loadExport();}this.writeRoute(historyMode);}
   async loadExport(){this.exportDocument=null;this.exportDocument=(await this.api('export',{effective:!!this.effective})).document;}
   async copyExport(){
     if(!this.exportDocument)throw Error('Load the YAML export before copying');
@@ -68,7 +137,7 @@ class QsysPanel extends HTMLElement {
     }
     this.message='YAML copied to clipboard.';
   }
-  async loadInventory(){const result=await this.api('inventory');this.inventory=result.inventory;this.editChoices=result.edit_choices;}
+  async loadInventory(){const entry=this.entry,result=await this.api('inventory');if(entry!==this.entry)return;this.inventory=result.inventory;this.editChoices=result.edit_choices;}
   editableFields(){
     const labels={name:'Name',unit_of_measurement:'Unit of measurement',min:'Minimum',max:'Maximum',step:'Step',mode:'Mode',attribute:'Sensor attribute',device_class:'Device class',state_class:'State class',options:'Select options (one per line)',use_position:'Use position',position_lower_limit:'Position lower limit',position_upper_limit:'Position upper limit',change_template:'Change template',value_template:'Value template',pattern:'Text pattern'};
     const rows=this.selectedRows();
@@ -96,11 +165,21 @@ class QsysPanel extends HTMLElement {
   matchingComponents(){const query=(this.componentFilter||'').toLowerCase();return (this.components||[]).filter(c=>(c.Name+' '+c.Type).toLowerCase().includes(query));}
   filterComponentChoices(){const visible=new Set(this.matchingComponents().map(c=>c.Name));this.shadowRoot.querySelectorAll('[data-component-choice]').forEach(label=>label.hidden=!visible.has(label.dataset.componentChoice));}
   controlKey(control){return JSON.stringify([control.component||null,control.mediaPlayer?'media_player':'control',control.metadata.Name]);}
-  async showComponents(names){
+  async refreshComponents(){
+    const response=await this.api('components');
+    this.components=response.components.sort((a,b)=>this.collator.compare(a.Name,b.Name));
+    const available=new Set(this.components.map(c=>c.Name));
+    await this.showComponents([...this.selectedComponents].filter(name=>available.has(name)));
+  }
+  async refreshControls(){
+    await this.loadInventory();
+    await this.showComponents([...this.selectedComponents],{refresh:true});
+  }
+  async showComponents(names,{refresh=false}={}){
     const previous=new Map(this.controls.map(c=>[this.controlKey(c),c]));
     const selected=new Set([...this.selected].map(i=>this.controlKey(this.controls[i])));
     const requested=new Set(names),loaded=new Set(this.controls.filter(c=>c.component).map(c=>c.component));
-    const missing=names.filter(name=>!loaded.has(name)),results=new Map();
+    const missing=names.filter(name=>refresh||!loaded.has(name)),results=new Map();
     const entry=this.entry;
     await Promise.all(Array.from({length:Math.min(4,missing.length)},async()=>{
       while(missing.length){const component=missing.shift();
@@ -118,9 +197,16 @@ class QsysPanel extends HTMLElement {
       controls.push({component:component.Name,mediaPlayer:true,metadata:{Name:'Component media player',Type:'Media player',Direction:'read/write'},platforms:['media_player'],suggestions:{media_player:{component:component.Name,name:component.Name}}});
     }
     controls.push(...this.controls.filter(c=>!c.component));
-    this.controls=controls.map(c=>previous.get(this.controlKey(c))||c);
+    this.controls=controls.map(c=>{
+      const old=previous.get(this.controlKey(c));
+      if(!old)return c;
+      if(!refresh)return old;
+      const updated={...c};
+      for(const field of ['entityName','chosen','usePosition'])if(Object.hasOwn(old,field))updated[field]=old[field];
+      return updated;
+    });
     for(const c of this.controls)if(!this.cleanControls.has(this.controlKey(c)))this.cleanControls.set(this.controlKey(c),JSON.stringify(this.controlSettings(c)));
-    this.selected=new Set(this.controls.flatMap((c,i)=>selected.has(this.controlKey(c))?[i]:[]));
+    this.selected=new Set(this.controls.flatMap((c,i)=>selected.has(this.controlKey(c))&&!this.mappedControl(c)?[i]:[]));
   }
   async pollValues(){
     this.polling=true;const entry=this.entry,controls=this.controls;
@@ -177,7 +263,7 @@ class QsysPanel extends HTMLElement {
   async pollMonitor(params={}){this.monitorGeneration=(this.monitorGeneration||0)+1;const result=await this.api('monitor',params);this.capture=result.capture;this.frames=result.frames;}
   async change(el){
     if(el.id==='single-column')this.singleColumn=el.checked;
-    if(el.id==='core'){if(!await this.confirmLeave())return;this.entry=el.value;await this.navigate(this.view);}
+    if(el.id==='core')await this.navigate(this.view,{entry:el.value});
     if(el.dataset.component!==undefined){const names=new Set(this.selectedComponents);el.checked?names.add(el.dataset.component):names.delete(el.dataset.component);await this.showComponents([...names]);}
     if(el.dataset.select!==undefined&&(this.view!=='browser'||!this.mappedControl(this.controls[Number(el.dataset.select)]))){el.checked?this.selected.add(Number(el.dataset.select)):this.selected.delete(Number(el.dataset.select));}
     if(el.id==='all'){this.shadowRoot.querySelectorAll('tbody tr').forEach(row=>{if(row.hidden)return;const c=row.querySelector('[data-select]');if(c&&(this.view==='browser'?!this.mappedControl(this.controls[Number(c.dataset.select)]):this.inventory[Number(c.dataset.select)]?.source===(this.view==='migrate'?'yaml':'ui'))){c.checked=el.checked;el.checked?this.selected.add(Number(c.dataset.select)):this.selected.delete(Number(c.dataset.select));}});}
@@ -226,20 +312,13 @@ class QsysPanel extends HTMLElement {
   async action(action,data){
     if(action==='sort'){const sort=data.kind==='controls'?this.controlSort:this.entitySort;sort.direction=sort.field===data.field?-sort.direction:1;sort.field=data.field;return;}
     if(action==='more-info'){this.dispatchEvent(new CustomEvent('hass-more-info',{detail:{entityId:data.entity},bubbles:true,composed:true}));return;}
-    if(action==='open-mapping'){
-      const mapped=this.mappedControl(this.controls[Number(data.control)]);
-      if(!mapped)return;
-      const identity=key(this.core.name,mapped.mapping);
-      await this.navigate('entities');
-      if(this.view==='entities')this.focusMapping=identity;
-      return;
-    }
     if(action==='back'){if(!await this.confirmLeave())return;history.pushState(null,'','/config/connectivity');window.dispatchEvent(new CustomEvent('location-changed'));return;}
     if(action==='navigate')return this.navigate(data.view);
-    if(action==='refresh')return this.navigate(this.view);
+    if(action==='refresh')return this.view==='browser'?this.refreshControls():this.navigate(this.view);
+    if(action==='refresh-components')return this.refreshComponents();
     if(action==='show-all-components')return this.showComponents([...new Set([...this.selectedComponents,...this.matchingComponents().map(c=>c.Name)])]);
     if(action==='clear-components')return this.showComponents([]);
-    if(action==='retry-components'){const requested=[...this.selectedComponents];await this.showComponents(requested);return;}
+    if(action==='retry-components'){const requested=[...this.selectedComponents];await this.showComponents(requested,{refresh:true});return;}
     if(action==='named'){const name=this.shadowRoot.querySelector('#named').value.trim();const response=await this.api('named',{name});if(!this.controls.some(c=>!c.component&&c.metadata.Name===name)){const c={...response.controls[0],component:null};this.controls.push(c);this.cleanControls.set(this.controlKey(c),JSON.stringify(this.controlSettings(c)));}}
     if(action==='create'){
       const mappings=[...this.selected].map(i=>{const c=this.controls[i],p=c.chosen||this.defaultPlatform(c);const settings={...c.suggestions[p],component:c.component};if(p==='number')settings.use_position=!!c.usePosition;settings.name=this.shadowRoot.querySelector(`[data-name="${i}"]`).value;return {platform:p,settings};});
@@ -284,7 +363,7 @@ class QsysPanel extends HTMLElement {
   }
   renderControl(control,index){
     const c=control,i=index,component=c.component||'Named Controls',mapped=this.mappedControl(c);
-    return `<tr class="${mapped?'mapped-row':''}" data-control-group="${escapeHTML(component)}" data-search="${escapeHTML(component+' '+JSON.stringify(c.metadata))}"><td><input type="checkbox" data-select="${i}" aria-label="Select ${escapeHTML(component+' / '+c.metadata.Name)}" ${this.selected.has(i)&&!mapped?'checked':''} ${mapped?'disabled':''}></td><td>${escapeHTML(c.metadata.Name)}${mapped?`<button class="mapped-badge mapped-link" data-action="open-mapping" data-control="${i}" aria-label="View mapped entity: ${escapeHTML(mapped.entity_name||mapped.mapping.settings.name||c.metadata.Name)}">Already mapped · View entity</button>`:''}</td><td>${escapeHTML(c.metadata.Type)}<br>${escapeHTML(c.metadata.Direction||'Direction unverified')}</td><td data-value="${i}">${c.mediaPlayer?'—':escapeHTML(c.metadata.String??c.metadata.Value)}</td><td>${c.mediaPlayer?'media_player':`<select data-platform="${i}" aria-label="Entity type for ${escapeHTML(component+' / '+c.metadata.Name)}">${c.platforms.map(p=>`<option ${p===(c.chosen||this.defaultPlatform(c))?'selected':''}>${p}</option>`).join('')}</select>`}${(c.chosen||this.defaultPlatform(c))==='number'?`<label><input type="checkbox" data-position="${i}" aria-label="Use position for ${escapeHTML(component+' / '+c.metadata.Name)}" ${c.usePosition?'checked':''} ${mapped?'disabled':''}> Use position</label>`:''}</td><td><input data-name="${i}" aria-label="Entity name for ${escapeHTML(component+' / '+c.metadata.Name)}" value="${escapeHTML(c.entityName??this.defaultEntityName(c))}" ${mapped?'disabled':''}></td></tr>`;
+    return `<tr class="${mapped?'mapped-row':''}" data-control-group="${escapeHTML(component)}" data-search="${escapeHTML(component+' '+JSON.stringify(c.metadata))}"><td><input type="checkbox" data-select="${i}" aria-label="Select ${escapeHTML(component+' / '+c.metadata.Name)}" ${this.selected.has(i)&&!mapped?'checked':''} ${mapped?'disabled':''}></td><td>${escapeHTML(c.metadata.Name)}${mapped?(mapped.entity_id?`<button class="mapped-badge mapped-link" data-action="more-info" data-entity="${escapeHTML(mapped.entity_id)}" aria-label="Already mapped: ${escapeHTML(mapped.entity_name||mapped.entity_id)}">Already mapped</button>`:'<span class="mapped-badge" title="The entity is being registered. Refresh to open its dialog.">Already mapped</span>'):''}</td><td>${escapeHTML(c.metadata.Type)}<br>${escapeHTML(c.metadata.Direction||'Direction unverified')}</td><td data-value="${i}">${c.mediaPlayer?'—':escapeHTML(c.metadata.String??c.metadata.Value)}</td><td>${c.mediaPlayer?'media_player':`<select data-platform="${i}" aria-label="Entity type for ${escapeHTML(component+' / '+c.metadata.Name)}">${c.platforms.map(p=>`<option ${p===(c.chosen||this.defaultPlatform(c))?'selected':''}>${p}</option>`).join('')}</select>`}${(c.chosen||this.defaultPlatform(c))==='number'?`<label><input type="checkbox" data-position="${i}" aria-label="Use position for ${escapeHTML(component+' / '+c.metadata.Name)}" ${c.usePosition?'checked':''} ${mapped?'disabled':''}> Use position</label>`:''}</td><td><input data-name="${i}" aria-label="Entity name for ${escapeHTML(component+' / '+c.metadata.Name)}" value="${escapeHTML(c.entityName??this.defaultEntityName(c))}" ${mapped?'disabled':''}></td></tr>`;
   }
   helpTooltip(id,label,text){
     return `<span class="help"><button type="button" class="help-icon" aria-label="About ${escapeHTML(label)}" aria-describedby="help-${id}">?</button><span class="help-tooltip" role="tooltip" id="help-${id}">${escapeHTML(text)}</span></span>`;
@@ -292,7 +371,7 @@ class QsysPanel extends HTMLElement {
   renderBrowser(){
     const sortedControls=this.sortedRows(this.controls,'controls');
     const groups=[...(this.components||[]).filter(c=>this.selectedComponents.has(c.Name)).map(c=>c.Name),...(this.controls.some(c=>!c.component)?['Named Controls']:[])];
-    return `<p class="browser-guide">Select components or look up Named Controls, then use the table checkboxes to choose what to add. Set the entity types and names, click <strong>Review creation</strong>, and finish with <strong>Create</strong>.</p><section class="card browser-config-card"><div class="section-heading"><h2>Components</h2>${this.helpTooltip('components','Components','In Q-SYS Designer, check the component’s Properties: it must have a Code Name and Script Access set to External (or All) to appear here.')}</div><p>Choose multiple components to show their controls together. Entity selections and settings stay in place as you add components.</p><div class="tools"><input id="component-filter" placeholder="Filter components…" aria-label="Filter components" value="${escapeHTML(this.componentFilter||'')}">${this.button('Select all','show-all-components')}${this.button('Clear','clear-components')}<label><input id="single-column" type="checkbox" ${this.singleColumn?'checked':''}> Single column</label></div><div class="component-picker ${this.singleColumn?'single-column':''}">${(this.components||[]).map(c=>`<label data-component-choice="${escapeHTML(c.Name)}"><input type="checkbox" data-component="${escapeHTML(c.Name)}" ${this.selectedComponents.has(c.Name)?'checked':''}><span class="component-label"><span class="component-name">${escapeHTML(c.Name)}</span><span class="component-type">${escapeHTML(c.Type)}</span></span></label>`).join('')}</div></section><section class="card browser-config-card"><div class="section-heading"><h2>Named Controls</h2>${this.helpTooltip('named-controls','Named Controls','Named Controls are controls exposed by name in the Q-SYS Designer Named Controls panel. QRC addresses them directly by their exact name, but has no documented command to list them all. Enter a name from Designer to look it up; automatic discovery is unavailable.')}</div><div class="tools"><input id="named" placeholder="Exact top-level Named Control name" aria-label="Named Control name">${this.button('Add Named Control','named')}</div></section><p id="live-status">Component values refresh while this browser is open.</p><p>${this.selectedComponents.size} components shown · ${this.controls.filter(c=>!c.mediaPlayer).length} controls · ${this.selected.size} selected for creation. Select visible controls with the table checkbox; filtered-out selections stay in the batch.</p>${Object.keys(this.componentErrors).filter(name=>this.selectedComponents.has(name)).length?`<p class="error">${Object.entries(this.componentErrors).filter(([name])=>this.selectedComponents.has(name)).map(([name,error])=>escapeHTML(name+': '+error)).join('<br>')}</p>${this.button('Retry discovery','retry-components')}`:''}${this.toolbar()}<div class="table"><table><thead><tr><th><input id="all" type="checkbox" aria-label="Select visible controls"></th>${this.sortHeader('Control','controls','name')}${this.sortHeader('Type / direction','controls','type')}${this.sortHeader('Value','controls','value')}${this.sortHeader('Entity type','controls','platform')}${this.sortHeader('Entity name','controls','entityName')}</tr></thead><tbody>${groups.map(group=>{
+    return `<p class="browser-guide">Select components or look up Named Controls, then use the table checkboxes to choose what to add. Set the entity types and names, click <strong>Review creation</strong>, and finish with <strong>Create</strong>.</p><section class="card browser-config-card"><div class="section-heading"><h2>Components</h2>${this.helpTooltip('components','Components','In Q-SYS Designer, check the component’s Properties: it must have a Code Name and Script Access set to External (or All) to appear here.')}</div><p>Choose multiple components to show their controls together. Entity selections and settings stay in place as you add components.</p><div class="tools"><input id="component-filter" placeholder="Filter components…" aria-label="Filter components" value="${escapeHTML(this.componentFilter||'')}">${this.button('Refresh','refresh-components','aria-label="Refresh components"')}${this.button('Select all','show-all-components')}${this.button('Clear','clear-components')}<label><input id="single-column" type="checkbox" ${this.singleColumn?'checked':''}> Single column</label></div><div class="component-picker ${this.singleColumn?'single-column':''}">${(this.components||[]).map(c=>`<label data-component-choice="${escapeHTML(c.Name)}"><input type="checkbox" data-component="${escapeHTML(c.Name)}" ${this.selectedComponents.has(c.Name)?'checked':''}><span class="component-label"><span class="component-name">${escapeHTML(c.Name)}</span><span class="component-type">${escapeHTML(c.Type)}</span></span></label>`).join('')}</div></section><section class="card browser-config-card"><div class="section-heading"><h2>Named Controls</h2>${this.helpTooltip('named-controls','Named Controls','Named Controls are controls exposed by name in the Q-SYS Designer Named Controls panel. QRC addresses them directly by their exact name, but has no documented command to list them all. Enter a name from Designer to look it up; automatic discovery is unavailable.')}</div><div class="tools"><input id="named" placeholder="Exact top-level Named Control name" aria-label="Named Control name">${this.button('Add Named Control','named')}</div></section><p id="live-status">Component values refresh while this browser is open.</p><p>${this.selectedComponents.size} components shown · ${this.controls.filter(c=>!c.mediaPlayer).length} controls · ${this.selected.size} selected for creation. Select visible controls with the table checkbox; filtered-out selections stay in the batch.</p>${Object.keys(this.componentErrors).filter(name=>this.selectedComponents.has(name)).length?`<p class="error">${Object.entries(this.componentErrors).filter(([name])=>this.selectedComponents.has(name)).map(([name,error])=>escapeHTML(name+': '+error)).join('<br>')}</p>${this.button('Retry discovery','retry-components')}`:''}${this.toolbar()}<div class="table"><table><thead><tr><th><input id="all" type="checkbox" aria-label="Select visible controls"></th>${this.sortHeader('Control','controls','name')}${this.sortHeader('Type / direction','controls','type')}${this.sortHeader('Value','controls','value')}${this.sortHeader('Entity type','controls','platform')}${this.sortHeader('Entity name','controls','entityName')}</tr></thead><tbody>${groups.map(group=>{
       return `<tr class="component-group" data-group="${escapeHTML(group)}"><th colspan="6">${escapeHTML(group)}</th></tr>${sortedControls.map(({item:c,index:i})=>((c.component||'Named Controls')===group)?this.renderControl(c,i):'').join('')}`;
     }).join('')}</tbody></table></div>${this.button(`Review creation (${this.selected.size})`,'create',this.selected.size?'class="filled"':'')}`;
   }
@@ -334,14 +413,6 @@ class QsysPanel extends HTMLElement {
     if(this.view==='monitor')this.updateMonitor();
     this.filterComponentChoices();
     this.filterRows();
-    if(this.view==='entities'&&this.focusMapping){
-      const identity=this.focusMapping;
-      const index=this.inventory.findIndex(row=>row.source==='ui'&&key(this.core.name,row.mapping)===identity);
-      const target=index>=0?index:this.inventory.findIndex(row=>key(this.core.name,row.mapping)===identity);
-      const row=this.shadowRoot.querySelector(`[data-entity-row="${target}"]`);
-      if(row){row.tabIndex=-1;row.focus();row.scrollIntoView({block:'center'});}
-      this.focusMapping=null;
-    }
     const all=this.shadowRoot.querySelector("#all");if(all){const boxes=[...this.shadowRoot.querySelectorAll("tbody tr:not([hidden]) [data-select]:not(:disabled)")];all.checked=boxes.length>0&&boxes.every(box=>box.checked);all.indeterminate=boxes.some(box=>box.checked)&&!all.checked;}
   }
 }
