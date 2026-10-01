@@ -2,7 +2,7 @@ FROM ubuntu:latest AS base
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install system dependencies and Python
+# Install system dependencies, Python, and headless Chromium libraries
 RUN apt update \
     && apt install -y --no-install-recommends \
     bash \
@@ -20,6 +20,21 @@ RUN apt update \
     libavutil-dev \
     libgammu-dev \
     libncurses-dev \
+    libnss3 \
+    libnspr4 \
+    libatk1.0-0t64 \
+    libatk-bridge2.0-0t64 \
+    libcups2t64 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxfixes3 \
+    libxrandr2 \
+    libxkbcommon0 \
+    libgbm1 \
+    libasound2t64 \
+    libpango-1.0-0 \
+    libcairo2 \
+    fonts-liberation \
     libpcap-dev \
     libswresample-dev \
     libswscale-dev \

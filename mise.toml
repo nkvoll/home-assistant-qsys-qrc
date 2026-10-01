@@ -10,3 +10,20 @@ pin = true
 [env]
 VENV_PATH = "/workspaces/.venv"
 UV_PROJECT_ENVIRONMENT = "/workspaces/.venv"
+
+[tasks."screenshots:browser"]
+description = "Install the pinned Playwright Chromium browser"
+env = { PLAYWRIGHT_HOST_PLATFORM_OVERRIDE = "ubuntu24.04-x64" }
+run = '"$VENV_PATH/bin/python" -m playwright install chromium'
+
+[tasks."screenshots:setup"]
+description = "Install Python and browser dependencies for README screenshots"
+run = [
+  'uv pip install --python "$VENV_PATH/bin/python" -r requirements.txt -r requirements.dev.txt',
+  'mise run screenshots:browser',
+]
+
+[tasks.screenshots]
+description = "Regenerate README screenshots using disposable HA and simulated QRC"
+depends = ["screenshots:setup"]
+run = '"$VENV_PATH/bin/python" scripts/screenshots/capture.py'

@@ -22,6 +22,9 @@ uv pip install -r requirements.txt
 uv pip install -r requirements.test.txt
 uv pip install -r requirements.dev.txt
 
+# Use the same browser installation task as the screenshot harness.
+mise run screenshots:browser
+
 source /workspaces/.venv/bin/activate
 
 if ! grep -F "source /workspaces/.venv/bin/activate" ~/.zshrc >/dev/null 2>&1; then

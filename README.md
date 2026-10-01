@@ -98,12 +98,22 @@ The Core name is part of existing entity unique IDs and is also the key used by 
 
 Open **Configure** on the integration entry to manage entities:
 
+![Entity management menu](examples/screenshots/manage-entities.png)
+
 1. Choose **Add entity**, then **Named component** or **Top-level Named Control**.
 2. For a component, choose from the current design's components and controls. The picker includes control type and direction metadata. Supported `URL_receiver`, `audio_file_player`, and `gain` components also offer a media player.
 3. For a Named Control, enter its exact name. QRC has no documented list-all command for top-level Named Controls, so the integration validates the name with `Control.Get`.
 4. Choose an entity type, review the metadata defaults and optional settings, then confirm the mapping. Read-only controls cannot become writable entities. When Named Control direction metadata is absent, writable choices are marked unverified.
    Boolean controls offer **binary_sensor** first for read-only state reporting. Read/write controls also offer **switch** when you want control actions. Changing an existing sensor or switch to a binary sensor creates an entity in the `binary_sensor` domain; its old entity ID is not reused.
 5. Return to the menu to add another entity, edit a UI mapping, or remove one. Each saved change reloads the entry once. Discovery errors can be retried without deleting saved mappings.
+
+The control picker shows metadata from the connected Core:
+
+![Control discovery](examples/screenshots/choose-control.png)
+
+Review the suggested settings before saving:
+
+![Number entity settings](examples/screenshots/entity-settings.png)
 
 All entity platforms share one change group per Core connection. YAML `change_group` polling settings apply to that shared group.
 
@@ -118,15 +128,23 @@ Ordinary collisions use the YAML definition. Use Home Assistant’s entity views
 3. Confirm the ownership transfer. The UI copy becomes authoritative immediately, even while the old YAML definition remains.
 4. Remove only the transferred entity definitions from your YAML files, includes, or packages, then reload. The integration does not edit those files. Leave Core-level polling settings in YAML if you still use them.
 
+![YAML ownership transfer review](examples/screenshots/yaml-migration-review.png)
+
 Migration preserves the Core name, settings, and existing unique-ID functions. Removing the old YAML afterward does not create a new entity. If that YAML copy changes after transfer, the menu reports a conflict. Removing a UI mapping while its old YAML remains can reactivate the YAML definition.
 
 #### Portable export and import
 
 Choose **Export portable configuration** from the Core's Configure menu. The dialog displays generated YAML in a multiline text box with two-space indentation. Select and copy the text, then save it as a `.yaml` file. Enable **Include mappings from Home Assistant YAML** and choose **Refresh export** to regenerate the export with active mappings from Home Assistant YAML included; by default it contains mappings managed in the UI only.
 
+![Portable YAML export](examples/screenshots/export-portable.png)
+
 The document includes a schema version, source Core name, optional design name, and platform settings. It excludes host, port, credentials, config-entry IDs, and entity-registry IDs. Ownership markers are local to the installation and are not exported. The admin-only `qsys_qrc.export_configuration` action remains available for programmatic export.
 
 Connect the destination Core first, then choose **Import portable configuration** in its Configure menu and paste the YAML. Review all mappings, discovery findings, and collision actions before confirming. Choose a default **skip** or **replace** policy, then select individual colliding mappings to replace in the review. Changing this selection refreshes the preview before saving. To replace mappings from Home Assistant YAML, select the option to manage them in the UI. Validation never sends control Set commands. Missing components, missing controls, read-only mismatches, and unsupported media-player types appear in the preview. Discovery outages are retryable.
+
+![Portable import review](examples/screenshots/portable-import-review.png)
+
+These screenshots use a simulated Conference Room Core. See [the screenshot capture instructions](scripts/screenshots/README.md) to regenerate them.
 
 The destination Core name supplies the entity identity prefix. Moving definitions to a differently named Core creates new Home Assistant unique IDs. Documents are limited to 256 KiB and 1,000 mappings, use version 1, and reject unknown fields and duplicate identities. Native file upload/download is not part of this transport: copy/save YAML from the export dialog and paste YAML for import. Home Assistant backups remain the mechanism for backing up a full installation.
 
