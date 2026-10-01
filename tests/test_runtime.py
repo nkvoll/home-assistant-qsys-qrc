@@ -81,3 +81,47 @@ async def test_setup_reload_and_unload_preserve_device():
     for callback in callbacks:
         callback()
     await asyncio.sleep(0)
+
+
+@pytest.mark.asyncio
+async def test_export_action_admin_registration_and_effective_scope():
+    from homeassistant.core import SupportsResponse
+
+    entry = SimpleNamespace(
+        entry_id="entry",
+        options={"mappings": [{"platform": "switch", "settings": {"control": "ui"}}]},
+        data={
+            CONF_USER_DATA: {
+                CONF_CORE_NAME: "core",
+                CONF_HOST: "example.test",
+                CONF_PASSWORD: "secret",
+            },
+            CONF_ENGINE_STATUS: {},
+        },
+    )
+    hass = SimpleNamespace(
+        data={},
+        services=Mock(),
+        config_entries=SimpleNamespace(async_entries=lambda _: [entry]),
+    )
+    with patch.object(integration, "async_register_admin_service") as register:
+        assert await integration.async_setup(hass, {})
+    assert register.call_args.args[2] == "export_configuration"
+    assert register.call_args.kwargs["supports_response"] is SupportsResponse.ONLY
+    handler = register.call_args.args[3]
+    result = await handler(SimpleNamespace(data={"core_name": "core"}))
+    assert result["configuration"]["mappings"][0]["settings"][CONF_CONTROL] == "ui"
+    hass.data[DOMAIN][CONF_ENTRY_CONFIG] = {
+        "entry": {
+            CONF_PLATFORMS: {
+                "sensor": [{"control": "yaml"}],
+                "switch": [{"control": "ui"}],
+            }
+        }
+    }
+    result = await handler(
+        SimpleNamespace(data={"core_name": "core", "effective": True})
+    )
+    assert len(result["configuration"]["mappings"]) == 2
+    assert "password" not in str(result)
+    assert "example.test" not in str(result)

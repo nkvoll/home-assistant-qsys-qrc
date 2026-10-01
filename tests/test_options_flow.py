@@ -230,3 +230,26 @@ async def test_flow_manager_accepts_component_menu_and_following_steps():
         assert result["step_id"] == "settings"
         result = await manager._async_handle_step(flow, "media_player", None)
         assert result["step_id"] == "settings"
+
+
+@pytest.mark.parametrize(
+    "platform", ["switch", "number", "sensor", "text", "select", "media_player"]
+)
+def test_settings_forms_serialize_for_home_assistant_frontend(platform):
+    from homeassistant.helpers import config_validation as cv
+    from probatio import to_field_list
+    from custom_components.qsys_qrc.mapping import normalize_mapping
+    import voluptuous as vol
+
+    flow, _ = flow_for()
+    settings = {"component": "example"}
+    if platform != "media_player":
+        settings["control"] = "value"
+    flow._draft = normalize_mapping({"platform": platform, "settings": settings})
+    fields = to_field_list(
+        vol.Schema(flow._settings_fields()), custom_serializer=cv.custom_serializer
+    )
+    assert {field["name"] for field in fields} == set(flow._draft["settings"]) - {
+        "component",
+        "control",
+    }
