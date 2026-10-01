@@ -270,7 +270,9 @@ class EntityFlowMixin:
             if key in {"component", "control"}:
                 continue
             validator = str
-            if isinstance(value, bool):
+            if key in {"min", "max"} and self._draft["platform"] == "text":
+                validator = vol.Coerce(int)
+            elif isinstance(value, bool):
                 validator = bool
             elif isinstance(value, (int, float)):
                 validator = vol.Coerce(float)
@@ -280,8 +282,6 @@ class EntityFlowMixin:
                         options=value, multiple=True, custom_value=True
                     )
                 )
-            elif key in {"min", "max"} and self._draft["platform"] == "text":
-                validator = vol.Coerce(int)
             marker = vol.Optional(key, description={"suggested_value": value})
             fields[marker] = vol.Any(None, validator)
         return fields
@@ -321,6 +321,8 @@ class EntityFlowMixin:
         if user_input:
             try:
                 self._editing = int(user_input["entity"])
+                if self._editing < 0:
+                    raise ValueError("Invalid index")
                 self._draft = normalize_mapping(self._mappings()[self._editing])
                 return await self.async_step_settings()
             except ValueError, IndexError:
@@ -333,7 +335,10 @@ class EntityFlowMixin:
         if user_input and user_input.get("confirm"):
             mappings = self._mappings()
             try:
-                mappings.pop(int(user_input["entity"]))
+                index = int(user_input["entity"])
+                if index < 0:
+                    raise ValueError("Invalid index")
+                mappings.pop(index)
             except ValueError, IndexError:
                 return self._form("remove_entity", error="invalid_selection")
             self._save_options(

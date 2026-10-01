@@ -155,3 +155,14 @@ async def test_empty_media_platform_does_not_discover():
         await media_player.async_setup_entry(hass, entry, add)
     core.component.assert_not_called()
     add.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_import_preview_reports_missing_component():
+    core = Mock()
+    core.component.return_value.get_components = AsyncMock(return_value={"result": []})
+    assert await validate_mapping(
+        core,
+        {"platform": "number", "settings": {"component": "removed", "control": "gain"}},
+    ) == ["missing_component"]
+    core.component.return_value.get_controls.assert_not_called()

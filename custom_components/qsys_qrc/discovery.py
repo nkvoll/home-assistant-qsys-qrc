@@ -131,11 +131,11 @@ async def validate_mapping(core, mapping, timeout=5):
     component = settings.get("component")
     platform = mapping["platform"]
     if component:
+        items = await components(core, timeout)
+        match = next((item for item in items if item["Name"] == component), None)
+        if match is None:
+            return ["missing_component"]
         if platform == "media_player":
-            items = await components(core, timeout)
-            match = next((item for item in items if item["Name"] == component), None)
-            if match is None:
-                return ["missing_component"]
             return (
                 []
                 if match.get("Type") in MEDIA_COMPONENT_TYPES

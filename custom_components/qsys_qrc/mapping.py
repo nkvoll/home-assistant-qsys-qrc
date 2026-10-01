@@ -44,6 +44,28 @@ def normalize_mapping(mapping):
             }
         }
     )[DOMAIN][CONF_CORES]["core"][CONF_PLATFORMS][platform][0]
+    if platform == "number":
+        if normalized["min"] > normalized["max"] or normalized["step"] <= 0:
+            raise vol.Invalid("Number range or step is invalid")
+        if (
+            not 0
+            <= normalized["position_lower_limit"]
+            < normalized["position_upper_limit"]
+            <= 1
+        ):
+            raise vol.Invalid("Position limits must be increasing within 0..1")
+    if platform == "text":
+        minimum, maximum = normalized["min"], normalized["max"]
+        if (minimum is not None and minimum < 0) or (
+            maximum is not None and maximum < 0
+        ):
+            raise vol.Invalid("Text lengths must be nonnegative")
+        if minimum is not None and maximum is not None and minimum > maximum:
+            raise vol.Invalid("Text minimum exceeds maximum")
+    if platform == "select" and len(set(normalized["options"])) != len(
+        normalized["options"]
+    ):
+        raise vol.Invalid("Select choices must be unique")
     result = {"platform": platform, "settings": normalized}
     if "imported_from_yaml" in mapping:
         if not isinstance(mapping["imported_from_yaml"], bool):

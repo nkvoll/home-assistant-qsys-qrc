@@ -150,3 +150,24 @@ def test_atomic_transfer_requires_explicit_ownership_and_is_idempotent():
     assert len(replaced) == 1
     assert replaced[0]["settings"]["options"] == ["C"]
     assert mapping["settings"]["options"] == ["A", "B"]
+
+
+@pytest.mark.parametrize(
+    "mapping",
+    [
+        {"platform": "number", "settings": {"control": "gain", "step": 0}},
+        {"platform": "number", "settings": {"control": "gain", "min": 20, "max": 10}},
+        {
+            "platform": "number",
+            "settings": {"control": "gain", "position_upper_limit": 2},
+        },
+        {"platform": "text", "settings": {"control": "label", "min": 10, "max": 2}},
+        {
+            "platform": "select",
+            "settings": {"control": "choice", "options": ["A", "A"]},
+        },
+    ],
+)
+def test_reject_invalid_behavior_settings(mapping):
+    with pytest.raises(vol.Invalid):
+        normalize_mappings([mapping], "core")
