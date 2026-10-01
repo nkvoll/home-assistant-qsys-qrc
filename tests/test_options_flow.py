@@ -306,3 +306,26 @@ async def test_portable_collision_choices_are_individual_and_repreviewed():
     await flow.async_step_portable_review({"confirm": True})
     assert entry.options["mappings"][0]["settings"]["name"] == "new"
     assert entry.options["mappings"][1]["settings"]["name"] == "old"
+
+
+def test_inventory_uses_current_ui_options_during_reload():
+    yaml = {"platform": "switch", "settings": {"control": "mute", "name": "YAML"}}
+    flow, entry = flow_for([], [{"source": "yaml", "effective": True, "mapping": yaml}])
+    assert flow._inventory()[0]["source"] == "yaml"
+    entry.options = {"mappings": [{**yaml, "imported_from_yaml": True}]}
+    flow.hass.data[DOMAIN][CONF_ENTRY_INVENTORY].pop("entry")
+    inventory = flow._inventory()
+    assert inventory[0]["source"] == "ui"
+    assert inventory[0]["cleanup_pending"]
+    assert not inventory[1]["effective"]
+
+
+@pytest.mark.asyncio
+async def test_invalid_yaml_selection_is_not_silently_dropped():
+    mapping = {"platform": "switch", "settings": {"control": "mute"}}
+    flow, _ = flow_for([], [{"source": "yaml", "effective": True, "mapping": mapping}])
+    result = await flow.async_step_import_yaml(
+        {"entities": ["0", "9"], "existing": "skip"}
+    )
+    assert result["errors"]["base"] == "invalid_selection"
+    flow.hass.config_entries.async_update_entry.assert_not_called()

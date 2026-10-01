@@ -16,6 +16,7 @@ from .mapping import (
     normalize_mapping,
     normalize_mappings,
     transfer_mappings,
+    resolve_configuration,
 )
 
 
@@ -43,6 +44,7 @@ class EntityFlowMixin:
         self._warnings = []
         self._transfer = None
         self._review_original = None
+        self._yaml_inventory = []
 
     @property
     def core_name(self):
@@ -63,11 +65,24 @@ class EntityFlowMixin:
         return deepcopy(self.config_entry.options.get("mappings", []))
 
     def _inventory(self):
-        return (
+        current = (
             self.hass.data.get(DOMAIN, {})
             .get(CONF_ENTRY_INVENTORY, {})
-            .get(self.config_entry.entry_id, [])
+            .get(self.config_entry.entry_id)
         )
+        if current is not None:
+            self._yaml_inventory = [
+                deepcopy(item["mapping"])
+                for item in current
+                if item["source"] == "yaml"
+            ]
+        yaml = {CONF_PLATFORMS: {}}
+        for mapping in self._yaml_inventory:
+            yaml[CONF_PLATFORMS].setdefault(mapping["platform"], []).append(
+                mapping["settings"]
+            )
+        # UI state comes from current options even while an options-triggered reload is running.
+        return resolve_configuration(self.core_name, yaml, self.config_entry.options)[1]
 
     def _form(self, step, fields=None, error=None, **placeholders):
         return self.async_show_form(
@@ -388,14 +403,13 @@ class EntityFlowMixin:
         error = None
         if user_input:
             try:
+                indices = [int(index) for index in user_input.get("entities", [])]
+                if any(index < 0 or index >= len(yaml) for index in indices):
+                    raise vol.Invalid("Invalid YAML selection")
                 selected = (
                     yaml
                     if user_input.get("all")
-                    else [
-                        yaml[int(index)]
-                        for index in user_input.get("entities", [])
-                        if 0 <= int(index) < len(yaml)
-                    ]
+                    else [yaml[index] for index in indices]
                 )
                 if not selected:
                     raise vol.Invalid("Select at least one mapping")
@@ -427,6 +441,7 @@ class EntityFlowMixin:
                     "changes": changes,
                     "issues": issues,
                     "selected": incoming,
+                    "skipped": [item for item in selected if item not in incoming],
                     "original": deepcopy(self.config_entry.options),
                 }
                 return await self.async_step_yaml_review()
@@ -466,7 +481,10 @@ class EntityFlowMixin:
             "yaml_review",
             {vol.Required("confirm", default=False): bool},
             preview=json.dumps(
-                {key: self._transfer[key] for key in ("selected", "changes", "issues")},
+                {
+                    key: self._transfer[key]
+                    for key in ("selected", "skipped", "changes", "issues")
+                },
                 indent=2,
             ),
             cleanup="Transferred UI copies become authoritative immediately. Remove only the selected YAML definitions after saving. Core names and entity IDs stay unchanged.",
