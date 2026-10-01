@@ -113,7 +113,7 @@ and the Core name. Keep the Core name unchanged when migrating: it is part of
 entity unique IDs and identifies the Core in Home Assistant YAML.
 
 Use **Configure Integration** below the dashboard’s **Core** section to open the Q-SYS integration page.
-Choose the relevant entry and **Reconfigure** to update it. To connect another
+Open the relevant Core entry’s three-dot menu and choose **Reconfigure** to update it. To connect another
 Core, use **Add integration** under **Settings → Devices & services** and choose
 Q-Sys QRC again, using a different Core name. Select the Core from the panel’s
 header to switch between them. Remove a Core through its integration entry’s

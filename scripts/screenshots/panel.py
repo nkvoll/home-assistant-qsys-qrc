@@ -254,6 +254,12 @@ async def capture(config):
                 await panel.get_by_role("heading", name="Last known StatusGet response", exact=True).wait_for()
                 await expect(panel.locator(".core-status pre")).to_contain_text('"Status"')
                 await panel.get_by_role("button", name="Configure Integration", exact=True).wait_for()
+                await expect(panel.locator(".core-settings-actions")).to_contain_text(
+                    "poll interval, or request timeout"
+                )
+                await expect(panel.locator(".core-settings-actions")).to_contain_text(
+                    "three-dot menu and choose Reconfigure"
+                )
                 await screenshot("panel-dashboard.png")
                 await panel.get_by_role(
                     "tab", name="Components / Controls", exact=True
