@@ -151,3 +151,31 @@ async def test_flow_manager_accepts_initial_entity_menu():
     assert result["step_id"] == "setup_entities"
     result = await manager._async_handle_step(flow, "setup_entities", None)
     assert result["menu_options"] == ["add_entity", "finish"]
+
+
+@pytest.mark.asyncio
+async def test_malformed_status_does_not_create_connection():
+    from custom_components.qsys_qrc.config_flow import CannotConnect
+
+    started = asyncio.Event()
+    stopped = asyncio.Event()
+
+    async def run():
+        started.set()
+        try:
+            await asyncio.Event().wait()
+        finally:
+            stopped.set()
+
+    core = Mock(
+        run_until_stopped=run,
+        wait_until_running=started.wait,
+        logon=AsyncMock(return_value={"result": True}),
+        status_get=AsyncMock(return_value={"result": []}),
+    )
+    with (
+        patch("custom_components.qsys_qrc.config_flow.qrc.Core", return_value=core),
+        pytest.raises(CannotConnect),
+    ):
+        await validate_input(None, DATA)
+    assert stopped.is_set()

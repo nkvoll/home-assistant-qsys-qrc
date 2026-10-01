@@ -171,3 +171,14 @@ def test_atomic_transfer_requires_explicit_ownership_and_is_idempotent():
 def test_reject_invalid_behavior_settings(mapping):
     with pytest.raises(vol.Invalid):
         normalize_mappings([mapping], "core")
+
+
+def test_identity_keys_match_platform_scope():
+    from custom_components.qsys_qrc.mapping import identity
+
+    assert identity(
+        "core", {"platform": "media_player", "settings": {"component": "player"}}
+    ) == ("core", "media_player", "player")
+    assert identity(
+        "core", {"platform": "switch", "settings": {"control": "mute"}}
+    ) == ("core", "switch", None, "mute")

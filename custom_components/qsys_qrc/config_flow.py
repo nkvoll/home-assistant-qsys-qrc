@@ -22,11 +22,10 @@ from homeassistant.helpers.reload import async_integration_yaml_config
 
 _LOGGER = logging.getLogger(__name__)
 
-# TODO adjust the data schema to the data that you need
 STEP_USER_DATA_SCHEMA = vol.Schema(
     {
-        vol.Required(CONF_CORE_NAME): str,
-        vol.Required(CONF_HOST): str,
+        vol.Required(CONF_CORE_NAME): vol.All(str, vol.Length(min=1)),
+        vol.Required(CONF_HOST): vol.All(str, vol.Length(min=1)),
         vol.Required(CONF_PORT, default=qrc.PORT): vol.All(
             vol.Coerce(int), vol.Range(min=1, max=65535)
         ),
@@ -53,6 +52,10 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
             raise InvalidAuth
 
         status_response = await asyncio.wait_for(c.status_get(), timeout=5)
+        if not isinstance(status_response, dict) or not isinstance(
+            status_response.get("result"), dict
+        ):
+            raise CannotConnect
     except (TimeoutError, OSError) as e:
         raise CannotConnect from e
     finally:

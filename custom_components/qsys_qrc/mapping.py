@@ -15,12 +15,10 @@ PLATFORMS = ("switch", "number", "sensor", "text", "select", "media_player")
 def identity(core_name, mapping):
     """Return the existing entity identity, including its platform."""
     settings = mapping["settings"]
-    return (
-        core_name,
-        mapping["platform"],
-        settings.get(CONF_COMPONENT) or None,
-        None if mapping["platform"] == "media_player" else settings[CONF_CONTROL],
-    )
+    component = settings.get(CONF_COMPONENT) or None
+    if mapping["platform"] == "media_player":
+        return (core_name, "media_player", component)
+    return (core_name, mapping["platform"], component, settings[CONF_CONTROL])
 
 
 def normalize_mapping(mapping):
