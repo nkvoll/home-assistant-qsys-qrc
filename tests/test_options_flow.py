@@ -66,7 +66,7 @@ async def test_assisted_add_review_and_remove():
         result = await flow.async_step_settings({"name": "Mute"})
         assert result["step_id"] == "review"
         assert not entry.options["mappings"]
-        result = await flow.async_step_review({"confirm": True})
+        result = await flow.async_step_review({})
         assert result["step_id"] == "init"
         assert entry.options["mappings"][0]["settings"]["name"] == "Mute"
         assert flow.hass.config_entries.async_update_entry.call_count == 1
@@ -106,7 +106,7 @@ async def test_yaml_duplicate_and_edit_keeps_ownership():
         await flow.async_step_edit_entity({"entity": "0"})
         result = await flow.async_step_settings({"name": "Updated"})
         assert result["step_id"] == "review"
-        await flow.async_step_review({"confirm": True})
+        await flow.async_step_review({})
         assert entry.options["mappings"][0]["imported_from_yaml"]
         await flow.async_step_add_entity()
         flow._draft = {"platform": "number", "settings": {"control": "level"}}
@@ -266,7 +266,7 @@ async def test_review_does_not_overwrite_concurrent_mapping_change():
         await flow.async_step_edit_entity({"entity": "0"})
         await flow.async_step_settings({"name": "Reviewed"})
     entry.options = {"mappings": [{**mapping, "settings": {"control": "other"}}]}
-    result = await flow.async_step_review({"confirm": True})
+    result = await flow.async_step_review({})
     assert result["errors"]["base"] == "configuration_changed"
     flow.hass.config_entries.async_update_entry.assert_not_called()
     assert entry.options["mappings"][0]["settings"]["control"] == "other"

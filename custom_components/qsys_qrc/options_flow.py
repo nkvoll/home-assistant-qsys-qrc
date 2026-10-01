@@ -308,7 +308,7 @@ class EntityFlowMixin:
     async def async_step_review(self, user_input=None):
         if user_input is None:
             self._review_original = deepcopy(self.config_entry.options)
-        if user_input and user_input.get("confirm"):
+        if user_input is not None:
             if self._review_original != dict(self.config_entry.options):
                 return self._form(
                     "review",
@@ -331,7 +331,6 @@ class EntityFlowMixin:
             return await self.async_step_init()
         return self._form(
             "review",
-            {vol.Required("confirm", default=False): bool},
             mapping=json.dumps(self._draft, indent=2),
             identity=str(identity(self.core_name, self._draft)),
             warnings=", ".join(self._warnings),

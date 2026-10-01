@@ -132,7 +132,7 @@ async def test_initial_setup_offers_empty_core_or_assisted_entity():
         await flow.async_step_named_control({"control": "mute"})
         await flow.async_step_entity_type({"platform": "switch"})
         await flow.async_step_settings({"name": "Mute"})
-        result = await flow.async_step_review({"confirm": True})
+        result = await flow.async_step_review({})
     assert result["step_id"] == "setup_entities"
     saved = await flow.async_step_finish()
     assert saved["options"]["mappings"][0]["settings"]["name"] == "Mute"

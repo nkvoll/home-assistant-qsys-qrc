@@ -116,10 +116,7 @@
       },
       "review": {
         "title": "Review entity",
-        "description": "Identity: {identity}\n\n{mapping}\n\n{warnings}",
-        "data": {
-          "confirm": "Save entity"
-        }
+        "description": "Review the mapping below, then submit to save it.\n\nIdentity: {identity}\n\n{mapping}\n\n{warnings}"
       },
       "setup_entities": {
         "title": "Configure entities",
@@ -210,10 +207,7 @@
       },
       "review": {
         "title": "Review entity",
-        "description": "Identity: {identity}\n\n{mapping}\n\n{warnings}",
-        "data": {
-          "confirm": "Save entity"
-        }
+        "description": "Review the mapping below, then submit to save it.\n\nIdentity: {identity}\n\n{mapping}\n\n{warnings}"
       },
       "edit_entity": {
         "title": "Edit UI entity",
