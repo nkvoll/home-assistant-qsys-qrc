@@ -10,11 +10,11 @@ from typing import Any
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
-from homeassistant.data_entry_flow import FlowResult
 from homeassistant.exceptions import HomeAssistantError
 
 from .const import *
 from .qsys import qrc
+from .options_flow import OptionsFlowHandler
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -166,63 +166,6 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     ) -> config_entries.OptionsFlow:
         """Create the options flow."""
         return OptionsFlowHandler()
-
-
-class OptionsFlowHandler(config_entries.OptionsFlow):
-    async def async_step_init(
-        self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
-        """Manage the options."""
-        if user_input is None:
-            return self.async_show_form(
-                step_id="init",
-                data_schema=self.add_suggested_values_to_schema(
-                    STEP_USER_DATA_SCHEMA,
-                    self.config_entry.data[CONF_USER_DATA],
-                ),
-                description_placeholders={CONF_PASSWORD: "Usually 4 digits"},
-            )
-
-        # TODO: reduce duplication between config and options
-        errors = {}
-        try:
-            data = await validate_input(self.hass, user_input)
-            # TODO: handle timeouterror?
-        except CannotConnect:
-            errors["base"] = "cannot_connect"
-        except InvalidAuth:
-            errors["base"] = "invalid_auth"
-        except qrc.QRCError as err:  # pylint: disable=broad-except
-            code = getattr(err, "error", {}).get("code")
-            if code == 10:
-                errors["base"] = "invalid_auth"
-            else:
-                _LOGGER.warning("Unexpected error: %s", repr(err))
-                errors["base"] = "unknown"
-        except Exception:  # pylint: disable=broad-except
-            _LOGGER.exception("Unexpected exception")
-            errors["base"] = "unknown"
-        else:
-            # await self.hass.config_entries.async_reload(self.config_entry.entry_id)
-            if await self.hass.config_entries.async_unload(self.config_entry.entry_id):
-                self.hass.config_entries.async_update_entry(
-                    self.config_entry, data=data, options=self.config_entry.options
-                )
-                await self.hass.config_entries.async_reload(self.config_entry.entry_id)
-
-            return self.async_create_entry(
-                title="",
-                data={},
-            )
-
-        return self.async_show_form(
-            step_id="init",
-            data_schema=self.add_suggested_values_to_schema(
-                STEP_USER_DATA_SCHEMA,
-                user_input,
-            ),
-            errors=errors,
-        )
 
 
 class CannotConnect(HomeAssistantError):
