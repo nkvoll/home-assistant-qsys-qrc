@@ -255,8 +255,9 @@ one platform are rejected. A colliding definition configured via Home Assistant
 YAML remains authoritative until ownership is transferred.
 
 1. Open **Migrate from Home Assistant YAML** from the dashboard’s **Import & migration**
-   group. This view lists definitions configured via Home Assistant YAML and
-   excludes UI mappings. Select individual definitions or use the table checkbox.
+   group. By default, this view shows only YAML definitions that have not been
+   imported. Enable **Show already imported entities (ui + yaml)** to include
+   existing UI copies. Select individual definitions or use the table checkbox.
 2. Choose **Skip** or **Replace** for existing UI mappings, then click
    **Review migration**.
 3. Review the copied settings and discovery findings, then click **Confirm and

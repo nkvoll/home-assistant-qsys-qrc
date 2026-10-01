@@ -703,6 +703,14 @@ async def capture(config):
                     state="hidden"
                 )
                 assert await panel.locator(".error").count() == 0
+                await expect(panel.locator("tbody tr[data-entity-row]")).to_have_count(0)
+                await panel.locator("#show-migrated").check()
+                await expect(panel.locator("tbody tr[data-entity-row]")).to_have_count(1)
+                await expect(panel.locator("tbody tr[data-entity-row]")).to_contain_text("ui + yaml")
+                await panel.locator("#all").check()
+                await panel.locator("#show-migrated").uncheck()
+                await expect(panel.locator("tbody tr[data-entity-row]")).to_have_count(0)
+                await expect(panel.get_by_role("button", name="Review migration (0)", exact=True)).to_be_disabled()
                 await panel.get_by_role("tab", name="Dashboard", exact=True).click()
                 await panel.get_by_role(
                     "button", name="Export YAML", exact=False
