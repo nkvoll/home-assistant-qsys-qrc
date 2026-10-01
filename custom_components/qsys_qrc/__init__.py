@@ -228,10 +228,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     device_entry = registry.async_get_or_create(
         config_entry_id=entry.entry_id,
         # TODO: use design code? not sure how to link entities to device then...
-        identifiers={
-            (DOMAIN, core_name),
-            (DOMAIN, entry.data[CONF_ENGINE_STATUS].get("DesignName")),
-        },
+        identifiers={(DOMAIN, core_name)},
         name=entry.data[CONF_ENGINE_STATUS].get("DesignName", "Unknown"),
         manufacturer="Q-Sys",
         model=entry.data[CONF_ENGINE_STATUS].get("Platform", "Unknown"),
