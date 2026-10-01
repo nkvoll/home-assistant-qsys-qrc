@@ -180,7 +180,9 @@ values refresh while the browser is open.
 The sticky action bar shows the selection count and keeps **Review creation**
 available while scrolling. Select at least one control to enable it.
 Click **Review creation** to open the review dialog. Check the proposed mappings
-and discovery findings, then click **Create**. **Cancel** or Escape returns to
+and readable validation notices, then click **Create**. The dialog title includes
+the number of entities, and incompatible controls must be resolved before saving.
+After creation, the success message includes a **View entities** shortcut. **Cancel** or Escape returns to
 the table with your selections intact.
 
 ![Bulk creation review](examples/screenshots/panel-bulk-create.png)
@@ -212,7 +214,9 @@ choices. Leave the options editor blank to follow live QRC `Choices`; enter
 one option per line to save a static list. Discovery currently prefills a
 static copy of the choices, so clear that list to enable live choices.
 
-Review buttons become filled when mappings are selected. Definitions configured
+Review buttons are disabled until mappings are selected and become filled when
+they are ready to use. Review dialogs describe the task and entity count; success
+messages confirm how many entities were created, updated, or deleted. Definitions configured
 via Home Assistant YAML cannot be edited or deleted here until migrated.
 
 ![Entities and bulk editing](examples/screenshots/panel-entities.png)

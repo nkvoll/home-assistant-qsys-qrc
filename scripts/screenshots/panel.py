@@ -248,12 +248,14 @@ async def capture(config):
                     "button", name="Keep editing", exact=True
                 ).click()
                 await page.get_by_role("dialog").wait_for(state="hidden")
+                await panel.get_by_role("button", name="Add entities", exact=False).wait_for()
+                await panel.get_by_role("button", name="Manage entities", exact=False).wait_for()
                 await screenshot("panel-dashboard.png")
                 await panel.get_by_role(
                     "button", name="Components / Controls", exact=True
                 ).click()
                 await panel.get_by_role(
-                    "heading", name="Named Controls", exact=True
+                    "heading", name="Or look up Named Controls", exact=True
                 ).wait_for()
                 await panel.get_by_role(
                     "button", name="About Components", exact=True
@@ -274,6 +276,9 @@ async def capture(config):
                     in await panel.locator("#help-named-controls").inner_text()
                 )
                 assert await panel.locator("section.card #named").count() == 1
+                await expect(panel.get_by_role("button", name="Review creation (0)", exact=True)).to_be_disabled()
+                await panel.get_by_role("button", name="Look up control", exact=True).wait_for()
+                assert await panel.locator(".action-bar").evaluate("el => getComputedStyle(el).position") == "sticky"
                 await panel.get_by_role(
                     "textbox", name="Filter components", exact=True
                 ).fill("Room Gain")
@@ -408,17 +413,13 @@ async def capture(config):
                 await panel.get_by_role(
                     "button", name="Review creation (4)", exact=True
                 ).click()
-                await panel.get_by_role("heading", name="Review changes").wait_for()
+                await panel.locator("#review-title").wait_for()
                 assert (
                     "media_player" in await panel.locator("section.review").inner_text()
                 )
-                await panel.get_by_role(
-                    "dialog", name="Review changes", exact=True
-                ).wait_for()
+                await panel.locator("#review-dialog").wait_for()
                 await page.keyboard.press("Escape")
-                await panel.get_by_role(
-                    "dialog", name="Review changes", exact=True
-                ).wait_for(state="hidden")
+                await panel.locator("#review-dialog").wait_for(state="hidden")
                 assert await panel.get_by_role(
                     "button", name="Review creation (4)", exact=True
                 ).evaluate("button => button.matches(':focus')")
@@ -440,19 +441,19 @@ async def capture(config):
                     "button", name="Keep editing", exact=True
                 ).click()
                 await page.get_by_role("dialog").wait_for(state="hidden")
-                assert page.url == BASE + "/qsys-qrc"
+                assert page.url == BASE + "/qsys-qrc/cores/DemoCore/browser"
                 await page.evaluate("history.back()")
                 await page.get_by_role(
                     "button", name="Keep editing", exact=True
                 ).click()
                 await page.get_by_role("dialog").wait_for(state="hidden")
-                assert page.url == BASE + "/qsys-qrc"
+                assert page.url == BASE + "/qsys-qrc/cores/DemoCore/browser"
                 await page.get_by_role("link", name="2 Settings 2", exact=True).click()
                 await page.get_by_role(
                     "button", name="Keep editing", exact=True
                 ).click()
                 await page.get_by_role("dialog").wait_for(state="hidden")
-                assert page.url == BASE + "/qsys-qrc"
+                assert page.url == BASE + "/qsys-qrc/cores/DemoCore/browser"
                 assert await panel.evaluate(
                     "element => {const event=new Event('beforeunload',{cancelable:true});window.dispatchEvent(event);return event.defaultPrevented;}"
                 )
@@ -463,14 +464,15 @@ async def capture(config):
                 await panel.get_by_role(
                     "button", name="Review creation (3)", exact=True
                 ).click()
-                await panel.get_by_role("heading", name="Review changes").wait_for()
+                await panel.locator("#review-title").wait_for()
+                await expect(panel.locator("#review-title")).to_have_text("Create 3 entities")
                 await screenshot("panel-bulk-create.png", full_page=False)
                 await panel.get_by_role("button", name="Create", exact=True).click()
-                await panel.get_by_role("heading", name="Review changes").wait_for(
+                await panel.locator("#review-title").wait_for(
                     state="hidden"
                 )
                 assert await panel.locator(".error").count() == 0
-                await panel.get_by_role("heading", name="Review changes").wait_for(
+                await panel.locator("#review-title").wait_for(
                     state="hidden"
                 )
                 assert await panel.locator(".error").count() == 0
@@ -483,7 +485,10 @@ async def capture(config):
                     };
                     return visit(document);
                 }""")
-                await panel.get_by_role("button", name="Entities", exact=True).click()
+                await expect(panel.locator(".message")).to_contain_text("Created 3 entities.")
+                await panel.get_by_role("button", name="View entities", exact=True).click()
+                await expect(panel.get_by_role("button", name="Review bulk edit", exact=True)).to_be_disabled()
+                await expect(panel.get_by_role("button", name="Review deletion", exact=True)).to_be_disabled()
                 assert (
                     await panel.get_by_role(
                         "columnheader", name="Status", exact=True
@@ -620,9 +625,9 @@ async def capture(config):
                 await panel.get_by_role(
                     "button", name="Review bulk edit", exact=True
                 ).click()
-                await panel.get_by_role("heading", name="Review changes").wait_for()
+                await panel.locator("#review-title").wait_for()
                 await panel.get_by_role("button", name="Save", exact=True).click()
-                await panel.get_by_role("heading", name="Review changes").wait_for(
+                await panel.locator("#review-title").wait_for(
                     state="hidden"
                 )
                 assert await panel.locator(".error").count() == 0
@@ -673,11 +678,11 @@ async def capture(config):
                 await panel.get_by_role(
                     "button", name="Review migration (1)", exact=True
                 ).click()
-                await panel.get_by_role("heading", name="Review changes").wait_for()
+                await panel.locator("#review-title").wait_for()
                 await panel.get_by_role(
                     "button", name="Confirm and save", exact=True
                 ).click()
-                await panel.get_by_role("heading", name="Review changes").wait_for(
+                await panel.locator("#review-title").wait_for(
                     state="hidden"
                 )
                 assert await panel.locator(".error").count() == 0
@@ -727,7 +732,7 @@ async def capture(config):
                 await panel.get_by_role(
                     "button", name="Review import", exact=True
                 ).click()
-                await panel.get_by_role("heading", name="Review changes").wait_for()
+                await panel.locator("#review-title").wait_for()
                 await panel.get_by_role("button", name="Cancel", exact=True).click()
                 await panel.get_by_role("button", name="Entities", exact=True).click()
                 await page.get_by_role(
@@ -748,7 +753,7 @@ async def capture(config):
                     "Deleting this UI mapping reactivates", exact=False
                 ).wait_for()
                 await panel.get_by_role("button", name="Delete", exact=True).click()
-                await panel.get_by_role("heading", name="Review changes").wait_for(
+                await panel.locator("#review-title").wait_for(
                     state="hidden"
                 )
                 assert await panel.locator(".error").count() == 0
@@ -761,7 +766,7 @@ async def capture(config):
                 await page.set_viewport_size({"width": 390, "height": 844})
                 await panel.get_by_role("button", name="Dashboard", exact=True).click()
                 await panel.get_by_role(
-                    "heading", name="Configuration", exact=True
+                    "heading", name="Import & migration", exact=True
                 ).wait_for()
                 await panel.locator("#back").click()
                 await page.wait_for_url(BASE + "/config/connectivity")
