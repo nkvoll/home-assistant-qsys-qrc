@@ -11,7 +11,8 @@ from custom_components.qsys_qrc.const import *
 
 
 @pytest.mark.asyncio
-async def test_setup_reload_and_unload_preserve_device():
+@pytest.mark.parametrize("saved", [{}, {CONF_POLL_INTERVAL: 0.5}, {CONF_POLL_INTERVAL: 0.5, CONF_REQUEST_TIMEOUT: 3.0}])
+async def test_setup_reload_and_unload_preserve_device(saved):
     callbacks = []
     entry = SimpleNamespace(
         entry_id="first",
@@ -23,6 +24,7 @@ async def test_setup_reload_and_unload_preserve_device():
                 CONF_PORT: 1711,
                 CONF_USERNAME: "",
                 CONF_PASSWORD: "",
+                **saved,
             },
             CONF_ENGINE_STATUS: {"DesignName": "Example"},
         },
@@ -35,6 +37,7 @@ async def test_setup_reload_and_unload_preserve_device():
             async_forward_entry_setups=AsyncMock(),
             async_unload_platforms=AsyncMock(return_value=True),
             async_reload=AsyncMock(),
+            async_update_entry=Mock(side_effect=lambda entry, data: setattr(entry, "data", data)),
         ),
     )
     registry = Mock()
@@ -49,13 +52,14 @@ async def test_setup_reload_and_unload_preserve_device():
                     DOMAIN: {
                         CONF_CORES: {
                             "core": {
+                                CONF_CHANGEGROUP: {CONF_POLL_INTERVAL: 2.5, CONF_REQUEST_TIMEOUT: 8.0},
                                 CONF_PLATFORMS: {"sensor": [{"control": "status"}]}
                             }
                         }
                     }
                 }
             ),
-        ),
+        ) as yaml_config,
         patch.object(integration.qrc, "Core", return_value=core) as constructor,
         patch.object(
             integration, "create_change_group_for_platform", return_value=poller
@@ -65,6 +69,9 @@ async def test_setup_reload_and_unload_preserve_device():
         patch.object(integration, "async_register_admin_service"),
     ):
         assert await integration.async_setup_entry(hass, entry)
+        expected = {CONF_POLL_INTERVAL: 2.5, CONF_REQUEST_TIMEOUT: 8.0, **saved}
+        assert all(entry.data[CONF_USER_DATA][field] == value for field, value in expected.items())
+        assert hass.config_entries.async_update_entry.call_count == (0 if len(saved) == 2 else 1)
         constructor.assert_called_once_with("example.test", 1711)
         factory.assert_called_once()
         poller.start.assert_called_once()
@@ -78,6 +85,12 @@ async def test_setup_reload_and_unload_preserve_device():
         poller.stop.assert_awaited_once()
         registry.async_remove_device.assert_not_called()
         assert not hass.data[DOMAIN][CONF_ENTRY_CONFIG]
+        # A later startup without YAML retains the persisted polling durations.
+        yaml_config.return_value = {}
+        assert await integration.async_setup_entry(hass, entry)
+        assert factory.call_args.args[1] == expected
+        assert hass.config_entries.async_update_entry.call_count == (0 if len(saved) == 2 else 1)
+        assert await integration.async_unload_entry(hass, entry)
     for callback in callbacks:
         callback()
     await asyncio.sleep(0)

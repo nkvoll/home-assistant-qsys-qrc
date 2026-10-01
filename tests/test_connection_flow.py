@@ -22,6 +22,74 @@ DATA = {
 }
 
 
+@pytest.fixture(autouse=True)
+def mock_yaml_config():
+    with patch(
+        "custom_components.qsys_qrc.config_flow.async_integration_yaml_config",
+        AsyncMock(return_value={}),
+    ):
+        yield
+
+
+@pytest.mark.parametrize("field", [CONF_POLL_INTERVAL, CONF_REQUEST_TIMEOUT])
+@pytest.mark.parametrize("value", [0, -1, float("inf"), float("nan"), "invalid"])
+def test_invalid_polling_durations(field, value):
+    import voluptuous as vol
+    from custom_components.qsys_qrc.config_flow import STEP_USER_DATA_SCHEMA
+
+    with pytest.raises(vol.Invalid):
+        STEP_USER_DATA_SCHEMA({**DATA, field: value})
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("step", ["user", "reconfigure", "reauth_confirm"])
+async def test_polling_settings_copy_yaml_and_save(step):
+    flow = ConfigFlow()
+    flow.hass = Mock()
+    flow._async_current_entries = Mock(return_value=[])
+    flow.async_set_unique_id = AsyncMock()
+    flow._abort_if_unique_id_configured = Mock()
+    flow.async_update_reload_and_abort = Mock(return_value={"type": "abort"})
+    entry = None if step == "user" else SimpleNamespace(
+        entry_id="old", unique_id="core", data={CONF_USER_DATA: DATA}, options={}
+    )
+    async def validate(hass, submitted):
+        return {CONF_USER_DATA: submitted, CONF_ENGINE_STATUS: {}}
+
+    with (
+        patch(
+            "custom_components.qsys_qrc.config_flow.async_integration_yaml_config",
+            AsyncMock(return_value={DOMAIN: {CONF_CORES: {"core": {
+                CONF_CHANGEGROUP: {CONF_POLL_INTERVAL: 2.5, CONF_REQUEST_TIMEOUT: 8.0}
+            }}}}),
+        ),
+        patch("custom_components.qsys_qrc.config_flow.validate_input", side_effect=validate),
+    ):
+        await flow._connection_step(step, DATA, entry)
+    saved = flow._initial_entry.data if entry is None else flow.async_update_reload_and_abort.call_args.kwargs["data"]
+    assert saved[CONF_USER_DATA][CONF_POLL_INTERVAL] == 2.5
+    assert saved[CONF_USER_DATA][CONF_REQUEST_TIMEOUT] == 8.0
+
+
+@pytest.mark.asyncio
+async def test_reconfigure_changes_saved_polling_settings():
+    flow = ConfigFlow()
+    flow.hass = Mock()
+    flow._async_current_entries = Mock(return_value=[])
+    flow.async_update_reload_and_abort = Mock(return_value={"type": "abort"})
+    entry = SimpleNamespace(entry_id="old", unique_id="core", options={}, data={
+        CONF_USER_DATA: {**DATA, CONF_POLL_INTERVAL: 2.5, CONF_REQUEST_TIMEOUT: 8.0}
+    })
+    async def validate(hass, submitted):
+        return {CONF_USER_DATA: submitted, CONF_ENGINE_STATUS: {}}
+
+    with patch("custom_components.qsys_qrc.config_flow.validate_input", side_effect=validate):
+        await flow._connection_step("reconfigure", {CONF_POLL_INTERVAL: 0.5}, entry)
+    saved = flow.async_update_reload_and_abort.call_args.kwargs["data"][CONF_USER_DATA]
+    assert saved[CONF_POLL_INTERVAL] == 0.5
+    assert saved[CONF_REQUEST_TIMEOUT] == 8.0
+
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize("authorized", [True, False])
 async def test_validation_always_awaits_shutdown(authorized):

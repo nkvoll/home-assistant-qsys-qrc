@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 from contextlib import suppress
 import logging
+import math
 from typing import Any
 from types import SimpleNamespace
 
@@ -17,10 +18,18 @@ from .const import *
 from .qsys import qrc
 from .options_flow import OptionsFlowHandler, EntityFlowMixin
 from .discovery import FlowCore
-from .mapping import resolve_configuration
+from .mapping import core_polling_settings, resolve_configuration
 from homeassistant.helpers.reload import async_integration_yaml_config
 
 _LOGGER = logging.getLogger(__name__)
+
+def positive_seconds(value):
+    """Reject nonpositive or nonfinite polling durations."""
+    value = vol.Coerce(float)(value)
+    if not math.isfinite(value) or value <= 0:
+        raise vol.Invalid("Enter a positive, finite number of seconds")
+    return value
+
 
 STEP_USER_DATA_SCHEMA = vol.Schema(
     {
@@ -31,6 +40,8 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
         ),
         vol.Required(CONF_USERNAME): str,
         vol.Required(CONF_PASSWORD): str,
+        vol.Required(CONF_POLL_INTERVAL, default=1.0): positive_seconds,
+        vol.Required(CONF_REQUEST_TIMEOUT, default=5.0): positive_seconds,
     }
 )
 
@@ -128,6 +139,14 @@ class ConfigFlow(EntityFlowMixin, config_entries.ConfigFlow, domain=DOMAIN):
         suggested = (
             dict(entry.data[CONF_USER_DATA]) if entry else {CONF_CORE_NAME: "my_core"}
         )
+        yaml = await async_integration_yaml_config(self.hass, DOMAIN)
+        core_name = suggested[CONF_CORE_NAME]
+        if not entry and user_input:
+            core_name = user_input.get(CONF_CORE_NAME, core_name)
+        core_config = (
+            (yaml or {}).get(DOMAIN, {}).get(CONF_CORES, {}).get(core_name, {})
+        )
+        suggested.update(core_polling_settings(core_config, suggested))
         if user_input is not None:
             suggested.update(user_input)
             if entry:
@@ -164,13 +183,6 @@ class ConfigFlow(EntityFlowMixin, config_entries.ConfigFlow, domain=DOMAIN):
                 await self.async_set_unique_id(submitted[CONF_CORE_NAME])
                 self._abort_if_unique_id_configured()
                 self._initial_entry.data = data
-                yaml = await async_integration_yaml_config(self.hass, DOMAIN)
-                core_config = (
-                    (yaml or {})
-                    .get(DOMAIN, {})
-                    .get(CONF_CORES, {})
-                    .get(submitted[CONF_CORE_NAME], {})
-                )
                 _, self._initial_inventory = resolve_configuration(
                     submitted[CONF_CORE_NAME], core_config, {}
                 )

@@ -218,8 +218,10 @@ YAML remains authoritative until ownership is transferred.
 3. Review the copied settings and discovery findings, then click **Confirm and
    save**. The UI copy becomes authoritative immediately.
 4. Remove the transferred definitions from your YAML files, includes, or packages,
-   then reload. The integration does not edit those files. Leave Core-level
-   polling settings in YAML if you still use them.
+   then reload. The integration does not edit those files. At startup, it copies
+   YAML polling settings into the Core configuration if they have not already
+   been saved. After starting with this version and your existing YAML, you can
+   also remove the YAML `change_group` settings. Use **Reconfigure** to edit them.
 
 Migration preserves existing entity unique IDs. If the retained definition
 configured via Home Assistant YAML changes after migration, the mapping’s
@@ -272,7 +274,10 @@ trigger these warnings.
 You can also define entities in YAML. For component controls, use Designer’s
 **Tools → View Component Controls Info** to find component and control names.
 All entity platforms share one change group per Core connection; YAML
-`change_group` polling settings apply to that group.
+The Core's poll interval and request timeout, configured during setup or through
+**Reconfigure**, apply to that group. At startup, legacy entries automatically
+save their YAML `change_group` settings (or the standard defaults when absent).
+Saved Core settings take precedence over YAML.
 
 ```yaml
 qsys_qrc:

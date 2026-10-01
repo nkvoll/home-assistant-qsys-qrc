@@ -18,7 +18,7 @@ from homeassistant.helpers.typing import ConfigType
 from .const import *
 from .qsys import qrc
 from .schema import CONFIG_SCHEMA
-from .mapping import resolve_configuration, yaml_mappings
+from .mapping import core_polling_settings, resolve_configuration, yaml_mappings
 from .portable import export_document
 from .changegroup import create_change_group_for_platform
 
@@ -175,28 +175,30 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     config = CONFIG_SCHEMA({DOMAIN: {}})[DOMAIN]
 
     _conf = await async_integration_yaml_config(hass, DOMAIN)
-    if not _conf or DOMAIN not in _conf:
-        _LOGGER.warning(
-            "No `qsys_qrc:` key found in configuration.yaml. See "
-            "https://github.com/nkvoll/home-assistant-qsys-qrc/ "
-            "for qsys_qrc entity configuration documentation"
-        )
-    else:
+    if _conf and DOMAIN in _conf:
         config = _conf[DOMAIN]
 
     # store config entry for lookup later
     hass.data[DOMAIN].setdefault(CONF_CONFIG_ENTRIES, {})[entry.entry_id] = entry
 
     user_data = entry.data[CONF_USER_DATA]
-    c = qrc.Core(user_data[CONF_HOST], user_data.get(CONF_PORT, qrc.PORT))
     core_name = user_data[CONF_CORE_NAME]
+    core_config = config.get(CONF_CORES, {}).get(core_name, {})
+    polling = core_polling_settings(core_config, user_data)
+    if any(field not in user_data for field in polling):
+        # Persist once before registering the reload listener, preserving saved overrides.
+        user_data = {**user_data, **polling}
+        hass.config_entries.async_update_entry(
+            entry, data={**entry.data, CONF_USER_DATA: user_data}
+        )
+    c = qrc.Core(user_data[CONF_HOST], user_data.get(CONF_PORT, qrc.PORT))
     monitor = hass.data[DOMAIN].get("protocol_monitors", {}).get(entry.entry_id)
     if monitor:
         c.protocol_capture = monitor["capture"]
         c.protocol_frames = monitor["frames"]
         c._protocol_sequence = monitor["sequence"]
     effective, inventory = resolve_configuration(
-        core_name, config.get(CONF_CORES, {}).get(core_name, {}), entry.options
+        core_name, core_config, entry.options, user_data
     )
     hass.data[DOMAIN].setdefault(CONF_ENTRY_CONFIG, {})[entry.entry_id] = effective
     hass.data[DOMAIN].setdefault(CONF_ENTRY_INVENTORY, {})[entry.entry_id] = inventory

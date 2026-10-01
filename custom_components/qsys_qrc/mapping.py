@@ -108,7 +108,17 @@ def yaml_mappings(core_config, core_name):
     )
 
 
-def resolve_configuration(core_name, core_config, options):
+def core_polling_settings(core_config, user_data=None):
+    """Prefer saved Core settings, retaining YAML fallback for legacy entries."""
+    settings = {CONF_POLL_INTERVAL: 1.0, CONF_REQUEST_TIMEOUT: 5.0}
+    settings.update(core_config.get(CONF_CHANGEGROUP, {}))
+    for field in (CONF_POLL_INTERVAL, CONF_REQUEST_TIMEOUT):
+        if field in (user_data or {}):
+            settings[field] = user_data[field]
+    return settings
+
+
+def resolve_configuration(core_name, core_config, options, user_data=None):
     """Resolve a fresh entry-local configuration and ownership inventory."""
     if options.get("mapping_version", MAPPING_VERSION) != MAPPING_VERSION:
         raise vol.Invalid("Unsupported mapping version")
@@ -148,9 +158,7 @@ def resolve_configuration(core_name, core_config, options):
         config[CONF_PLATFORMS][mapping["platform"]].append(
             deepcopy(mapping["settings"])
         )
-    config.setdefault(
-        CONF_CHANGEGROUP, {CONF_POLL_INTERVAL: 1.0, CONF_REQUEST_TIMEOUT: 5.0}
-    )
+    config[CONF_CHANGEGROUP] = core_polling_settings(core_config, user_data)
     return config, inventory
 
 

@@ -2,14 +2,14 @@
   "config": {
     "abort": {
       "already_configured": "Device is already configured",
-      "reconfigure_successful": "Core connection updated",
+      "reconfigure_successful": "Core configuration updated",
       "reauth_successful": "Core credentials updated"
     },
     "error": {
       "cannot_connect": "Failed to connect",
       "invalid_auth": "Invalid authentication",
       "unknown": "Unexpected error",
-      "invalid_connection": "Enter a valid host and a port between 1 and 65535.",
+      "invalid_connection": "Enter a valid host, a port between 1 and 65535, and positive polling durations.",
       "discovery_failed": "Discovery failed. Check the Core connection and current design, then retry. Saved mappings are unchanged.",
       "incompatible_control": "This entity type is incompatible with the current control metadata.",
       "duplicate_entity": "This identity is already configured. Edit its UI mapping or explicitly import its YAML mapping.",
@@ -26,21 +26,31 @@
           "host": "Host",
           "port": "Port",
           "username": "Username",
-          "password": "Password"
+          "password": "Password",
+          "poll_interval": "Poll interval (seconds)",
+          "request_timeout": "Request timeout (seconds)"
         },
         "data_description": {
           "core_name": "Core Name is used as an identifier used in configuration.yaml.",
-          "password": "Password is usually a 4 digit PIN as configured in Q-Sys Administrator."
+          "password": "Password is usually a 4 digit PIN as configured in Q-Sys Administrator.",
+          "poll_interval": "Time between control polls. Saved values override YAML change_group settings.",
+          "request_timeout": "Maximum time to wait for a polling response."
         }
       },
       "reconfigure": {
-        "title": "Reconnect Core",
+        "title": "Reconfigure Core",
         "description": "The Core name stays unchanged to preserve entity identities.",
         "data": {
           "host": "Host",
           "port": "Port",
           "username": "Username",
-          "password": "Password"
+          "password": "Password",
+          "poll_interval": "Poll interval (seconds)",
+          "request_timeout": "Request timeout (seconds)"
+        },
+        "data_description": {
+          "poll_interval": "Time between control polls. Saved values override YAML change_group settings.",
+          "request_timeout": "Maximum time to wait for a polling response."
         }
       },
       "reauth_confirm": {
@@ -50,7 +60,13 @@
           "host": "Host",
           "port": "Port",
           "username": "Username",
-          "password": "Password"
+          "password": "Password",
+          "poll_interval": "Poll interval (seconds)",
+          "request_timeout": "Request timeout (seconds)"
+        },
+        "data_description": {
+          "poll_interval": "Time between control polls. Saved values override YAML change_group settings.",
+          "request_timeout": "Maximum time to wait for a polling response."
         }
       },
       "add_entity": {

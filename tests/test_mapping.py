@@ -7,6 +7,17 @@ from custom_components.qsys_qrc.mapping import normalize_mappings, resolve_confi
 import voluptuous as vol
 
 
+def test_core_polling_settings_override_yaml_and_survive_removal():
+    yaml = {"change_group": {"poll_interval": 2.5, "request_timeout": 8.0}}
+    legacy, _ = resolve_configuration("core", yaml, {})
+    assert legacy["change_group"] == yaml["change_group"]
+    saved = {"poll_interval": 0.5, "request_timeout": 3.0}
+    configured, _ = resolve_configuration("core", yaml, {}, saved)
+    removed, _ = resolve_configuration("core", {}, {}, saved)
+    assert configured["change_group"] == removed["change_group"] == saved
+    assert yaml["change_group"]["poll_interval"] == 2.5
+
+
 @pytest.mark.parametrize(
     "platform",
     ["switch", "number", "sensor", "binary_sensor", "text", "select", "media_player"],
