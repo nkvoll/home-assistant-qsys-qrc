@@ -160,10 +160,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # set up automatic logon
     async def logon():
-        await c.logon(
-            user_data[CONF_USERNAME],
-            user_data[CONF_PASSWORD],
-        )
+        try:
+            response = await asyncio.wait_for(
+                c.logon(user_data[CONF_USERNAME], user_data[CONF_PASSWORD]), timeout=5
+            )
+        except qrc.QRCError as err:
+            if err.error.get("code") == 10:
+                entry.async_start_reauth(hass)
+            raise
+        else:
+            if not response.get("result", False):
+                entry.async_start_reauth(hass)
 
     c.set_on_connected_commands([logon])
     core_runner_task = asyncio.create_task(c.run_until_stopped())
