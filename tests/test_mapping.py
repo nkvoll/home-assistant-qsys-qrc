@@ -122,3 +122,31 @@ def test_platform_configuration_is_entry_local():
     assert config_for_core(hass, first) != config_for_core(hass, second)
     assert poller_for_entry(hass, first) is shared
     assert poller_for_entry(hass, second) is not shared
+
+
+def test_atomic_transfer_requires_explicit_ownership_and_is_idempotent():
+    from custom_components.qsys_qrc.mapping import transfer_mappings
+
+    mapping = {
+        "platform": "select",
+        "settings": {"control": "source", "options": ["A", "B"]},
+    }
+    with pytest.raises(vol.Invalid, match="ownership"):
+        transfer_mappings("core", [], [mapping], [mapping], collision="replace")
+    migrated, changes = transfer_mappings(
+        "core", [], [mapping], [mapping], collision="replace", transfer_yaml=True
+    )
+    assert changes[0]["ownership_transfer"]
+    assert migrated[0]["yaml_snapshot"]["options"] == ["A", "B"]
+    retried, changes = transfer_mappings(
+        "core", migrated, [mapping], [mapping], collision="skip"
+    )
+    assert retried == migrated
+    assert changes[0]["action"] == "skip"
+    changed = {**mapping, "settings": {**mapping["settings"], "options": ["C"]}}
+    replaced, _ = transfer_mappings(
+        "core", migrated, [changed], [mapping], collision="replace", transfer_yaml=True
+    )
+    assert len(replaced) == 1
+    assert replaced[0]["settings"]["options"] == ["C"]
+    assert mapping["settings"]["options"] == ["A", "B"]

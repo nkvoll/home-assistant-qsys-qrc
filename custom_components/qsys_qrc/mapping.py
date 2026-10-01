@@ -124,3 +124,47 @@ def resolve_configuration(core_name, core_config, options):
         CONF_CHANGEGROUP, {CONF_POLL_INTERVAL: 1.0, CONF_REQUEST_TIMEOUT: 5.0}
     )
     return config, inventory
+
+
+def transfer_mappings(
+    core_name, current, incoming, yaml, collision="skip", transfer_yaml=False
+):
+    """Build an atomic import using explicit collision and ownership choices."""
+    if collision not in {"skip", "replace"}:
+        raise vol.Invalid("Invalid collision policy")
+    result = normalize_mappings(current, core_name)
+    incoming = normalize_mappings(incoming, core_name)
+    yaml = normalize_mappings(yaml, core_name)
+    yaml_by_id = {identity(core_name, item): item for item in yaml}
+    positions = {identity(core_name, item): index for index, item in enumerate(result)}
+    changes = []
+    for mapping in incoming:
+        key = identity(core_name, mapping)
+        existing = positions.get(key)
+        yaml_mapping = yaml_by_id.get(key)
+        if (existing is not None or yaml_mapping is not None) and collision == "skip":
+            changes.append({"identity": key, "action": "skip"})
+            continue
+        if yaml_mapping is not None and not transfer_yaml:
+            raise vol.Invalid("Explicit YAML ownership transfer is required")
+        mapping = deepcopy(mapping)
+        if yaml_mapping is not None:
+            mapping["imported_from_yaml"] = True
+            mapping["yaml_snapshot"] = deepcopy(yaml_mapping["settings"])
+        elif existing is not None and result[existing].get("imported_from_yaml"):
+            mapping["imported_from_yaml"] = True
+            if "yaml_snapshot" in result[existing]:
+                mapping["yaml_snapshot"] = deepcopy(result[existing]["yaml_snapshot"])
+        if existing is None:
+            positions[key] = len(result)
+            result.append(mapping)
+        else:
+            result[existing] = mapping
+        changes.append(
+            {
+                "identity": key,
+                "action": "replace" if existing is not None else "add",
+                "ownership_transfer": yaml_mapping is not None,
+            }
+        )
+    return result, changes

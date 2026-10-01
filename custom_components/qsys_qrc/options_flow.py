@@ -9,7 +9,13 @@ from homeassistant.helpers import selector
 
 from .const import *
 from . import discovery
-from .mapping import MAPPING_VERSION, identity, normalize_mapping, normalize_mappings
+from .mapping import (
+    MAPPING_VERSION,
+    identity,
+    normalize_mapping,
+    normalize_mappings,
+    transfer_mappings,
+)
 
 
 def choose(values, multiple=False):
@@ -33,6 +39,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         self._components = []
         self._controls = []
         self._warnings = []
+        self._transfer = None
 
     @property
     def core_name(self):
@@ -79,7 +86,13 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         )
         return self.async_show_menu(
             step_id="init",
-            menu_options=["add_entity", "edit_entity", "remove_entity", "finish"],
+            menu_options=[
+                "add_entity",
+                "edit_entity",
+                "remove_entity",
+                "import_yaml",
+                "finish",
+            ],
             description_placeholders={"inventory": inventory or "No entity mappings."},
         )
 
@@ -336,4 +349,113 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 vol.Required("entity"): choose(self._ui_choices()),
                 vol.Required("confirm", default=False): bool,
             },
+        )
+
+    async def async_step_import_yaml(self, user_input=None):
+        """Select YAML identities and preview complete settings before transfer."""
+        yaml = [
+            deepcopy(item["mapping"])
+            for item in self._inventory()
+            if item["source"] == "yaml"
+        ]
+        choices = [
+            {
+                "value": str(index),
+                "label": f"{item['platform']} · {item['settings'].get('component') or 'Named Control'} / {item['settings'].get('control', '')}",
+            }
+            for index, item in enumerate(yaml)
+        ]
+        error = None
+        if user_input:
+            try:
+                selected = (
+                    yaml
+                    if user_input.get("all")
+                    else [
+                        yaml[int(index)]
+                        for index in user_input.get("entities", [])
+                        if 0 <= int(index) < len(yaml)
+                    ]
+                )
+                if not selected:
+                    raise vol.Invalid("Select at least one mapping")
+                # New transfers replace their YAML source; existing UI copies use the explicit retry policy.
+                current = self._mappings()
+                existing = {identity(self.core_name, item) for item in current}
+                incoming = [
+                    item
+                    for item in selected
+                    if identity(self.core_name, item) not in existing
+                    or user_input.get("existing", "skip") == "replace"
+                ]
+                proposed, changes = transfer_mappings(
+                    self.core_name,
+                    current,
+                    incoming,
+                    yaml,
+                    collision="replace",
+                    transfer_yaml=True,
+                )
+                issues = []
+                for item in incoming:
+                    warnings = await discovery.validate_mapping(self.core, item)
+                    issues.append(
+                        {"identity": identity(self.core_name, item), "issues": warnings}
+                    )
+                self._transfer = {
+                    "mappings": proposed,
+                    "changes": changes,
+                    "issues": issues,
+                    "selected": incoming,
+                    "original": deepcopy(self.config_entry.options),
+                }
+                return await self.async_step_yaml_review()
+            except vol.Invalid, ValueError, IndexError:
+                error = "invalid_selection"
+            except discovery.DiscoveryError:
+                error = "discovery_failed"
+        return self._form(
+            "import_yaml",
+            {
+                vol.Optional("entities"): choose(choices, multiple=True),
+                vol.Optional("all", default=False): bool,
+                vol.Required("existing", default="skip"): choose(["skip", "replace"]),
+            },
+            error,
+        )
+
+    async def async_step_yaml_review(self, user_input=None):
+        """Commit the reviewed migration atomically and leave YAML cleanup to the user."""
+        if user_input and user_input.get("confirm"):
+            if dict(self.config_entry.options) != self._transfer["original"]:
+                return self._form(
+                    "yaml_review",
+                    error="configuration_changed",
+                    preview="",
+                    cleanup="Restart the import to review current settings.",
+                )
+            self.hass.config_entries.async_update_entry(
+                self.config_entry,
+                options={
+                    **self.config_entry.options,
+                    "mapping_version": MAPPING_VERSION,
+                    "mappings": self._transfer["mappings"],
+                },
+            )
+            return await self.async_step_yaml_cleanup()
+        return self._form(
+            "yaml_review",
+            {vol.Required("confirm", default=False): bool},
+            preview=json.dumps(
+                {key: self._transfer[key] for key in ("selected", "changes", "issues")},
+                indent=2,
+            ),
+            cleanup="Transferred UI copies become authoritative immediately. Remove only the selected YAML definitions after saving. Core names and entity IDs stay unchanged.",
+        )
+
+    async def async_step_yaml_cleanup(self, user_input=None):
+        if user_input is not None:
+            return await self.async_step_init()
+        return self._form(
+            "yaml_cleanup", definitions=json.dumps(self._transfer["selected"], indent=2)
         )

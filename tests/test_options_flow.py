@@ -112,3 +112,57 @@ async def test_yaml_duplicate_and_edit_keeps_ownership():
         flow._draft = {"platform": "number", "settings": {"control": "level"}}
         result = await flow.async_step_settings({"name": "Duplicate"})
         assert result["errors"]["base"] == "duplicate_entity"
+
+
+@pytest.mark.asyncio
+async def test_yaml_import_preview_atomic_confirmation_and_retry():
+    mapping = {
+        "platform": "number",
+        "settings": {
+            "component": "gain",
+            "control": "level",
+            "min": -80,
+            "max": 10,
+            "change_template": "{{ value * 2 }}",
+        },
+    }
+    flow, entry = flow_for(
+        [], [{"source": "yaml", "effective": True, "mapping": mapping}]
+    )
+    with patch(
+        "custom_components.qsys_qrc.options_flow.discovery.validate_mapping",
+        AsyncMock(return_value=[]),
+    ):
+        result = await flow.async_step_import_yaml({"all": True, "existing": "skip"})
+        assert result["step_id"] == "yaml_review"
+        assert "{{ value * 2 }}" in result["description_placeholders"]["preview"]
+        assert not entry.options["mappings"]
+        result = await flow.async_step_yaml_review({"confirm": True})
+        assert result["step_id"] == "yaml_cleanup"
+        imported = entry.options["mappings"][0]
+        assert imported["imported_from_yaml"]
+        assert imported["settings"]["min"] == -80
+        assert imported["yaml_snapshot"]["max"] == 10
+        assert flow.hass.config_entries.async_update_entry.call_count == 1
+        await flow.async_step_import_yaml({"all": True, "existing": "skip"})
+        assert flow._transfer["selected"] == []
+        await flow.async_step_yaml_review({"confirm": True})
+        assert len(entry.options["mappings"]) == 1
+
+
+@pytest.mark.asyncio
+async def test_yaml_import_outage_does_not_save():
+    from custom_components.qsys_qrc.discovery import DiscoveryError
+
+    mapping = {"platform": "switch", "settings": {"control": "mute"}}
+    flow, entry = flow_for(
+        [], [{"source": "yaml", "effective": True, "mapping": mapping}]
+    )
+    with patch(
+        "custom_components.qsys_qrc.options_flow.discovery.validate_mapping",
+        AsyncMock(side_effect=DiscoveryError()),
+    ):
+        result = await flow.async_step_import_yaml({"all": True, "existing": "skip"})
+    assert result["errors"]["base"] == "discovery_failed"
+    flow.hass.config_entries.async_update_entry.assert_not_called()
+    assert not entry.options["mappings"]

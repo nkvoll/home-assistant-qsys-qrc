@@ -56,7 +56,8 @@
           "add_entity": "Add entity",
           "edit_entity": "Edit UI entity",
           "remove_entity": "Remove UI entity",
-          "finish": "Finish"
+          "finish": "Finish",
+          "import_yaml": "Import from YAML"
         }
       },
       "add_entity": {
@@ -144,6 +145,26 @@
       },
       "finish": {
         "title": "Finish"
+      },
+      "import_yaml": {
+        "title": "Select YAML mappings",
+        "description": "Select individual mappings or all mappings. Existing UI copies are skipped unless you explicitly choose replace. No YAML files are edited.",
+        "data": {
+          "entities": "YAML mappings",
+          "all": "Select all YAML mappings",
+          "existing": "Existing UI mapping policy"
+        }
+      },
+      "yaml_review": {
+        "title": "Review ownership transfer",
+        "description": "{cleanup}\n\nFull copied settings and validation findings:\n{preview}",
+        "data": {
+          "confirm": "Transfer selected mappings to UI ownership"
+        }
+      },
+      "yaml_cleanup": {
+        "title": "YAML cleanup",
+        "description": "These mappings now belong to the UI. You can remove their old definitions from your YAML files, then reload. Remaining YAML settings are unchanged.\n\n{definitions}"
       }
     },
     "error": {
@@ -151,7 +172,8 @@
       "incompatible_control": "This entity type is incompatible with the current control metadata.",
       "duplicate_entity": "This identity is already configured. Edit its UI mapping or explicitly import its YAML mapping.",
       "invalid_settings": "Check the entity settings.",
-      "invalid_selection": "Select an existing UI entity."
+      "invalid_selection": "Select an existing UI entity.",
+      "configuration_changed": "Configuration changed during review. Restart the import."
     }
   }
 }
