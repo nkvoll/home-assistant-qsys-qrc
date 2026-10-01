@@ -142,8 +142,8 @@ Supported `URL_receiver`, `audio_file_player`, and `gain` components also have a
 it to include the component’s media player in the same creation batch.
 
 Rows that already have a mapping for the selected platform are gray and cannot
-be selected. Click **Already mapped** to open the existing entity’s Home
-Assistant dialog. The type selector remains available: choosing an unmapped
+be selected. Click **Already mapped · View entity** to open the **Entities**
+view and focus its mapping, even while Home Assistant is still creating the entity. The type selector remains available: choosing an unmapped
 platform lets you create another entity for that control.
 
 Selections and entered settings stay in place when adding components. Filtering

@@ -226,6 +226,14 @@ class QsysPanel extends HTMLElement {
   async action(action,data){
     if(action==='sort'){const sort=data.kind==='controls'?this.controlSort:this.entitySort;sort.direction=sort.field===data.field?-sort.direction:1;sort.field=data.field;return;}
     if(action==='more-info'){this.dispatchEvent(new CustomEvent('hass-more-info',{detail:{entityId:data.entity},bubbles:true,composed:true}));return;}
+    if(action==='open-mapping'){
+      const mapped=this.mappedControl(this.controls[Number(data.control)]);
+      if(!mapped)return;
+      const identity=key(this.core.name,mapped.mapping);
+      await this.navigate('entities');
+      if(this.view==='entities')this.focusMapping=identity;
+      return;
+    }
     if(action==='back'){if(!await this.confirmLeave())return;history.pushState(null,'','/config/connectivity');window.dispatchEvent(new CustomEvent('location-changed'));return;}
     if(action==='navigate')return this.navigate(data.view);
     if(action==='refresh')return this.navigate(this.view);
@@ -276,7 +284,7 @@ class QsysPanel extends HTMLElement {
   }
   renderControl(control,index){
     const c=control,i=index,component=c.component||'Named Controls',mapped=this.mappedControl(c);
-    return `<tr class="${mapped?'mapped-row':''}" data-control-group="${escapeHTML(component)}" data-search="${escapeHTML(component+' '+JSON.stringify(c.metadata))}"><td><input type="checkbox" data-select="${i}" aria-label="Select ${escapeHTML(component+' / '+c.metadata.Name)}" ${this.selected.has(i)&&!mapped?'checked':''} ${mapped?'disabled':''}></td><td>${escapeHTML(c.metadata.Name)}${mapped?(mapped.entity_id?`<button class="mapped-badge mapped-link" data-action="more-info" data-entity="${escapeHTML(mapped.entity_id)}" aria-label="Already mapped: ${escapeHTML(mapped.entity_name||mapped.entity_id)}">Already mapped</button>`:'<span class="mapped-badge">Already mapped</span>'):''}</td><td>${escapeHTML(c.metadata.Type)}<br>${escapeHTML(c.metadata.Direction||'Direction unverified')}</td><td data-value="${i}">${c.mediaPlayer?'—':escapeHTML(c.metadata.String??c.metadata.Value)}</td><td>${c.mediaPlayer?'media_player':`<select data-platform="${i}" aria-label="Entity type for ${escapeHTML(component+' / '+c.metadata.Name)}">${c.platforms.map(p=>`<option ${p===(c.chosen||this.defaultPlatform(c))?'selected':''}>${p}</option>`).join('')}</select>`}${(c.chosen||this.defaultPlatform(c))==='number'?`<label><input type="checkbox" data-position="${i}" aria-label="Use position for ${escapeHTML(component+' / '+c.metadata.Name)}" ${c.usePosition?'checked':''} ${mapped?'disabled':''}> Use position</label>`:''}</td><td><input data-name="${i}" aria-label="Entity name for ${escapeHTML(component+' / '+c.metadata.Name)}" value="${escapeHTML(c.entityName??this.defaultEntityName(c))}" ${mapped?'disabled':''}></td></tr>`;
+    return `<tr class="${mapped?'mapped-row':''}" data-control-group="${escapeHTML(component)}" data-search="${escapeHTML(component+' '+JSON.stringify(c.metadata))}"><td><input type="checkbox" data-select="${i}" aria-label="Select ${escapeHTML(component+' / '+c.metadata.Name)}" ${this.selected.has(i)&&!mapped?'checked':''} ${mapped?'disabled':''}></td><td>${escapeHTML(c.metadata.Name)}${mapped?`<button class="mapped-badge mapped-link" data-action="open-mapping" data-control="${i}" aria-label="View mapped entity: ${escapeHTML(mapped.entity_name||mapped.mapping.settings.name||c.metadata.Name)}">Already mapped · View entity</button>`:''}</td><td>${escapeHTML(c.metadata.Type)}<br>${escapeHTML(c.metadata.Direction||'Direction unverified')}</td><td data-value="${i}">${c.mediaPlayer?'—':escapeHTML(c.metadata.String??c.metadata.Value)}</td><td>${c.mediaPlayer?'media_player':`<select data-platform="${i}" aria-label="Entity type for ${escapeHTML(component+' / '+c.metadata.Name)}">${c.platforms.map(p=>`<option ${p===(c.chosen||this.defaultPlatform(c))?'selected':''}>${p}</option>`).join('')}</select>`}${(c.chosen||this.defaultPlatform(c))==='number'?`<label><input type="checkbox" data-position="${i}" aria-label="Use position for ${escapeHTML(component+' / '+c.metadata.Name)}" ${c.usePosition?'checked':''} ${mapped?'disabled':''}> Use position</label>`:''}</td><td><input data-name="${i}" aria-label="Entity name for ${escapeHTML(component+' / '+c.metadata.Name)}" value="${escapeHTML(c.entityName??this.defaultEntityName(c))}" ${mapped?'disabled':''}></td></tr>`;
   }
   helpTooltip(id,label,text){
     return `<span class="help"><button type="button" class="help-icon" aria-label="About ${escapeHTML(label)}" aria-describedby="help-${id}">?</button><span class="help-tooltip" role="tooltip" id="help-${id}">${escapeHTML(text)}</span></span>`;
@@ -326,6 +334,14 @@ class QsysPanel extends HTMLElement {
     if(this.view==='monitor')this.updateMonitor();
     this.filterComponentChoices();
     this.filterRows();
+    if(this.view==='entities'&&this.focusMapping){
+      const identity=this.focusMapping;
+      const index=this.inventory.findIndex(row=>row.source==='ui'&&key(this.core.name,row.mapping)===identity);
+      const target=index>=0?index:this.inventory.findIndex(row=>key(this.core.name,row.mapping)===identity);
+      const row=this.shadowRoot.querySelector(`[data-entity-row="${target}"]`);
+      if(row){row.tabIndex=-1;row.focus();row.scrollIntoView({block:'center'});}
+      this.focusMapping=null;
+    }
     const all=this.shadowRoot.querySelector("#all");if(all){const boxes=[...this.shadowRoot.querySelectorAll("tbody tr:not([hidden]) [data-select]:not(:disabled)")];all.checked=boxes.length>0&&boxes.every(box=>box.checked);all.indeterminate=boxes.some(box=>box.checked)&&!all.checked;}
   }
 }
