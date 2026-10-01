@@ -165,10 +165,13 @@ def transfer_mappings(
         if (existing is not None or yaml_mapping is not None) and collision == "skip":
             changes.append({"identity": key, "action": "skip"})
             continue
-        if yaml_mapping is not None and not transfer_yaml:
+        already_owned = existing is not None and result[existing].get(
+            "imported_from_yaml", False
+        )
+        if yaml_mapping is not None and not transfer_yaml and not already_owned:
             raise vol.Invalid("Explicit YAML ownership transfer is required")
         mapping = deepcopy(mapping)
-        if yaml_mapping is not None:
+        if yaml_mapping is not None and (transfer_yaml or not already_owned):
             mapping["imported_from_yaml"] = True
             mapping["yaml_snapshot"] = deepcopy(yaml_mapping["settings"])
         elif existing is not None and result[existing].get("imported_from_yaml"):

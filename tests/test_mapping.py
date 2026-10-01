@@ -182,3 +182,32 @@ def test_identity_keys_match_platform_scope():
     assert identity(
         "core", {"platform": "switch", "settings": {"control": "mute"}}
     ) == ("core", "switch", None, "mute")
+
+
+def test_portable_replace_preserves_existing_yaml_ownership_snapshot():
+    from custom_components.qsys_qrc.mapping import transfer_mappings
+
+    original = {
+        "platform": "switch",
+        "settings": {"control": "mute", "name": "Original"},
+    }
+    imported, _ = transfer_mappings("core", [], [original], [original], "replace", True)
+    changed_yaml = {
+        **original,
+        "settings": {**original["settings"], "name": "Changed YAML"},
+    }
+    incoming = {
+        **original,
+        "settings": {**original["settings"], "name": "Portable update"},
+    }
+    result, _ = transfer_mappings(
+        "core", imported, [incoming], [changed_yaml], "replace"
+    )
+    assert result[0]["imported_from_yaml"]
+    assert result[0]["yaml_snapshot"]["name"] == "Original"
+    _, inventory = resolve_configuration(
+        "core",
+        {"platforms": {"switch": [changed_yaml["settings"]]}},
+        {"mappings": result},
+    )
+    assert inventory[0]["yaml_conflict"]

@@ -166,3 +166,27 @@ async def test_import_preview_reports_missing_component():
         {"platform": "number", "settings": {"component": "removed", "control": "gain"}},
     ) == ["missing_component"]
     core.component.return_value.get_controls.assert_not_called()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("kind", "issues"),
+    [
+        ("gain", []),
+        ("URL_receiver", []),
+        ("audio_file_player", []),
+        ("unsupported", ["unsupported_component_type"]),
+    ],
+)
+async def test_media_component_compatibility(kind, issues):
+    core = Mock()
+    core.component.return_value.get_components = AsyncMock(
+        return_value={"result": [{"Name": "player", "Type": kind}]}
+    )
+    assert (
+        await validate_mapping(
+            core, {"platform": "media_player", "settings": {"component": "player"}}
+        )
+        == issues
+    )
+    core.component.return_value.set.assert_not_called()
