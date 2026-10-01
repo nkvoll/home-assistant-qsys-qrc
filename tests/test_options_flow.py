@@ -1,6 +1,6 @@
 """Assisted options flow behavior with mocked QRC discovery."""
 
-from types import SimpleNamespace
+from types import SimpleNamespace, MappingProxyType
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -13,13 +13,13 @@ def flow_for(mappings=None, inventory=None):
     entry = SimpleNamespace(
         entry_id="entry",
         data={CONF_USER_DATA: {CONF_CORE_NAME: "core"}},
-        options={"mappings": mappings or []},
+        options=MappingProxyType({"mappings": mappings or []}),
     )
     flow = OptionsFlowHandler()
     flow.handler = "entry"
 
     def update(entry, options):
-        entry.options = options
+        entry.options = MappingProxyType(options)
 
     flow.hass = SimpleNamespace(
         data={
@@ -348,3 +348,23 @@ async def test_switch_blank_device_class_is_unset_and_invalid_class_marks_field(
         assert flow._draft["settings"]["device_class"] is None
         result = await flow.async_step_settings({"device_class": "invalid_class"})
         assert result["errors"]["device_class"] == "invalid_settings"
+
+
+@pytest.mark.asyncio
+async def test_review_failure_is_not_reported_as_invalid_entity_settings(caplog):
+    from custom_components.qsys_qrc.mapping import normalize_mapping
+
+    flow, _ = flow_for()
+    flow._draft = normalize_mapping(
+        {"platform": "switch", "settings": {"control": "mute"}}
+    )
+    with (
+        patch(
+            "custom_components.qsys_qrc.options_flow.discovery.validate_mapping",
+            AsyncMock(return_value=[]),
+        ),
+        patch.object(flow, "_inventory", side_effect=TypeError("review failure")),
+    ):
+        result = await flow.async_step_settings({"name": "Mute"})
+    assert result["errors"]["base"] == "configuration_error"
+    assert "Unable to prepare the entity review" in caplog.text

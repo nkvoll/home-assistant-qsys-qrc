@@ -16,7 +16,8 @@
       "invalid_settings": "Check the entity settings.",
       "invalid_selection": "Select an existing UI entity.",
       "configuration_changed": "Configuration changed during review. Restart the import.",
-      "invalid_document": "Invalid portable document, unsupported schema, size limit exceeded, or a YAML collision without explicit ownership transfer."
+      "invalid_document": "Invalid portable document, unsupported schema, size limit exceeded, or a YAML collision without explicit ownership transfer.",
+      "configuration_error": "Unable to prepare the entity review from saved configuration. See the Home Assistant log for details."
     },
     "step": {
       "user": {
@@ -275,7 +276,8 @@
       "invalid_settings": "Check the entity settings.",
       "invalid_selection": "Select an existing UI entity.",
       "configuration_changed": "Configuration changed during review. Restart the import.",
-      "invalid_document": "Invalid portable document, unsupported schema, size limit exceeded, or a YAML collision without explicit ownership transfer."
+      "invalid_document": "Invalid portable document, unsupported schema, size limit exceeded, or a YAML collision without explicit ownership transfer.",
+      "configuration_error": "Unable to prepare the entity review from saved configuration. See the Home Assistant log for details."
     }
   }
 }

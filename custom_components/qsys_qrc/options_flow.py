@@ -2,6 +2,7 @@
 
 from copy import deepcopy
 import json
+import logging
 
 import voluptuous as vol
 from homeassistant import config_entries
@@ -18,6 +19,9 @@ from .mapping import (
     transfer_mappings,
     resolve_configuration,
 )
+
+
+_LOGGER = logging.getLogger(__name__)
 
 
 def choose(values, multiple=False):
@@ -259,29 +263,6 @@ class EntityFlowMixin:
                 }
                 updated = {**settings, **submitted}
                 self._draft = normalize_mapping({**self._draft, "settings": updated})
-                issues = await discovery.validate_mapping(self.core, self._draft)
-                blocking = [
-                    issue for issue in issues if issue != "writability_unverified"
-                ]
-                if blocking:
-                    return self._form(
-                        "settings", self._settings_fields(), "incompatible_control"
-                    )
-                self._warnings = issues
-                key = identity(self.core_name, self._draft)
-                mappings = self._mappings()
-                if any(
-                    index != self._editing and identity(self.core_name, mapping) == key
-                    for index, mapping in enumerate(mappings)
-                ) or any(
-                    item["source"] == "yaml"
-                    and identity(self.core_name, item["mapping"]) == key
-                    and not self._draft.get("imported_from_yaml")
-                    for item in self._inventory()
-                ):
-                    error = "duplicate_entity"
-                else:
-                    return await self.async_step_review()
             except vol.Invalid as err:
                 error = "invalid_settings"
                 for item in getattr(err, "errors", [err]):
@@ -291,8 +272,39 @@ class EntityFlowMixin:
                             break
             except ValueError, TypeError:
                 error = "invalid_settings"
-            except discovery.DiscoveryError:
-                error = "discovery_failed"
+            else:
+                try:
+                    issues = await discovery.validate_mapping(self.core, self._draft)
+                    blocking = [
+                        issue for issue in issues if issue != "writability_unverified"
+                    ]
+                    if blocking:
+                        return self._form(
+                            "settings", self._settings_fields(), "incompatible_control"
+                        )
+                    self._warnings = issues
+                    key = identity(self.core_name, self._draft)
+                    mappings = self._mappings()
+                    if any(
+                        index != self._editing
+                        and identity(self.core_name, mapping) == key
+                        for index, mapping in enumerate(mappings)
+                    ) or any(
+                        item["source"] == "yaml"
+                        and identity(self.core_name, item["mapping"]) == key
+                        and not self._draft.get("imported_from_yaml")
+                        for item in self._inventory()
+                    ):
+                        error = "duplicate_entity"
+                    else:
+                        return await self.async_step_review()
+                except discovery.DiscoveryError:
+                    error = "discovery_failed"
+                except vol.Invalid, ValueError, TypeError:
+                    _LOGGER.exception(
+                        "Unable to prepare the entity review from saved configuration"
+                    )
+                    error = "configuration_error"
         return self._form(
             "settings", self._settings_fields(), error, field_errors=field_errors
         )
@@ -321,7 +333,7 @@ class EntityFlowMixin:
 
     async def async_step_review(self, user_input=None):
         if user_input is None:
-            self._review_original = deepcopy(self.config_entry.options)
+            self._review_original = deepcopy(dict(self.config_entry.options))
         if user_input is not None:
             if self._review_original != dict(self.config_entry.options):
                 return self._form(
@@ -455,7 +467,7 @@ class EntityFlowMixin:
                     "issues": issues,
                     "selected": incoming,
                     "skipped": [item for item in selected if item not in incoming],
-                    "original": deepcopy(self.config_entry.options),
+                    "original": deepcopy(dict(self.config_entry.options)),
                 }
                 return await self.async_step_yaml_review()
             except vol.Invalid, ValueError, IndexError:
@@ -543,7 +555,7 @@ class EntityFlowMixin:
                     "changes": changes,
                     "issues": issues,
                     "document": document,
-                    "original": deepcopy(self.config_entry.options),
+                    "original": deepcopy(dict(self.config_entry.options)),
                     "new_ids": document["core_name"] != self.core_name,
                     "yaml": yaml,
                     "transfer_yaml": user_input.get("transfer_yaml", False),
