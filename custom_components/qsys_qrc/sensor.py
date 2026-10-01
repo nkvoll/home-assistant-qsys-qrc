@@ -1,4 +1,5 @@
 """Platform for sensor integration."""
+
 from __future__ import annotations
 
 import asyncio
@@ -10,12 +11,12 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers import entity_registry as er
 
-from . import changegroup
 from .common import (
     QSysComponentBase,
     QSysComponentControlBase,
     id_for_component_control,
     config_for_core,
+    poller_for_entry,
 )
 from .const import *
 from .qsys import qrc
@@ -39,11 +40,9 @@ async def async_setup_entry(
 
     entities = {}
 
-    core_config = config_for_core(hass, core_name)
+    core_config = config_for_core(hass, entry)
     # can platform name be more dynamic than this?
-    poller = changegroup.create_change_group_for_platform(
-        core, core_config.get(CONF_CHANGEGROUP), PLATFORM
-    )
+    poller = poller_for_entry(hass, entry)
 
     for sensor_config in core_config.get(CONF_PLATFORMS, {}).get(
         CONF_SENSOR_PLATFORM, []
@@ -84,10 +83,6 @@ async def async_setup_entry(
                 component_name,
                 control_name,
             )
-
-    if len(entities) > 0:
-        polling = asyncio.create_task(poller.run_while_core_running())
-        entry.async_on_unload(lambda: polling.cancel() and None)
 
     engine_status_sensor = EngineStatusEntity(
         hass,
@@ -166,7 +161,14 @@ class QRCComponentControlEntity(QSysComponentControlBase, SensorEntity):
         state_class,
     ) -> None:
         super().__init__(
-            hass, config_entry, core_name, core, unique_id, entity_name, component, control
+            hass,
+            config_entry,
+            core_name,
+            core,
+            unique_id,
+            entity_name,
+            component,
+            control,
         )
         self.attribute = attribute
 

@@ -5,9 +5,9 @@ Drives Home Assistant `select` entities from Q-Sys controls that have a
 multi-state widget). Options can be supplied statically in YAML; if omitted,
 they're auto-populated from the QRC `Choices` payload on the first poll.
 """
+
 from __future__ import annotations
 
-import asyncio
 import logging
 
 from homeassistant.components.select import SelectEntity
@@ -16,8 +16,12 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers import entity_registry as er
 
-from . import changegroup
-from .common import QSysComponentControlBase, id_for_component_control, config_for_core
+from .common import (
+    QSysComponentControlBase,
+    id_for_component_control,
+    config_for_core,
+    poller_for_entry,
+)
 from .const import *
 from .qsys import qrc
 
@@ -39,10 +43,8 @@ async def async_setup_entry(
 
     entities = {}
 
-    core_config = config_for_core(hass, core_name)
-    poller = changegroup.create_change_group_for_platform(
-        core, core_config.get(CONF_CHANGEGROUP), PLATFORM
-    )
+    core_config = config_for_core(hass, entry)
+    poller = poller_for_entry(hass, entry)
 
     for select_config in core_config.get(CONF_PLATFORMS, {}).get(
         CONF_SELECT_PLATFORM, []
@@ -73,10 +75,6 @@ async def async_setup_entry(
                 control_name,
             )
 
-    if len(entities) > 0:
-        polling = asyncio.create_task(poller.run_while_core_running())
-        entry.async_on_unload(lambda: polling.cancel() and None)
-
     for entity_entry in er.async_entries_for_config_entry(
         er.async_get(hass), entry.entry_id
     ):
@@ -101,7 +99,14 @@ class QRCSelectEntity(QSysComponentControlBase, SelectEntity):
         static_options,
     ) -> None:
         super().__init__(
-            hass, config_entry, core_name, core, unique_id, entity_name, component, control
+            hass,
+            config_entry,
+            core_name,
+            core,
+            unique_id,
+            entity_name,
+            component,
+            control,
         )
         self._static_options = list(static_options) if static_options else []
         self._attr_options = list(self._static_options)
@@ -115,7 +120,11 @@ class QRCSelectEntity(QSysComponentControlBase, SelectEntity):
                 self._attr_options = list(choices)
 
         current = change.get("String")
-        if current is not None and self._attr_options and current not in self._attr_options:
+        if (
+            current is not None
+            and self._attr_options
+            and current not in self._attr_options
+        ):
             # Edge case: live value is outside the published Choices list — surface it
             # so HA doesn't render an empty selection.
             self._attr_options = list(self._attr_options) + [current]

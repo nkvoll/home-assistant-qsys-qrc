@@ -20,8 +20,14 @@ def id_for_component(core_name, component):
     return f"{core_name}_{component}"
 
 
-def config_for_core(hass, core_name):
-    return hass.data[DOMAIN].get(CONF_CONFIG, {}).get(CONF_CORES, {}).get(core_name, {})
+def config_for_core(hass, entry):
+    """Read the resolved configuration belonging to this entry."""
+    return hass.data[DOMAIN][CONF_ENTRY_CONFIG][entry.entry_id]
+
+
+def poller_for_entry(hass, entry):
+    """Use one shared QRC change group across all entity platforms."""
+    return hass.data[DOMAIN][CONF_ENTRY_POLLERS][entry.entry_id]
 
 
 _camel_pattern = re.compile(r"(?<!^)(?=[A-Z])")
@@ -51,8 +57,10 @@ class QSysComponentBase(entity.Entity):
 
         self.component = component
 
-        core_device_entry = device_registry.async_get(hass).async_get_device_by_identifier(
-            identifier = (DOMAIN, core_name),
+        core_device_entry = device_registry.async_get(
+            hass
+        ).async_get_device_by_identifier(
+            identifier=(DOMAIN, core_name),
             config_entry_id=config_entry.entry_id,
         )
 
@@ -81,7 +89,9 @@ class QSysComponentControlBase(QSysComponentBase):
         component: str,
         control: str,
     ) -> None:
-        super().__init__(hass, config_entry, core_name, core, unique_id, entity_name, component)
+        super().__init__(
+            hass, config_entry, core_name, core, unique_id, entity_name, component
+        )
         self.control = control
 
     async def on_core_change(self, core, change):

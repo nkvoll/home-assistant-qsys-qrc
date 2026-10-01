@@ -94,3 +94,31 @@ def test_yaml_conflict_and_settings_preserved():
     assert inventory[0]["yaml_conflict"]
     for key, value in settings.items():
         assert config["platforms"]["number"][0][key] == value
+
+
+def test_platform_configuration_is_entry_local():
+    from types import SimpleNamespace
+    from custom_components.qsys_qrc.common import config_for_core, poller_for_entry
+    from custom_components.qsys_qrc.const import (
+        DOMAIN,
+        CONF_ENTRY_CONFIG,
+        CONF_ENTRY_POLLERS,
+    )
+
+    first = SimpleNamespace(entry_id="first")
+    second = SimpleNamespace(entry_id="second")
+    shared = object()
+    hass = SimpleNamespace(
+        data={
+            DOMAIN: {
+                CONF_ENTRY_CONFIG: {
+                    "first": {"platforms": {"switch": []}},
+                    "second": {"platforms": {"number": []}},
+                },
+                CONF_ENTRY_POLLERS: {"first": shared, "second": object()},
+            }
+        }
+    )
+    assert config_for_core(hass, first) != config_for_core(hass, second)
+    assert poller_for_entry(hass, first) is shared
+    assert poller_for_entry(hass, second) is not shared

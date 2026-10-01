@@ -1,4 +1,5 @@
 """The Q-Sys QRC integration."""
+
 from __future__ import annotations
 
 import asyncio
@@ -17,6 +18,8 @@ from homeassistant.helpers.typing import ConfigType
 from .const import *
 from .qsys import qrc
 from .schema import CONFIG_SCHEMA
+from .mapping import resolve_configuration
+from .changegroup import create_change_group_for_platform
 
 PLATFORMS: list[Platform] = [
     Platform.NUMBER,
@@ -30,8 +33,6 @@ PLATFORMS: list[Platform] = [
 _LOGGER = logging.getLogger(__name__)
 
 devices = {}
-
-
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
@@ -101,9 +102,9 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             return
         except qrc.QRCError as err:
             # Extract error message from QRCError and raise ServiceValidationError
-            error_dict = err.error if hasattr(err, 'error') else {}
-            error_code = error_dict.get('code', 'unknown')
-            error_message = error_dict.get('message', str(err))
+            error_dict = err.error if hasattr(err, "error") else {}
+            error_code = error_dict.get("code", "unknown")
+            error_message = error_dict.get("message", str(err))
             raise ServiceValidationError(
                 f"QRC Error (code {error_code}): {error_message}"
             ) from err
@@ -135,15 +136,27 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         )
     else:
         config = _conf[DOMAIN]
-    # update stored config
-    hass.data[DOMAIN][CONF_CONFIG] = config
 
     # store config entry for lookup later
     hass.data[DOMAIN].setdefault(CONF_CONFIG_ENTRIES, {})[entry.entry_id] = entry
 
     user_data = entry.data[CONF_USER_DATA]
-    c = qrc.Core(user_data[CONF_HOST])
+    c = qrc.Core(user_data[CONF_HOST], user_data.get(CONF_PORT, qrc.PORT))
     core_name = user_data[CONF_CORE_NAME]
+    effective, inventory = resolve_configuration(
+        core_name, config.get(CONF_CORES, {}).get(core_name, {}), entry.options
+    )
+    hass.data[DOMAIN].setdefault(CONF_ENTRY_CONFIG, {})[entry.entry_id] = effective
+    hass.data[DOMAIN].setdefault(CONF_ENTRY_INVENTORY, {})[entry.entry_id] = inventory
+    poller = create_change_group_for_platform(
+        c, effective[CONF_CHANGEGROUP], "entities"
+    )
+    hass.data[DOMAIN].setdefault(CONF_ENTRY_POLLERS, {})[entry.entry_id] = poller
+
+    async def options_updated(hass, updated_entry):
+        await hass.config_entries.async_reload(updated_entry.entry_id)
+
+    entry.async_on_unload(entry.add_update_listener(options_updated))
 
     # set up automatic logon
     async def logon():
@@ -181,6 +194,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             registry.async_remove_device(de.id)
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    poller.start()
 
     async def _reload_integration(call: ServiceCall) -> None:
         """Reload the integration."""
@@ -201,9 +215,10 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
         hass.data[DOMAIN].setdefault(CONF_CONFIG_ENTRIES, {}).pop(entry.entry_id, None)
 
-        device_entry = devices.get(entry.entry_id)
-        if device_entry:
-            registry = dr.async_get(hass)
-            registry.async_remove_device(device_entry.id)
+        poller = hass.data[DOMAIN][CONF_ENTRY_POLLERS].pop(entry.entry_id)
+        await poller.stop()
+        hass.data[DOMAIN][CONF_ENTRY_CONFIG].pop(entry.entry_id, None)
+        hass.data[DOMAIN][CONF_ENTRY_INVENTORY].pop(entry.entry_id, None)
+        devices.pop(entry.entry_id, None)
 
     return unload_ok
