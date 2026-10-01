@@ -117,7 +117,7 @@
       },
       "review": {
         "title": "Review entity",
-        "description": "Review the mapping below, then submit to save it.\n\nIdentity: {identity}\n\n{mapping}\n\n{warnings}"
+        "description": "Review the mapping below, then submit to save it.\n\nIdentity: {identity}\n\n```json\n{mapping}\n```\n\n{warnings}"
       },
       "setup_entities": {
         "title": "Configure entities",
@@ -207,7 +207,7 @@
       },
       "review": {
         "title": "Review entity",
-        "description": "Review the mapping below, then submit to save it.\n\nIdentity: {identity}\n\n{mapping}\n\n{warnings}"
+        "description": "Review the mapping below, then submit to save it.\n\nIdentity: {identity}\n\n```json\n{mapping}\n```\n\n{warnings}"
       },
       "edit_entity": {
         "title": "Edit UI entity",
@@ -234,14 +234,14 @@
       },
       "yaml_review": {
         "title": "Review ownership transfer",
-        "description": "{cleanup}\n\nFull copied settings and validation findings:\n{preview}",
+        "description": "{cleanup}\n\nFull copied settings and validation findings:\n```yaml\n{preview}\n```",
         "data": {
           "confirm": "Transfer selected mappings to UI ownership"
         }
       },
       "yaml_cleanup": {
         "title": "YAML cleanup",
-        "description": "These mappings now belong to the UI. You can remove their old definitions from your YAML files, then reload. Remaining YAML settings are unchanged.\n\n{definitions}"
+        "description": "These mappings now belong to the UI. You can remove their old definitions from your YAML files, then reload. Remaining YAML settings are unchanged.\n\n```json\n{definitions}\n```"
       },
       "import_portable": {
         "title": "Import portable configuration",
