@@ -85,13 +85,16 @@ def writable(control):
 def compatible_platforms(control):
     """Match the value handling used by the existing entity platforms."""
     value = control.get("Value")
-    kind = str(control.get("Type", "")).lower()
+    kind = str(control.get("Type", "")).strip().lower()
+    trigger = kind in {"trigger", "state trigger"} or str(control.get("Name", "")).lower().endswith(
+        ".trigger"
+    )
     boolean = kind == "boolean" or isinstance(value, bool)
     result = ["binary_sensor", "sensor"] if boolean else ["sensor"]
     if writable(control) is False:
         return result
     # Existing YAML switches also activate momentary Q-Sys trigger controls.
-    if kind in {"boolean", "trigger"} or isinstance(value, bool):
+    if boolean or trigger:
         result.append("switch")
     elif kind in {"float", "integer", "number"} or (
         isinstance(value, (int, float)) and not isinstance(value, bool)

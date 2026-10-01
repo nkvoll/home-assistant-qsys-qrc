@@ -22,6 +22,9 @@ from custom_components.qsys_qrc.discovery import (
         ({"Type": "Boolean", "Direction": "Read/Write"}, ["binary_sensor", "sensor", "switch"]),
         ({"Type": "Trigger", "Direction": "Read/Write", "Value": 0.0}, ["sensor", "switch"]),
         ({"Type": "Trigger", "Direction": "Read Only", "Value": 0.0}, ["sensor"]),
+        ({"Name": "pause.state.trigger", "Type": "State Trigger", "Direction": "Read/Write", "Value": False}, ["binary_sensor", "sensor", "switch"]),
+        ({"Name": "custom", "Type": "State Trigger", "Direction": "Read/Write", "Value": 0.0}, ["sensor", "switch"]),
+        ({"Name": "custom", "Type": "State Trigger", "Direction": "Read Only", "Value": 0.0}, ["sensor"]),
         ({"Type": "Float", "Direction": "Read Only"}, ["sensor"]),
         ({"Value": 1.2}, ["sensor", "number"]),
         ({"Value": True}, ["binary_sensor", "sensor", "switch"]),
@@ -31,6 +34,23 @@ from custom_components.qsys_qrc.discovery import (
 )
 def test_compatibility(metadata, expected):
     assert compatible_platforms(metadata) == expected
+
+
+@pytest.mark.parametrize("name", ["play.state.trigger", "pause.state.trigger", "stop.state.trigger", "next.trigger"])
+@pytest.mark.parametrize("kind", [None, "Float", "Integer", "Trigger", "State Trigger"])
+@pytest.mark.parametrize("direction", ["Read/Write", "Write Only", "Read Only", None])
+def test_trigger_name_compatibility(name, kind, direction):
+    metadata = {"Name": name, "Value": 0.0}
+    if kind is not None:
+        metadata["Type"] = kind
+    if direction is not None:
+        metadata["Direction"] = direction
+    expected = ["sensor"] if direction == "Read Only" else ["sensor", "switch"]
+    assert compatible_platforms(metadata) == expected
+
+
+def test_trigger_suffix_does_not_match_other_names():
+    assert compatible_platforms({"Name": "trigger.level", "Type": "Float", "Value": 0.0}) == ["sensor", "number"]
 
 
 def test_metadata_defaults():
@@ -97,7 +117,8 @@ async def test_discovery_and_validation_never_write():
 @pytest.mark.parametrize(
     "component", ["audio_player_doorbell_basement_apt", "audio_player_doorbell_main"]
 )
-async def test_audio_player_trigger_switch_migration(component):
+@pytest.mark.parametrize("kind", ["Trigger", "Float", None])
+async def test_audio_player_trigger_switch_migration(component, kind):
     core = Mock()
     api = core.component.return_value
     api.get_components = AsyncMock(
@@ -108,7 +129,7 @@ async def test_audio_player_trigger_switch_migration(component):
             "result": {
                 "Controls": [{
                     "Name": "play.state.trigger",
-                    "Type": "Trigger",
+                    "Type": kind,
                     "Direction": "Read/Write",
                     "Value": 0.0,
                 }]
