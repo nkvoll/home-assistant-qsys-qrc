@@ -207,3 +207,12 @@ def transfer_mappings(
             }
         )
     return result, changes
+
+
+def migrate_volume_options(options):
+    """Persist explicit legacy media-player settings before reload listeners run."""
+    migrated = deepcopy(dict(options))
+    for mapping in migrated.get("mappings", []):
+        if mapping.get("platform") == "media_player":
+            mapping["settings"] = normalize_mapping(mapping)["settings"]
+    return migrated

@@ -36,14 +36,17 @@ The simulator implements only the discovery and subscription methods this demo
 needs. Unsupported methods return a JSON-RPC error; it is not a general purpose
 Core emulator.
 
-The capture script, `scripts/screenshots/panel.py`, checks bulk creation, editing
-and deletion, protocol capture, YAML migration, export/download, import review,
-and unsaved-change confirmation. It generates these six current feature screenshots:
+The capture script, `scripts/screenshots/panel.py`, checks the default media-player
+listening range, one-save bulk upgrades from legacy volume mappings, range
+persistence/export, bulk creation, editing and deletion, protocol capture, YAML
+migration, export/download, import review, and unsaved-change confirmation.
+It generates these seven current feature screenshots:
 
 - `panel-dashboard.png`: Core overview and YAML tools.
 - `panel-components-controls.png`: component selection and bulk creation table.
 - `panel-bulk-create.png`: the creation review dialog.
 - `panel-entities.png`: entity icons, settings, and bulk management.
+- `panel-volume-range.png`: upgrading multiple media players in one bulk edit.
 - `panel-monitor.png`: captured QRC requests and responses.
 - `panel-yaml-export.png`: YAML preview, copy, and download.
 

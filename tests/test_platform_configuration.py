@@ -13,16 +13,34 @@ from custom_components.qsys_qrc.const import *
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "platform",
-    ["switch", "number", "sensor", "binary_sensor", "text", "select", "media_player"],
+    ("platform", "db"),
+    [
+        (platform, False)
+        for platform in [
+            "switch",
+            "number",
+            "sensor",
+            "binary_sensor",
+            "text",
+            "select",
+            "media_player",
+        ]
+    ]
+    + [("number", True), ("media_player", True)],
 )
-async def test_migration_setup_preserves_entity_and_registry_identity(platform):
+async def test_migration_setup_preserves_entity_and_registry_identity(platform, db):
     module = import_module(f"custom_components.qsys_qrc.{platform}")
     settings = {"component": "gain", "name": "Example"}
     if platform != "media_player":
-        settings["control"] = "value"
+        settings["control"] = "gain" if db else "value"
+    if db:
+        settings.update(volume_mode="db", min_db=-60, max_db=0)
     mapping = normalize_mapping({"platform": platform, "settings": settings})
-    expected = "core_gain" if platform == "media_player" else "core_gain_value"
+    expected = (
+        "core_gain"
+        if platform == "media_player"
+        else f"core_gain_{settings['control']}"
+    )
     callbacks = []
     entry = SimpleNamespace(
         entry_id="entry",
@@ -34,7 +52,18 @@ async def test_migration_setup_preserves_entity_and_registry_identity(platform):
         return_value={"result": [{"Name": "gain", "Type": "gain"}]}
     )
     core.component.return_value.get_controls = AsyncMock(
-        return_value={"result": {"Controls": [{"Name": "value"}]}}
+        return_value={
+            "result": {
+                "Controls": [
+                    {
+                        "Name": "gain" if db else "value",
+                        "ValueMin": -80,
+                        "ValueMax": 6,
+                        "StringMin": "-80dB",
+                    }
+                ]
+            }
+        }
     )
     core.status_get = AsyncMock(side_effect=lambda: asyncio.Event().wait())
     poller = Mock(subscribe_component_control_changes=AsyncMock())
@@ -85,6 +114,13 @@ async def test_migration_setup_preserves_entity_and_registry_identity(platform):
             await module.async_setup_entry(hass, entry, added.extend)
         entity = next(item for item in added if item.unique_id == expected)
         assert entity.name == "Example"
+        core.component.return_value.set.assert_not_called()
+        if db:
+            if platform == "number":
+                await entity.on_control_changed(core, {"Value": -30})
+                assert entity.native_value == 50
+            else:
+                assert entity.gain_volume_level({"Name": "gain", "Value": -30}) == 0.5
         registry.async_remove.assert_called_once_with(f"{platform}.old")
         registry.reset_mock()
         for callback in callbacks:

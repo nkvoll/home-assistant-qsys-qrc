@@ -120,9 +120,9 @@ def build_changes(name, current, yaml, msg):
             changes.append({"identity": key, "action": action})
             if action == "delete":
                 if any(identity(name, other) == key for other in yaml):
-                    changes[-1]["warning"] = (
-                        "Deleting this UI mapping reactivates its definition configured via Home Assistant YAML"
-                    )
+                    changes[-1][
+                        "warning"
+                    ] = "Deleting this UI mapping reactivates its definition configured via Home Assistant YAML"
                 continue
             item["settings"].update(patch)
         result.append(item)
@@ -143,9 +143,11 @@ async def dispatch(hass, msg):
                     "name": name,
                     "status": (await core.get_state()).name if core else "UNLOADED",
                     "last_error": core.last_error if core else None,
-                    "engine": last_status
-                    if isinstance(last_status, dict)
-                    else entry.data.get(CONF_ENGINE_STATUS, {}),
+                    "engine": (
+                        last_status
+                        if isinstance(last_status, dict)
+                        else entry.data.get(CONF_ENGINE_STATUS, {})
+                    ),
                     "entities": len(
                         hass.data[DOMAIN]
                         .get(CONF_ENTRY_INVENTORY, {})
@@ -278,6 +280,10 @@ async def dispatch(hass, msg):
                 "read_only_mismatch",
                 "incompatible_control",
                 "unsupported_component_type",
+                "missing_gain_control",
+                "not_db_gain",
+                "gain_limits_unavailable",
+                "gain_range_out_of_bounds",
             }
             for finding in findings
         ):
@@ -375,7 +381,7 @@ async def async_setup_panel(hass):
         frontend_url_path="qsys-qrc",
         webcomponent_name="qsys-qrc-panel",
         sidebar_icon="mdi:audio-input-xlr",
-        module_url="/qsys_qrc_static/panel.js?v=3",
+        module_url="/qsys_qrc_static/panel.js?v=4",
         require_admin=True,
         config_panel_domain=DOMAIN,
     )

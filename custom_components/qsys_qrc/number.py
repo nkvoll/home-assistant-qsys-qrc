@@ -6,10 +6,13 @@ import decimal
 import logging
 import math
 
+import voluptuous as vol
+
 from homeassistant.components import number
 from homeassistant.components.number import NumberEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import PlatformNotReady
 from homeassistant.helpers import template
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers import entity_registry as er
@@ -20,6 +23,9 @@ from .common import (
     config_for_core,
     poller_for_entry,
 )
+from .volume import GainRange, is_db_gain
+from .discovery import controls, named_control, DiscoveryError
+
 from .const import *
 from .qsys import qrc
 
@@ -32,7 +38,17 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up sensor entities."""
+    """Set up number entities, retrying when gain discovery is unavailable."""
+    try:
+        await async_setup_entry_safe(hass, entry, async_add_entities)
+    except (TimeoutError, DiscoveryError) as err:
+        raise PlatformNotReady(
+            "Unable to discover number gain controls; retry later"
+        ) from err
+
+
+async def async_setup_entry_safe(hass, entry, async_add_entities):
+    """Resolve and subscribe configured number controls."""
 
     # TODO: remove restored entities that are no longer used?
     core_name = entry.data[CONF_USER_DATA][CONF_CORE_NAME]
@@ -75,7 +91,29 @@ async def async_setup_entry(
         if should_exclude:
             continue
 
-        # need to fetch component and control config first? at least if we want to default min/max etc
+        gain_range = None
+        if number_config.get("volume_mode") == "db":
+            if component_name:
+                metadata = next(
+                    (
+                        item
+                        for item in await controls(core, component_name)
+                        if item["Name"] == control_name
+                    ),
+                    {},
+                )
+            else:
+                metadata = await named_control(core, control_name)
+            try:
+                if not is_db_gain(metadata):
+                    raise vol.Invalid(
+                        "Percentage volume requires a gain control with dB metadata"
+                    )
+                gain_range = GainRange.from_control(number_config, metadata)
+            except vol.Invalid as err:
+                raise PlatformNotReady(
+                    f"Invalid volume range for {control_name}: {err}"
+                ) from err
 
         change_template = number_config[CONF_NUMBER_CHANGE_TEMPLATE]
         if change_template:
@@ -109,6 +147,7 @@ async def async_setup_entry(
             value_template,
             number_config[CONF_DEVICE_CLASS],
             number_config[CONF_UNIT_OF_MEASUREMENT],
+            gain_range,
         )
 
         if control_number_entity.unique_id not in entities:
@@ -156,6 +195,7 @@ class QRCNumberEntity(QSysComponentControlBase, NumberEntity):
         value_template: template.Template,
         device_class,
         unit_of_measurement,
+        gain_range: GainRange | None = None,
     ) -> None:
         super().__init__(
             hass,
@@ -171,18 +211,23 @@ class QRCNumberEntity(QSysComponentControlBase, NumberEntity):
         self._attr_device_class = device_class
         self._attr_native_unit_of_measurement = unit_of_measurement
 
+        self._gain_range = gain_range
         self._use_position = use_position
         self._position_lower_limit = position_lower_limit
         self._position_upper_limit = position_upper_limit
 
         self._attr_native_min_value = min_value
 
-        if self._use_position:
+        if self._use_position or self._gain_range:
             self._attr_native_min_value = 0.0
 
         self._attr_native_max_value = max_value
-        if self._use_position:
+        if self._use_position or self._gain_range:
             self._attr_native_max_value = 100.0
+
+        if self._gain_range:
+            self._attr_native_unit_of_measurement = "%"
+            self._attr_device_class = None
 
         self._attr_native_step = step
         self._attr_mode = mode
@@ -201,7 +246,9 @@ class QRCNumberEntity(QSysComponentControlBase, NumberEntity):
         # TODO: figure out value vs native_value. Is that a better place for the conversion?
         value = change["Value"]
 
-        if self._use_position:
+        if self._gain_range:
+            value = self._gain_range.to_level(value) * 100.0
+        elif self._use_position:
             # Convert raw position (within [position_lower_limit, position_upper_limit]) to user-facing 0-100 scale.
             raw_position = change["Position"]
             span = self._position_upper_limit - self._position_lower_limit
@@ -228,6 +275,16 @@ class QRCNumberEntity(QSysComponentControlBase, NumberEntity):
 
     async def async_set_native_value(self, value: float) -> None:
         """Update the current value."""
+        if self._gain_range:
+            if self._value_template:
+                value = self._value_template.async_render(
+                    {"value": value, "math": math, "round": round}
+                )
+            await self.update_control(
+                {"Value": self._gain_range.to_db(float(value) / 100.0)}
+            )
+            return
+
         if self._use_position:
             # Map user percentage (0-100) to actual position range [position_lower_limit, position_upper_limit].
             percent = max(0.0, min(100.0, value))  # Clamp

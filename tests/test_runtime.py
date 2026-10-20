@@ -11,12 +11,28 @@ from custom_components.qsys_qrc.const import *
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("saved", [{}, {CONF_POLL_INTERVAL: 0.5}, {CONF_POLL_INTERVAL: 0.5, CONF_REQUEST_TIMEOUT: 3.0}])
-async def test_setup_reload_and_unload_preserve_device(saved):
+@pytest.mark.parametrize(
+    "saved",
+    [
+        {},
+        {CONF_POLL_INTERVAL: 0.5},
+        {CONF_POLL_INTERVAL: 0.5, CONF_REQUEST_TIMEOUT: 3.0},
+    ],
+)
+@pytest.mark.parametrize("legacy_media", [False, True])
+async def test_setup_reload_and_unload_preserve_device(saved, legacy_media):
     callbacks = []
     entry = SimpleNamespace(
         entry_id="first",
-        options={"mappings": [{"platform": "switch", "settings": {"control": "mute"}}]},
+        options={
+            "mappings": [
+                (
+                    {"platform": "media_player", "settings": {"component": "speaker"}}
+                    if legacy_media
+                    else {"platform": "switch", "settings": {"control": "mute"}}
+                )
+            ]
+        },
         data={
             CONF_USER_DATA: {
                 CONF_CORE_NAME: "core",
@@ -38,7 +54,11 @@ async def test_setup_reload_and_unload_preserve_device(saved):
             async_forward_entry_setups=AsyncMock(),
             async_unload_platforms=AsyncMock(return_value=True),
             async_reload=AsyncMock(),
-            async_update_entry=Mock(side_effect=lambda entry, data: setattr(entry, "data", data)),
+            async_update_entry=Mock(
+                side_effect=lambda entry, **changes: [
+                    setattr(entry, key, value) for key, value in changes.items()
+                ]
+            ),
         ),
     )
     registry = Mock()
@@ -53,8 +73,11 @@ async def test_setup_reload_and_unload_preserve_device(saved):
                     DOMAIN: {
                         CONF_CORES: {
                             "core": {
-                                CONF_CHANGEGROUP: {CONF_POLL_INTERVAL: 2.5, CONF_REQUEST_TIMEOUT: 8.0},
-                                CONF_PLATFORMS: {"sensor": [{"control": "status"}]}
+                                CONF_CHANGEGROUP: {
+                                    CONF_POLL_INTERVAL: 2.5,
+                                    CONF_REQUEST_TIMEOUT: 8.0,
+                                },
+                                CONF_PLATFORMS: {"sensor": [{"control": "status"}]},
                             }
                         }
                     }
@@ -75,13 +98,24 @@ async def test_setup_reload_and_unload_preserve_device(saved):
             f"{DOMAIN}_entities_ready", {"entry_id": "first"}
         )
         expected = {CONF_POLL_INTERVAL: 2.5, CONF_REQUEST_TIMEOUT: 8.0, **saved}
-        assert all(entry.data[CONF_USER_DATA][field] == value for field, value in expected.items())
-        assert hass.config_entries.async_update_entry.call_count == (0 if len(saved) == 2 else 1)
+        assert all(
+            entry.data[CONF_USER_DATA][field] == value
+            for field, value in expected.items()
+        )
+        assert hass.config_entries.async_update_entry.call_count == (
+            0 if len(saved) == 2 else 1
+        ) + int(legacy_media)
         constructor.assert_called_once_with("example.test", 1711)
         factory.assert_called_once()
         poller.start.assert_called_once()
         effective = hass.data[DOMAIN][CONF_ENTRY_CONFIG]["first"]
-        assert effective[CONF_PLATFORMS]["switch"][0][CONF_CONTROL] == "mute"
+        if legacy_media:
+            assert entry.options["mappings"][0]["settings"]["volume_mode"] == "legacy"
+            assert (
+                effective[CONF_PLATFORMS]["media_player"][0]["volume_mode"] == "legacy"
+            )
+        else:
+            assert effective[CONF_PLATFORMS]["switch"][0][CONF_CONTROL] == "mute"
         assert effective[CONF_PLATFORMS]["sensor"][0][CONF_CONTROL] == "status"
         listener = entry.add_update_listener.call_args.args[0]
         await listener(hass, entry)
@@ -94,7 +128,9 @@ async def test_setup_reload_and_unload_preserve_device(saved):
         yaml_config.return_value = {}
         assert await integration.async_setup_entry(hass, entry)
         assert factory.call_args.args[1] == expected
-        assert hass.config_entries.async_update_entry.call_count == (0 if len(saved) == 2 else 1)
+        assert hass.config_entries.async_update_entry.call_count == (
+            0 if len(saved) == 2 else 1
+        ) + int(legacy_media)
         assert await integration.async_unload_entry(hass, entry)
     for callback in callbacks:
         callback()

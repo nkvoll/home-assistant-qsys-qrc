@@ -18,7 +18,12 @@ from homeassistant.helpers.typing import ConfigType
 from .const import *
 from .qsys import qrc
 from .schema import CONFIG_SCHEMA
-from .mapping import core_polling_settings, resolve_configuration, yaml_mappings
+from .mapping import (
+    core_polling_settings,
+    resolve_configuration,
+    yaml_mappings,
+    migrate_volume_options,
+)
 from .portable import export_document
 from .changegroup import create_change_group_for_platform
 
@@ -191,6 +196,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.config_entries.async_update_entry(
             entry, data={**entry.data, CONF_USER_DATA: user_data}
         )
+    migrated_options = migrate_volume_options(entry.options)
+    if migrated_options != dict(entry.options):
+        hass.config_entries.async_update_entry(entry, options=migrated_options)
     c = qrc.Core(user_data[CONF_HOST], user_data.get(CONF_PORT, qrc.PORT))
     monitor = hass.data[DOMAIN].get("protocol_monitors", {}).get(entry.entry_id)
     if monitor:

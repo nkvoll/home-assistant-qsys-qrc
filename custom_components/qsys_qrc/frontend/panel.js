@@ -22,7 +22,7 @@ class QsysPanel extends HTMLElement {
   constructor() {
     super(); this.attachShadow({mode:'open'}); this.view='overview'; this.cores=[]; this.controls=[]; this.selectedComponents=new Set(); this.componentErrors={}; this.inventory=[]; this.showMigrated=false; this.selected=new Set(); this.filter=''; this.frames=[]; this.paused=false;this.cleanControls=new Map();this.collator=new Intl.Collator(undefined,{numeric:true,sensitivity:'base'});this.controlSort={field:'name',direction:1};this.entitySort={field:'name',direction:1};
     this.shadowRoot.addEventListener('click', e => { const button=e.target.closest('[data-action]'); if(button) this.run(()=>this.action(button.dataset.action,button.dataset)); const tab=e.target.closest('ha-tab-group-tab');if(tab&&tab.panel===this.navigationView()&&tab.panel!==this.view){this.restoreNavigationFocus=true;this.run(()=>this.navigate(tab.panel));} });
-    this.shadowRoot.addEventListener('change', e => {if(e.target.id==='direction'){this.direction=e.target.value;this.updateMonitor();return;}if(e.target.matches('#core,#show-migrated,#single-column,[data-component],[data-select],#all,[data-platform],[data-position],#file,#effective,#edit-field,#collision,#transfer'))this.run(()=>this.change(e.target));});
+    this.shadowRoot.addEventListener('change', e => {if(e.target.id==='direction'){this.direction=e.target.value;this.updateMonitor();return;}if(e.target.matches('#core,#show-migrated,#single-column,[data-component],[data-select],#all,[data-platform],[data-position],[data-volume-mode],#file,#effective,#edit-field,#collision,#transfer'))this.run(()=>this.change(e.target));});
     this.shadowRoot.addEventListener('wa-tab-show',event=>{
       const view=event.detail.name;
       if(view===this.navigationView()||!panelViews.has(view))return;
@@ -45,19 +45,19 @@ class QsysPanel extends HTMLElement {
     this.captureForm();
     if(this.review?.changes.some(change=>change.action!=='skip'))return true;
     if(this.view==='browser')return this.selected.size>0||this.controls.some(c=>JSON.stringify(this.controlSettings(c))!==this.cleanControls.get(this.controlKey(c)));
-    if(this.view==='entities')return String(this.editValue??'')!==String(this.cleanEditValue??'');
+    if(this.view==='entities')return String(this.editValue??'')!==String(this.cleanEditValue??'')||this.editField==='volume_mode'&&JSON.stringify([this.editMinDb,this.editMaxDb])!==this.cleanEditDb;
     if(this.view==='import')return (this.document||'')!==(this.cleanDocument||'');
     return false;
   }
   defaultEntityName(c){return c.component&&!c.mediaPlayer?`${c.component} / ${c.metadata.Name}`:c.mediaPlayer?c.component:c.metadata.Name;}
-  controlSettings(c){return [c.entityName??this.defaultEntityName(c),c.chosen||this.defaultPlatform(c),!!c.usePosition];}
+  controlSettings(c){return [c.entityName??this.defaultEntityName(c),c.chosen||this.defaultPlatform(c),!!c.usePosition,c.volumeMode??(c.mediaPlayer?'db':'legacy'),c.minDb??-60,c.maxDb??0];}
   async confirmLeave(){
     if(!this.hasUnsaved())return true;
     if(this.leavePrompt)return this.leavePrompt;
     this.leavePrompt=new Promise(resolve=>this.dispatchEvent(new CustomEvent('show-dialog',{detail:{dialogTag:customElements.get('dialog-box')?'dialog-box':'qsys-discard-dialog',dialogImport:()=>Promise.resolve(),addHistory:false,dialogParams:{title:'Discard unsaved changes?',text:'Your changes haven’t been saved. Leaving this page will discard them.',confirmation:true,destructive:true,confirmText:'Discard changes',dismissText:'Keep editing',confirm:()=>resolve(true),cancel:()=>resolve(false)}},bubbles:true,composed:true})));
     const discard=await this.leavePrompt;this.leavePrompt=null;if(discard){this.discardEdits();this.render();}return discard;
   }
-  discardEdits(){this.review=null;this.selected.clear();this.editValue='';this.cleanEditValue='';this.resetEditBaseline=true;this.document=this.cleanDocument||'';for(const c of this.controls){const clean=this.cleanControls.get(this.controlKey(c));if(clean){const [name,platform,position]=JSON.parse(clean);c.entityName=name;c.chosen=platform;c.usePosition=position;}}}
+  discardEdits(){this.review=null;this.selected.clear();this.editValue='';this.cleanEditValue='';this.editMinDb=undefined;this.editMaxDb=undefined;this.resetEditBaseline=true;this.document=this.cleanDocument||'';for(const c of this.controls){const clean=this.cleanControls.get(this.controlKey(c));if(clean){const [name,platform,position,volumeMode,minDb,maxDb]=JSON.parse(clean);c.entityName=name;c.chosen=platform;c.usePosition=position;c.volumeMode=volumeMode;c.minDb=minDb;c.maxDb=maxDb;}}}
   installLeaveGuard(){
     if(!Number.isInteger(history.state?.qsysRouteIndex))history.replaceState({...history.state,qsysRouteIndex:0},'',location.href);
     this.panelUrl=location.href;this.panelHistory=history.state;
@@ -155,15 +155,16 @@ class QsysPanel extends HTMLElement {
   }
   async loadInventory(){const entry=this.entry,result=await this.api('inventory');if(entry!==this.entry)return;this.inventory=result.inventory;this.editChoices=result.edit_choices;}
   editableFields(){
-    const labels={name:'Name',unit_of_measurement:'Unit of measurement',min:'Minimum',max:'Maximum',step:'Step',mode:'Mode',attribute:'Sensor attribute',device_class:'Device class',state_class:'State class',options:'Select options (one per line)',use_position:'Use position',position_lower_limit:'Position lower limit',position_upper_limit:'Position upper limit',change_template:'Change template',value_template:'Value template',pattern:'Text pattern'};
+    const labels={name:'Name',volume_mode:'Volume mapping / listening range',min_db:'Listening minimum (dB)',max_db:'Listening maximum (dB)',unit_of_measurement:'Unit of measurement',min:'UI minimum',max:'UI maximum',step:'Step',mode:'Mode',attribute:'Sensor attribute',device_class:'Device class',state_class:'State class',options:'Select options (one per line)',use_position:'Use position',position_lower_limit:'Position lower limit',position_upper_limit:'Position upper limit',change_template:'Change template',value_template:'Value template',pattern:'Text pattern'};
     const rows=this.selectedRows();
     return Object.entries(labels).filter(([field])=>!rows.length||rows.every(row=>Object.hasOwn(row.mapping.settings,field)));
   }
   editInput(){
     const field=this.editField||'name',value=this.editValue??'';
     const rows=this.selectedRows();const platforms=[...new Set(rows.map(row=>row.mapping.platform))];
+    if(field==='volume_mode')return `<label class="edit-value-label">Volume mapping<select id="edit-value"><option value="db" ${value!=='legacy'?'selected':''}>dB range → percentage</option><option value="legacy" ${value==='legacy'?'selected':''}>Legacy / existing number mode</option></select></label><label class="edit-value-label">Listening minimum (dB)<input id="edit-min-db" type="number" step="any" value="${escapeHTML(this.editMinDb??-60)}"></label><label class="edit-value-label">Listening maximum (dB)<input id="edit-max-db" type="number" step="any" value="${escapeHTML(this.editMaxDb??0)}"></label><p>Apply the mode and range together. Current Q-SYS gain stays unchanged. Number entities display 0–100% in dB-range mode; legacy mode uses their existing Value or Position settings.</p>`;
     if(field==='use_position')return `<label><input id="edit-value" type="checkbox" ${value===true?'checked':''}> Use position</label>`;
-    if(['min','max','step','position_lower_limit','position_upper_limit'].includes(field)){
+    if(['min','max','step','position_lower_limit','position_upper_limit','min_db','max_db'].includes(field)){
       const integer=['min','max'].includes(field)&&platforms.includes('text');
       const position=field.startsWith('position_');
       return `<label class="edit-value-label">New value<input id="edit-value" type="number" step="${integer?'1':'any'}" ${integer||position?'min="0"':''} ${position?'max="1"':''} value="${escapeHTML(value)}"></label>`;
@@ -211,7 +212,7 @@ class QsysPanel extends HTMLElement {
       controls.push(...(results.get(component.Name)||this.controls.filter(c=>c.component===component.Name&&!c.mediaPlayer)));
     }
     for(const component of this.components||[])if(requested.has(component.Name)&&!this.componentErrors[component.Name]&&['URL_receiver','audio_file_player','gain'].includes(component.Type)){
-      controls.push({component:component.Name,mediaPlayer:true,metadata:{Name:'Component media player',Type:'Media player',Direction:'read/write'},platforms:['media_player'],suggestions:{media_player:{component:component.Name,name:component.Name}}});
+      controls.push({component:component.Name,mediaPlayer:true,metadata:{Name:'Component media player',Type:'Media player',Direction:'read/write'},platforms:['media_player'],suggestions:{media_player:{component:component.Name,name:component.Name,volume_mode:'db',min_db:-60,max_db:0}}});
     }
     controls.push(...this.controls.filter(c=>!c.component));
     this.controls=controls.map(c=>{
@@ -219,7 +220,7 @@ class QsysPanel extends HTMLElement {
       if(!old)return c;
       if(!refresh)return old;
       const updated={...c};
-      for(const field of ['entityName','chosen','usePosition'])if(Object.hasOwn(old,field))updated[field]=old[field];
+      for(const field of ['entityName','chosen','usePosition','volumeMode','minDb','maxDb'])if(Object.hasOwn(old,field))updated[field]=old[field];
       return updated;
     });
     for(const c of this.controls)if(!this.cleanControls.has(this.controlKey(c)))this.cleanControls.set(this.controlKey(c),JSON.stringify(this.controlSettings(c)));
@@ -286,6 +287,7 @@ class QsysPanel extends HTMLElement {
     if(el.dataset.select!==undefined&&(this.view!=='browser'||!this.mappedControl(this.controls[Number(el.dataset.select)]))){el.checked?this.selected.add(Number(el.dataset.select)):this.selected.delete(Number(el.dataset.select));}
     if(el.id==='all'){this.shadowRoot.querySelectorAll('tbody tr').forEach(row=>{if(row.hidden)return;const c=row.querySelector('[data-select]');if(c&&(this.view==='browser'?!this.mappedControl(this.controls[Number(c.dataset.select)]):this.inventory[Number(c.dataset.select)]?.source===(this.view==='migrate'?'yaml':'ui'))){c.checked=el.checked;el.checked?this.selected.add(Number(c.dataset.select)):this.selected.delete(Number(c.dataset.select));}});}
     if(el.dataset.platform!==undefined){const index=Number(el.dataset.platform);this.controls[index].chosen=el.value;if(this.mappedControl(this.controls[index]))this.selected.delete(index);}
+    if(el.dataset.volumeMode!==undefined)this.controls[Number(el.dataset.volumeMode)].volumeMode=el.value;
     if(el.dataset.position!==undefined)this.controls[Number(el.dataset.position)].usePosition=el.checked;
     if(el.id==='file'&&el.files[0]){if(el.files[0].size>262144)throw Error('YAML file exceeds 256 KiB');this.document=await el.files[0].text();}
     if(el.id==='edit-field'){this.editField=el.value;this.editValue='';this.resetEditBaseline=true;}
@@ -340,7 +342,7 @@ class QsysPanel extends HTMLElement {
     if(action==='retry-components'){const requested=[...this.selectedComponents];await this.showComponents(requested,{refresh:true});return;}
     if(action==='named'){const name=this.shadowRoot.querySelector('#named').value.trim();const response=await this.api('named',{name});if(!this.controls.some(c=>!c.component&&c.metadata.Name===name)){const c={...response.controls[0],component:null};this.controls.push(c);this.cleanControls.set(this.controlKey(c),JSON.stringify(this.controlSettings(c)));}}
     if(action==='create'){
-      const mappings=[...this.selected].map(i=>{const c=this.controls[i],p=c.chosen||this.defaultPlatform(c);const settings={...c.suggestions[p],component:c.component};if(p==='number')settings.use_position=!!c.usePosition;settings.name=this.shadowRoot.querySelector(`[data-name="${i}"]`).value;return {platform:p,settings};});
+      const mappings=[...this.selected].map(i=>{const c=this.controls[i],p=c.chosen||this.defaultPlatform(c);const settings={...c.suggestions[p],component:c.component};if(p==='number')settings.use_position=!!c.usePosition;if(['number','media_player'].includes(p)){settings.volume_mode=c.volumeMode??(c.mediaPlayer?'db':'legacy');settings.min_db=c.minDb??-60;settings.max_db=c.maxDb??0;}settings.name=this.shadowRoot.querySelector(`[data-name="${i}"]`).value;return {platform:p,settings};});
       return this.preview({operation:'create',mappings,collision:'skip'});
     }
         if(action==='delete'||action==='edit'){
@@ -353,6 +355,11 @@ class QsysPanel extends HTMLElement {
         if(field==='options')value=raw.split('\n').filter(Boolean);
         if(input.tagName==='SELECT'&&!raw)value=null;
         request.patch={[field]:value};
+        if(field==='volume_mode'){
+          const low=this.shadowRoot.querySelector('#edit-min-db').valueAsNumber,high=this.shadowRoot.querySelector('#edit-max-db').valueAsNumber;
+          if(!Number.isFinite(low)||!Number.isFinite(high)||low>=high)throw Error('Listening minimum must be less than maximum (finite dB values).');
+          request.patch.min_db=low;request.patch.max_db=high;
+        }
       }
       return this.preview(request);
     }
@@ -397,7 +404,7 @@ class QsysPanel extends HTMLElement {
   }
   renderControl(control,index){
     const c=control,i=index,component=c.component||'Named Controls',mapped=this.mappedControl(c);
-    return `<tr class="${mapped?'mapped-row':''}" data-control-group="${escapeHTML(component)}" data-search="${escapeHTML(component+' '+JSON.stringify(c.metadata))}"><td><input type="checkbox" data-select="${i}" aria-label="Select ${escapeHTML(component+' / '+c.metadata.Name)}" ${this.selected.has(i)&&!mapped?'checked':''} ${mapped?'disabled':''}></td><td>${escapeHTML(c.metadata.Name)}${mapped?(mapped.entity_id?`<button class="mapped-badge mapped-link" data-action="more-info" data-entity="${escapeHTML(mapped.entity_id)}" aria-label="Already mapped: ${escapeHTML(mapped.entity_name||mapped.entity_id)}">Already mapped</button>`:'<span class="mapped-badge" title="The entity is being registered. Refresh to open its dialog.">Already mapped</span>'):''}</td><td>${escapeHTML(c.metadata.Type)}<br>${escapeHTML(c.metadata.Direction||'Direction unverified')}</td><td data-value="${i}">${c.mediaPlayer?'—':escapeHTML(c.metadata.String??c.metadata.Value)}</td><td>${c.mediaPlayer?'media_player':`<select data-platform="${i}" aria-label="Entity type for ${escapeHTML(component+' / '+c.metadata.Name)}">${c.platforms.map(p=>`<option ${p===(c.chosen||this.defaultPlatform(c))?'selected':''}>${p}</option>`).join('')}</select>`}${(c.chosen||this.defaultPlatform(c))==='number'?`<label><input type="checkbox" data-position="${i}" aria-label="Use position for ${escapeHTML(component+' / '+c.metadata.Name)}" ${c.usePosition?'checked':''} ${mapped?'disabled':''}> Use position</label>`:''}</td><td><input data-name="${i}" aria-label="Entity name for ${escapeHTML(component+' / '+c.metadata.Name)}" value="${escapeHTML(c.entityName??this.defaultEntityName(c))}" ${mapped?'disabled':''}></td></tr>`;
+    return `<tr class="${mapped?'mapped-row':''}" data-control-group="${escapeHTML(component)}" data-search="${escapeHTML(component+' '+JSON.stringify(c.metadata))}"><td><input type="checkbox" data-select="${i}" aria-label="Select ${escapeHTML(component+' / '+c.metadata.Name)}" ${this.selected.has(i)&&!mapped?'checked':''} ${mapped?'disabled':''}></td><td>${escapeHTML(c.metadata.Name)}${mapped?(mapped.entity_id?`<button class="mapped-badge mapped-link" data-action="more-info" data-entity="${escapeHTML(mapped.entity_id)}" aria-label="Already mapped: ${escapeHTML(mapped.entity_name||mapped.entity_id)}">Already mapped</button>`:'<span class="mapped-badge" title="The entity is being registered. Refresh to open its dialog.">Already mapped</span>'):''}</td><td>${escapeHTML(c.metadata.Type)}<br>${escapeHTML(c.metadata.Direction||'Direction unverified')}</td><td data-value="${i}">${c.mediaPlayer?'—':escapeHTML(c.metadata.String??c.metadata.Value)}</td><td>${c.mediaPlayer?'media_player':`<select data-platform="${i}" aria-label="Entity type for ${escapeHTML(component+' / '+c.metadata.Name)}">${c.platforms.map(p=>`<option ${p===(c.chosen||this.defaultPlatform(c))?'selected':''}>${p}</option>`).join('')}</select>`}${(c.chosen||this.defaultPlatform(c))==='number'?`<label><input type="checkbox" data-position="${i}" aria-label="Use position for ${escapeHTML(component+' / '+c.metadata.Name)}" ${c.usePosition?'checked':''} ${mapped?'disabled':''}> Use position</label>`:''}${['number','media_player'].includes(c.chosen||this.defaultPlatform(c))?`<label>Volume mapping<select data-volume-mode="${i}" ${mapped?'disabled':''}><option value="legacy" ${(c.volumeMode??(c.mediaPlayer?'db':'legacy'))==='legacy'?'selected':''}>${c.mediaPlayer?'Legacy Position':'Value / Position settings'}</option><option value="db" ${(c.volumeMode??(c.mediaPlayer?'db':'legacy'))==='db'?'selected':''}>dB range → percentage</option></select></label>${(c.volumeMode??(c.mediaPlayer?'db':'legacy'))==='db'?`<label>Listening minimum (dB)<input data-min-db="${i}" type="number" step="any" value="${escapeHTML(c.minDb??-60)}" ${mapped?'disabled':''}></label><label>Listening maximum (dB)<input data-max-db="${i}" type="number" step="any" value="${escapeHTML(c.maxDb??0)}" ${mapped?'disabled':''}></label>`:''}`:''}</td><td><input data-name="${i}" aria-label="Entity name for ${escapeHTML(component+' / '+c.metadata.Name)}" value="${escapeHTML(c.entityName??this.defaultEntityName(c))}" ${mapped?'disabled':''}></td></tr>`;
   }
   helpTooltip(id,label,text){
     return `<span class="help"><button type="button" class="help-icon" aria-label="About ${escapeHTML(label)}" aria-describedby="help-${id}">?</button><span class="help-tooltip" role="tooltip" id="help-${id}">${escapeHTML(text)}</span></span>`;
@@ -444,9 +451,9 @@ class QsysPanel extends HTMLElement {
     const count=this.reviewCount();return `${verb} ${count} ${count===1?'entity':'entities'}`;
   }
   findingLabel(issue){
-    return {missing_component:'The component was not found in the current design.',missing_control:'The control was not found in the current design.',read_only_mismatch:'This control is read-only. Choose a sensor entity instead.',incompatible_control:'This entity type does not support the control. Choose a compatible entity type.',unsupported_component_type:'This component does not support a media player entity.',writability_unverified:'Q-SYS did not report whether this control is writable.'}[issue]||String(issue).replaceAll('_',' ');
+    return {missing_component:'The component was not found in the current design.',missing_control:'The control was not found in the current design.',read_only_mismatch:'This control is read-only. Choose a sensor entity instead.',incompatible_control:'This entity type does not support the control. Choose a compatible entity type.',missing_gain_control:'A required channel gain control is missing.',not_db_gain:'Percentage volume requires a gain control with dB metadata.',gain_limits_unavailable:'Q-SYS did not report actual gain limits. Use a component gain control with range metadata.',gain_range_out_of_bounds:'The listening range must fit every channel’s actual Q-SYS gain limits.',unsupported_component_type:'This component does not support a media player entity.',writability_unverified:'Q-SYS did not report whether this control is writable.'}[issue]||String(issue).replaceAll('_',' ');
   }
-  reviewBlocked(){return this.review.findings.some(f=>f.issues.some(issue=>['read_only_mismatch','incompatible_control','unsupported_component_type'].includes(issue)));}
+  reviewBlocked(){return this.review.findings.some(f=>f.issues.some(issue=>['read_only_mismatch','incompatible_control','unsupported_component_type','missing_gain_control','not_db_gain','gain_limits_unavailable','gain_range_out_of_bounds'].includes(issue)));}
   reviewEntity(change){
     const identity=JSON.stringify(change.identity);
     const mapping=(this.pending.mappings||[]).find(m=>key(this.core.name,m)===identity)||this.inventory.find(row=>key(this.core.name,row.mapping)===identity)?.mapping;
@@ -454,10 +461,16 @@ class QsysPanel extends HTMLElement {
   }
   renderReview(){
     const blocked=this.reviewBlocked(),count=this.reviewCount(),deleting=this.pending.operation==='delete';
-    return `<dialog id="review-dialog" aria-labelledby="review-title" aria-describedby="review-description"><section class="review"><h2 id="review-title" tabindex="-1">${this.reviewTitle()}</h2><p id="review-description">${deleting?'Confirm which Home Assistant entities to delete. Their Q-SYS controls will remain available.':'Check the entities and any notices below before saving. Cancel to return and adjust your selection.'}</p>${this.error?`<p class="error" role="alert">${escapeHTML(this.error)}</p>`:''}${blocked?'<p class="error" role="alert">Some entities use an incompatible control or entity type. Cancel and adjust them before saving.</p>':''}${!count?'<p>No changes to save. Existing entities will be kept.</p>':''}<div class="review-content"><table><thead><tr><th>Entity</th><th>Change</th><th>Checks</th></tr></thead><tbody>${this.review.changes.map(c=>`<tr><td>${escapeHTML(this.reviewEntity(c))}<br><small>${escapeHTML(c.identity.slice(1).filter(Boolean).join(' / '))}</small></td><td>${escapeHTML({add:'Create',replace:'Replace',skip:'Keep existing',edit:'Update',delete:'Delete'}[c.action]||c.action)}${c.ownership_transfer?' · Move from YAML to UI':''}</td><td>${escapeHTML([c.warning,...(this.review.findings.find(f=>JSON.stringify(f.identity)===JSON.stringify(c.identity))?.issues||[]).map(issue=>this.findingLabel(issue))].filter(Boolean).join(' ')||'Ready')}</td></tr>`).join('')}</tbody></table></div><div class="review-actions">${this.button('Cancel','cancel')}${this.button(({create:'Create',edit:'Save',delete:'Delete'})[this.pending.operation]||'Confirm and save','save',`class="filled ${deleting?'danger':''}" ${blocked||!count?'disabled':''}`)}</div></section></dialog>`;
+    const volumePatch=this.pending.patch?.volume_mode;
+    const volumeSummary=volumePatch?`<p>Volume mapping: ${volumePatch==='db'?`dB range → percentage · ${escapeHTML(this.pending.patch.min_db)} to ${escapeHTML(this.pending.patch.max_db)} dB`:'Legacy / existing number settings'}. Current Q-SYS gain stays unchanged.</p>`:'';
+    return `<dialog id="review-dialog" aria-labelledby="review-title" aria-describedby="review-description"><section class="review"><h2 id="review-title" tabindex="-1">${this.reviewTitle()}</h2><p id="review-description">${deleting?'Confirm which Home Assistant entities to delete. Their Q-SYS controls will remain available.':'Check the entities and any notices below before saving. Cancel to return and adjust your selection.'}</p>${this.error?`<p class="error" role="alert">${escapeHTML(this.error)}</p>`:''}${volumeSummary}${blocked?'<p class="error" role="alert">Some entities use an incompatible control or entity type. Cancel and adjust them before saving.</p>':''}${!count?'<p>No changes to save. Existing entities will be kept.</p>':''}<div class="review-content"><table><thead><tr><th>Entity</th><th>Change</th><th>Checks</th></tr></thead><tbody>${this.review.changes.map(c=>`<tr><td>${escapeHTML(this.reviewEntity(c))}<br><small>${escapeHTML(c.identity.slice(1).filter(Boolean).join(' / '))}</small></td><td>${escapeHTML({add:'Create',replace:'Replace',skip:'Keep existing',edit:'Update',delete:'Delete'}[c.action]||c.action)}${c.ownership_transfer?' · Move from YAML to UI':''}</td><td>${escapeHTML([c.warning,...(this.review.findings.find(f=>JSON.stringify(f.identity)===JSON.stringify(c.identity))?.issues||[]).map(issue=>this.findingLabel(issue))].filter(Boolean).join(' ')||'Ready')}</td></tr>`).join('')}</tbody></table></div><div class="review-actions">${this.button('Cancel','cancel')}${this.button(({create:'Create',edit:'Save',delete:'Delete'})[this.pending.operation]||'Confirm and save','save',`class="filled ${deleting?'danger':''}" ${blocked||!count?'disabled':''}`)}</div></section></dialog>`;
   }
   captureForm(){
     this.shadowRoot.querySelectorAll('[data-name]').forEach(el=>{if(this.controls[el.dataset.name])this.controls[el.dataset.name].entityName=el.value;});
+    this.shadowRoot.querySelectorAll('[data-min-db]').forEach(el=>{if(this.controls[el.dataset.minDb])this.controls[el.dataset.minDb].minDb=el.valueAsNumber;});
+    this.shadowRoot.querySelectorAll('[data-max-db]').forEach(el=>{if(this.controls[el.dataset.maxDb])this.controls[el.dataset.maxDb].maxDb=el.valueAsNumber;});
+    const minDb=this.shadowRoot.querySelector('#edit-min-db'),maxDb=this.shadowRoot.querySelector('#edit-max-db');
+    if(minDb)this.editMinDb=minDb.value;if(maxDb)this.editMaxDb=maxDb.value;
     const text=this.shadowRoot.querySelector('#document');if(text)this.document=text.value;
     const value=this.shadowRoot.querySelector('#edit-value');if(value)this.editValue=value.type==='checkbox'?value.checked:value.value;
   }
@@ -474,7 +487,7 @@ class QsysPanel extends HTMLElement {
     </style><header><ha-icon-button id="back" data-action="back" label="Back to Connectivity"></ha-icon-button><h1>Q-SYS · ${titles[this.view]}</h1><select id="core" aria-label="Q-SYS Core">${this.cores.map(c=>`<option value="${escapeHTML(c.entry_id)}" ${c.entry_id===this.entry?'selected':''}>${escapeHTML(c.name)}</option>`).join('')}</select></header><main>${this.renderNavigation(titles)}<section id="view-content" role="tabpanel" aria-label="${titles[this.view]}">${this.error?`<p class="error" role="alert">${escapeHTML(this.error)}</p>`:''}${this.message?`<div class="message"><p role="status">${escapeHTML(this.message)}${this.reloadPending?' Updating entities…':''}</p>${this.messageEntities?this.button('View entities','navigate','data-view="entities"'):''}</div>`:''}${!this.cores.length?`<section class="card"><h2>Connect your first Core</h2><p>Open Settings → Devices &amp; services, choose Add integration, and search for Q-Sys QRC. Then return here to create entities. No YAML is required.</p>${this.button('Open integration settings','core-settings')}</section>`:this.view==='overview'?this.renderOverview():this.view==='browser'?this.renderBrowser():this.view==='entities'||this.view==='migrate'?this.renderEntities(this.view==='migrate'):this.view==='monitor'?this.renderMonitor():this.view==='diagnostics'?`<div class="grid">${this.cores.map(c=>`<article class="card"><h2>${escapeHTML(c.name)}</h2><p>${escapeHTML(c.status)}</p>${c.last_error?`<p role="alert">${escapeHTML(c.last_error)}</p>`:''}<p>Design information recorded when the Core was configured:</p><pre>${escapeHTML(JSON.stringify(c.engine,null,2))}</pre><p>Use the Protocol Monitor to inspect errors and polling responses. Core connection changes are available under Settings → Devices & services → Q-SYS → Reconfigure.</p></article>`).join('')}</div>`:this.renderTransport()}${this.review?this.renderReview():''}</section></main>${this.cores.length?(this.view==='browser'?this.renderCreationBar():this.view==='entities'?this.renderEntityBar():''):''}`;
     this.updateActionPanelHeight();
     this.updateEntityIcons();
-    const editInput=this.shadowRoot.querySelector('#edit-value');if(editInput&&(this.resetEditBaseline||this.cleanEditValue===undefined)){this.cleanEditValue=editInput.type==='checkbox'?editInput.checked:editInput.value;this.resetEditBaseline=false;}
+    const editInput=this.shadowRoot.querySelector('#edit-value');if(editInput&&(this.resetEditBaseline||this.cleanEditValue===undefined)){this.cleanEditValue=editInput.type==='checkbox'?editInput.checked:editInput.value;this.cleanEditDb=JSON.stringify([this.shadowRoot.querySelector('#edit-min-db')?.value,this.shadowRoot.querySelector('#edit-max-db')?.value]);this.resetEditBaseline=false;}
     const reviewDialog=this.shadowRoot.querySelector('#review-dialog');
     if(reviewDialog){reviewDialog.addEventListener('cancel',event=>{event.preventDefault();this.run(()=>this.action('cancel',{}));});reviewDialog.showModal();this.shadowRoot.querySelector('#review-title').focus();}
     else if(hadReview&&this.reviewReturnAction){this.shadowRoot.querySelector(`[data-action="${this.reviewReturnAction}"]`)?.focus();}
