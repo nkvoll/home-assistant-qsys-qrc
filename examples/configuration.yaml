@@ -21,7 +21,11 @@ qsys_qrc:
       platforms:
         media_player:
         - component: media_stream_receiver_1
+          min_db: -60
+          max_db: 0
         - component: audio_player_doorbell_main
+          min_db: -60
+          max_db: 0
 
         switch:
         - component: bathroom_f2_gain
@@ -31,12 +35,21 @@ qsys_qrc:
         number:
         - component: bathroom_f2_gain
           control: gain
-          # control the position instead of the value (positions are from 0 -> 100)
-          use_position: true
-          # optional: to clamp values
-          position_lower_limit: 0.30
-          position_upper_limit: 0.83333331
-          #unit_of_measurement: "%"
+          # Map gain Value in dB to a useful 0–100% slider.
+          volume_mode: db
+          min_db: -60
+          max_db: 0
+          step: 0.1
+        - component: studio_gain
+          control: gain
+          # Preserve raw dB Value mode with UI limits matching your Q-SYS block.
+          min: -80
+          max: 12
+          unit_of_measurement: dB
+          # Generic Position scaling remains available in legacy mode:
+          # use_position: true
+          # position_lower_limit: 0.30
+          # position_upper_limit: 0.83333331
         #- component: bathroom_f1_gain
         #  control: gain
         #  min: 0

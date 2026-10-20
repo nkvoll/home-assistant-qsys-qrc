@@ -7,6 +7,8 @@ import logging
 from typing import Any
 from urllib.parse import urlparse
 
+import voluptuous as vol
+
 from homeassistant.components import media_source
 from homeassistant.components.media_player import (
     BrowseError,
@@ -36,6 +38,7 @@ from .common import (
 from .const import *  # pylint: disable=unused-wildcard-import,wildcard-import
 from .qsys import qrc
 from .discovery import components, controls, DiscoveryError
+from .volume import GainRange, media_gain_names
 
 _LOGGER = logging.getLogger(__name__)
 PLATFORM = __name__.rsplit(".", 1)[-1]
@@ -124,6 +127,11 @@ async def async_setup_entry_safe(
             _LOGGER.warning(msg)
             raise PlatformNotReady(msg)
 
+        component_controls = await controls(core, component_name)
+        media_player_entity.configure_volume(
+            media_player_config, component_type, component_controls
+        )
+
         if media_player_entity.unique_id not in entities:
             entities[media_player_entity.unique_id] = media_player_entity
             async_add_entities([media_player_entity])
@@ -132,7 +140,7 @@ async def async_setup_entry_safe(
                 media_player_entity.on_core_polling_ending
             )
 
-            for control in await controls(core, component_name):
+            for control in component_controls:
                 # avoid polling peak levels for media players because we're not utilizing them on the HA side
                 if control["Name"].endswith(".peak.level"):
                     continue
@@ -152,7 +160,44 @@ async def async_setup_entry_safe(
             er.async_get(hass).async_remove(entity_entry.entity_id)
 
 
-class QRCUrlReceiverEntity(QSysComponentBase, MediaPlayerEntity):
+class GainVolumeMixin:
+    """Share gain conversion while preserving legacy Position commands exactly."""
+
+    _gain_ranges = None
+
+    def configure_volume(self, settings, component_type, control_metadata):
+        self._gain_ranges = None
+        if settings.get("volume_mode", "legacy") != "db":
+            return
+        by_name = {control["Name"]: control for control in control_metadata}
+        try:
+            self._gain_ranges = {
+                name: GainRange.from_control(settings, by_name[name])
+                for name in media_gain_names(component_type)
+            }
+        except (vol.Invalid, KeyError) as err:
+            raise PlatformNotReady(
+                f"Invalid volume range for {self.component}: {err}"
+            ) from err
+
+    def gain_volume_level(self, change):
+        if self._gain_ranges:
+            return self._gain_ranges[change["Name"]].to_level(change["Value"])
+        return max(0.0, min(1.0, change["Position"] / POSITION_0DB))
+
+    async def set_gain_volume(self, volume, names):
+        payload = [
+            (
+                {"Name": name, "Value": self._gain_ranges[name].to_db(volume)}
+                if self._gain_ranges
+                else {"Name": name, "Position": volume * POSITION_0DB}
+            )
+            for name in names
+        ]
+        await self.core.component().set(self.component, payload)
+
+
+class QRCUrlReceiverEntity(GainVolumeMixin, QSysComponentBase, MediaPlayerEntity):
     _attr_supported_features = (
         MediaPlayerEntityFeature(0)
         | MediaPlayerEntityFeature.VOLUME_SET
@@ -205,11 +250,9 @@ class QRCUrlReceiverEntity(QSysComponentBase, MediaPlayerEntity):
 
         elif name in ("channel.1.gain", "channel.2.gain"):
             # TODO: should iterate over channels instead, and not hard-code names
-            self._attr_volume_level = max(
-                0.0, min(1.0, change["Position"] / POSITION_0DB)
-            )
+            self._attr_volume_level = self.gain_volume_level(change)
 
-        elif name in ("channel.1.mute" or "channel.2.mute"):
+        elif name in ("channel.1.mute", "channel.2.mute"):
             # TODO: marks as muted even if only one channel is muted, should iterate over channels
             self._attr_is_volume_muted = value == 1.0
 
@@ -255,13 +298,7 @@ class QRCUrlReceiverEntity(QSysComponentBase, MediaPlayerEntity):
         )
 
     async def async_set_volume_level(self, volume: float) -> None:
-        await self.core.component().set(
-            self.component,
-            [
-                {"Name": "channel.1.gain", "Position": volume * POSITION_0DB},
-                {"Name": "channel.2.gain", "Position": volume * POSITION_0DB},
-            ],
-        )
+        await self.set_gain_volume(volume, ("channel.1.gain", "channel.2.gain"))
 
     async def async_browse_media(
         self, media_content_type: str | None = None, media_content_id: str | None = None
@@ -303,7 +340,7 @@ class QRCUrlReceiverEntity(QSysComponentBase, MediaPlayerEntity):
         )
 
 
-class QRCAudioFilePlayerEntity(QSysComponentBase, MediaPlayerEntity):
+class QRCAudioFilePlayerEntity(GainVolumeMixin, QSysComponentBase, MediaPlayerEntity):
     _attr_supported_features = (
         MediaPlayerEntityFeature(0)
         | MediaPlayerEntityFeature.VOLUME_SET
@@ -356,9 +393,7 @@ class QRCAudioFilePlayerEntity(QSysComponentBase, MediaPlayerEntity):
             self._attr_media_title = value
 
         elif name == "gain":
-            self._attr_volume_level = max(
-                0.0, min(1.0, change["Position"] / POSITION_0DB)
-            )
+            self._attr_volume_level = self.gain_volume_level(change)
 
         elif name == "mute" or name == "mute":
             self._attr_is_volume_muted = value == 1.0
@@ -424,12 +459,7 @@ class QRCAudioFilePlayerEntity(QSysComponentBase, MediaPlayerEntity):
         )
 
     async def async_set_volume_level(self, volume: float) -> None:
-        await self.core.component().set(
-            self.component,
-            [
-                {"Name": "gain", "Position": volume * POSITION_0DB},
-            ],
-        )
+        await self.set_gain_volume(volume, ("gain",))
 
     async def async_set_repeat(self, repeat: RepeatMode) -> None:
         await self.core.component().set(
@@ -580,7 +610,7 @@ class QRCAudioFilePlayerEntity(QSysComponentBase, MediaPlayerEntity):
         )
 
 
-class QRCGainEntity(QSysComponentBase, MediaPlayerEntity):
+class QRCGainEntity(GainVolumeMixin, QSysComponentBase, MediaPlayerEntity):
     _attr_supported_features = (
         MediaPlayerEntityFeature(0)
         | MediaPlayerEntityFeature.VOLUME_SET
@@ -620,9 +650,7 @@ class QRCGainEntity(QSysComponentBase, MediaPlayerEntity):
 
         if name == "gain":
             # TODO: should iterate over channels instead, and not hard-code names
-            self._attr_volume_level = max(
-                0.0, min(1.0, change["Position"] / POSITION_0DB)
-            )
+            self._attr_volume_level = self.gain_volume_level(change)
 
         elif name == "mute":
             # TODO: marks as muted even if only one channel is muted, should iterate over channels
@@ -639,9 +667,4 @@ class QRCGainEntity(QSysComponentBase, MediaPlayerEntity):
         )
 
     async def async_set_volume_level(self, volume: float) -> None:
-        await self.core.component().set(
-            self.component,
-            [
-                {"Name": "gain", "Position": volume * POSITION_0DB},
-            ],
-        )
+        await self.set_gain_volume(volume, ("gain",))

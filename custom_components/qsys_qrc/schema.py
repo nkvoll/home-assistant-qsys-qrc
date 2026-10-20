@@ -11,6 +11,7 @@ from homeassistant.components import (
 )
 
 from .const import *
+from .volume import volume_defaults, validate_volume_settings
 
 CONFIG_SCHEMA = vol.Schema(
     {
@@ -51,89 +52,119 @@ CONFIG_SCHEMA = vol.Schema(
                                     {
                                         CONF_MEDIA_PLAYER_PLATFORM: vol.Schema(
                                             [
-                                                vol.Schema(
-                                                    {
-                                                        vol.Optional(
-                                                            CONF_ENTITY_NAME,
-                                                            default=None,
-                                                        ): vol.Any(None, str),
-                                                        vol.Optional(
-                                                            CONF_DEVICE_CLASS,
-                                                            default=None,
-                                                        ): vol.Any(
-                                                            None,
-                                                            media_player.DEVICE_CLASSES_SCHEMA,
-                                                        ),
-                                                        vol.Required(
-                                                            CONF_COMPONENT
-                                                        ): str,
-                                                    }
+                                                vol.All(
+                                                    volume_defaults,
+                                                    vol.Schema(
+                                                        {
+                                                            vol.Optional(
+                                                                "volume_mode",
+                                                                default="legacy",
+                                                            ): vol.In(["legacy", "db"]),
+                                                            vol.Optional(
+                                                                "min_db", default=-60.0
+                                                            ): vol.Coerce(float),
+                                                            vol.Optional(
+                                                                "max_db", default=0.0
+                                                            ): vol.Coerce(float),
+                                                            vol.Optional(
+                                                                CONF_ENTITY_NAME,
+                                                                default=None,
+                                                            ): vol.Any(None, str),
+                                                            vol.Optional(
+                                                                CONF_DEVICE_CLASS,
+                                                                default=None,
+                                                            ): vol.Any(
+                                                                None,
+                                                                media_player.DEVICE_CLASSES_SCHEMA,
+                                                            ),
+                                                            vol.Required(
+                                                                CONF_COMPONENT
+                                                            ): str,
+                                                        }
+                                                    ),
+                                                    validate_volume_settings,
                                                 )
                                             ]
                                         ),
                                         CONF_NUMBER_PLATFORM: vol.Schema(
                                             [
-                                                vol.Schema(
-                                                    {
-                                                        vol.Optional(
-                                                            CONF_ENTITY_NAME,
-                                                            default=None,
-                                                        ): vol.Any(None, str),
-                                                        vol.Optional(
-                                                            CONF_DEVICE_CLASS,
-                                                            default=None,
-                                                        ): vol.Any(
-                                                            None,
-                                                            number.DEVICE_CLASSES_SCHEMA,
-                                                        ),
-                                                        vol.Optional(
-                                                            CONF_UNIT_OF_MEASUREMENT,
-                                                            default=None,
-                                                        ): vol.Any(None, str),
-                                                        vol.Optional(
-                                                            CONF_COMPONENT,
-                                                            default=None,
-                                                        ): vol.Any(None, str),
-                                                        vol.Required(CONF_CONTROL): str,
-                                                        vol.Optional(
-                                                            CONF_NUMBER_USE_POSITION,
-                                                            default=False,
-                                                        ): bool,
-                                                        vol.Optional(
-                                                            CONF_NUMBER_MIN_VALUE,
-                                                            default=0.0,
-                                                        ): vol.Coerce(float),
-                                                        vol.Optional(
-                                                            CONF_NUMBER_MAX_VALUE,
-                                                            default=100.0,
-                                                        ): vol.Coerce(float),
-                                                        vol.Optional(
-                                                            CONF_NUMBER_POSITION_LOWER_LIMIT,
-                                                            default=0.0,
-                                                        ): vol.Coerce(float),
-                                                        vol.Optional(
-                                                            CONF_NUMBER_POSITION_UPPER_LIMIT,
-                                                            default=1.0,
-                                                        ): vol.Coerce(float),
-                                                        vol.Optional(
-                                                            CONF_NUMBER_STEP,
-                                                            default=1.0,
-                                                        ): vol.Coerce(float),
-                                                        vol.Optional(
-                                                            CONF_NUMBER_MODE,
-                                                            default=number.NumberMode.AUTO,
-                                                        ): vol.Coerce(
-                                                            number.NumberMode
-                                                        ),
-                                                        vol.Optional(
-                                                            CONF_NUMBER_CHANGE_TEMPLATE,
-                                                            default=None,
-                                                        ): vol.Any(None, str),
-                                                        vol.Optional(
-                                                            CONF_NUMBER_VALUE_TEMPLATE,
-                                                            default=None,
-                                                        ): vol.Any(None, str),
-                                                    }
+                                                vol.All(
+                                                    volume_defaults,
+                                                    vol.Schema(
+                                                        {
+                                                            vol.Optional(
+                                                                "volume_mode",
+                                                                default="legacy",
+                                                            ): vol.In(["legacy", "db"]),
+                                                            vol.Optional(
+                                                                "min_db", default=-60.0
+                                                            ): vol.Coerce(float),
+                                                            vol.Optional(
+                                                                "max_db", default=0.0
+                                                            ): vol.Coerce(float),
+                                                            vol.Optional(
+                                                                CONF_ENTITY_NAME,
+                                                                default=None,
+                                                            ): vol.Any(None, str),
+                                                            vol.Optional(
+                                                                CONF_DEVICE_CLASS,
+                                                                default=None,
+                                                            ): vol.Any(
+                                                                None,
+                                                                number.DEVICE_CLASSES_SCHEMA,
+                                                            ),
+                                                            vol.Optional(
+                                                                CONF_UNIT_OF_MEASUREMENT,
+                                                                default=None,
+                                                            ): vol.Any(None, str),
+                                                            vol.Optional(
+                                                                CONF_COMPONENT,
+                                                                default=None,
+                                                            ): vol.Any(None, str),
+                                                            vol.Required(
+                                                                CONF_CONTROL
+                                                            ): str,
+                                                            vol.Optional(
+                                                                CONF_NUMBER_USE_POSITION,
+                                                                default=False,
+                                                            ): bool,
+                                                            vol.Optional(
+                                                                CONF_NUMBER_MIN_VALUE,
+                                                                default=0.0,
+                                                            ): vol.Coerce(float),
+                                                            vol.Optional(
+                                                                CONF_NUMBER_MAX_VALUE,
+                                                                default=100.0,
+                                                            ): vol.Coerce(float),
+                                                            vol.Optional(
+                                                                CONF_NUMBER_POSITION_LOWER_LIMIT,
+                                                                default=0.0,
+                                                            ): vol.Coerce(float),
+                                                            vol.Optional(
+                                                                CONF_NUMBER_POSITION_UPPER_LIMIT,
+                                                                default=1.0,
+                                                            ): vol.Coerce(float),
+                                                            vol.Optional(
+                                                                CONF_NUMBER_STEP,
+                                                                default=1.0,
+                                                            ): vol.Coerce(float),
+                                                            vol.Optional(
+                                                                CONF_NUMBER_MODE,
+                                                                default=number.NumberMode.AUTO,
+                                                            ): vol.Coerce(
+                                                                number.NumberMode
+                                                            ),
+                                                            vol.Optional(
+                                                                CONF_NUMBER_CHANGE_TEMPLATE,
+                                                                default=None,
+                                                            ): vol.Any(None, str),
+                                                            vol.Optional(
+                                                                CONF_NUMBER_VALUE_TEMPLATE,
+                                                                default=None,
+                                                            ): vol.Any(None, str),
+                                                        }
+                                                    ),
+                                                    validate_volume_settings,
                                                 )
                                             ]
                                         ),

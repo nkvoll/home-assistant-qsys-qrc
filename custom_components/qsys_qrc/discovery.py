@@ -3,6 +3,10 @@
 import asyncio
 import math
 
+import voluptuous as vol
+
+from .volume import GainRange, is_db_gain, media_gain_names
+
 from .qsys import qrc
 
 MEDIA_COMPONENT_TYPES = frozenset({"URL_receiver", "audio_file_player", "gain"})
@@ -86,9 +90,9 @@ def compatible_platforms(control):
     """Match the value handling used by the existing entity platforms."""
     value = control.get("Value")
     kind = str(control.get("Type", "")).strip().lower()
-    trigger = kind in {"trigger", "state trigger"} or str(control.get("Name", "")).lower().endswith(
-        ".trigger"
-    )
+    trigger = kind in {"trigger", "state trigger"} or str(
+        control.get("Name", "")
+    ).lower().endswith(".trigger")
     boolean = kind == "boolean" or isinstance(value, bool)
     result = ["binary_sensor", "sensor"] if boolean else ["sensor"]
     if writable(control) is False:
@@ -151,11 +155,20 @@ async def validate_mapping(core, mapping, timeout=5):
         if match is None:
             return ["missing_component"]
         if platform == "media_player":
-            return (
-                []
-                if match.get("Type") in MEDIA_COMPONENT_TYPES
-                else ["unsupported_component_type"]
-            )
+            if match.get("Type") not in MEDIA_COMPONENT_TYPES:
+                return ["unsupported_component_type"]
+            if settings.get("volume_mode") != "db":
+                return []
+            by_name = {
+                item["Name"]: item for item in await controls(core, component, timeout)
+            }
+            issues = []
+            for name in media_gain_names(match["Type"]):
+                if name not in by_name:
+                    issues.append("missing_gain_control")
+                else:
+                    issues.extend(gain_range_issues(settings, by_name[name]))
+            return list(dict.fromkeys(issues))
         items = await controls(core, component, timeout)
         control = next(
             (item for item in items if item["Name"] == settings["control"]), None
@@ -169,15 +182,40 @@ async def validate_mapping(core, mapping, timeout=5):
             return ["missing_control"]
     if platform not in compatible_platforms(control):
         return [
-            "read_only_mismatch"
-            if writable(control) is False
-            else "incompatible_control"
+            (
+                "read_only_mismatch"
+                if writable(control) is False
+                else "incompatible_control"
+            )
         ]
+    if platform == "number" and settings.get("volume_mode") == "db":
+        if not is_db_gain(control):
+            return ["not_db_gain"]
+        issues = gain_range_issues(settings, control)
+        if issues:
+            return issues
     return (
         ["writability_unverified"]
         if platform not in {"sensor", "binary_sensor"} and writable(control) is None
         else []
     )
+
+
+def gain_range_issues(settings, control):
+    """Report missing limits separately from a range outside actual limits."""
+    try:
+        GainRange.from_control(settings, control)
+    except vol.Invalid as err:
+        return [
+            (
+                "gain_limits_unavailable"
+                if "unavailable" in str(err)
+                else "gain_range_out_of_bounds"
+            )
+        ]
+    if writable(control) is False:
+        return ["read_only_mismatch"]
+    return []
 
 
 class FlowCore:

@@ -248,12 +248,25 @@ async def capture(config):
                     "button", name="Keep editing", exact=True
                 ).click()
                 await page.get_by_role("dialog").wait_for(state="hidden")
-                await panel.get_by_role("button", name="Add entities", exact=False).wait_for()
-                await panel.get_by_role("button", name="Manage entities", exact=False).wait_for()
-                assert await panel.locator('header [data-action="core-settings"]').count() == 0
-                await panel.get_by_role("heading", name="Last known StatusGet response", exact=True).wait_for()
-                await expect(panel.locator(".core-status pre")).to_contain_text('"Status"')
-                await panel.get_by_role("button", name="Configure Integration", exact=True).wait_for()
+                await panel.get_by_role(
+                    "button", name="Add entities", exact=False
+                ).wait_for()
+                await panel.get_by_role(
+                    "button", name="Manage entities", exact=False
+                ).wait_for()
+                assert (
+                    await panel.locator('header [data-action="core-settings"]').count()
+                    == 0
+                )
+                await panel.get_by_role(
+                    "heading", name="Last known StatusGet response", exact=True
+                ).wait_for()
+                await expect(panel.locator(".core-status pre")).to_contain_text(
+                    '"Status"'
+                )
+                await panel.get_by_role(
+                    "button", name="Configure Integration", exact=True
+                ).wait_for()
                 await expect(panel.locator(".core-settings-actions")).to_contain_text(
                     "poll interval, or request timeout"
                 )
@@ -286,13 +299,22 @@ async def capture(config):
                     in await panel.locator("#help-named-controls").inner_text()
                 )
                 assert await panel.locator("section.card #named").count() == 1
-                await expect(panel.get_by_role("button", name="Review creation (0)", exact=True)).to_be_disabled()
-                await panel.get_by_role("button", name="Look up control", exact=True).wait_for()
+                await expect(
+                    panel.get_by_role("button", name="Review creation (0)", exact=True)
+                ).to_be_disabled()
+                await panel.get_by_role(
+                    "button", name="Look up control", exact=True
+                ).wait_for()
                 # Verify geometry while scrolling; the footer must stay visible.
                 footer = await panel.locator(".action-bar").bounding_box()
-                await panel.locator("main").evaluate("el => {el.scrollTop=el.scrollHeight;}")
+                await panel.locator("main").evaluate(
+                    "el => {el.scrollTop=el.scrollHeight;}"
+                )
                 assert await panel.locator(".action-bar").bounding_box() == footer
-                assert footer is not None and footer["y"] + footer["height"] <= page.viewport_size["height"]
+                assert (
+                    footer is not None
+                    and footer["y"] + footer["height"] <= page.viewport_size["height"]
+                )
                 await panel.locator("main").evaluate("el => {el.scrollTop=0;}")
                 await panel.get_by_role(
                     "textbox", name="Filter components", exact=True
@@ -425,6 +447,14 @@ async def capture(config):
                     exact=True,
                 )
                 await media_checkbox.check()
+                media_row = panel.locator(
+                    'tr:has(input[aria-label="Select Room Gain / Component media player"])'
+                )
+                await expect(media_row.locator("[data-volume-mode]")).to_have_value(
+                    "db"
+                )
+                await expect(media_row.locator("[data-min-db]")).to_have_value("-60")
+                await expect(media_row.locator("[data-max-db]")).to_have_value("0")
                 await panel.get_by_role(
                     "button", name="Review creation (4)", exact=True
                 ).click()
@@ -480,16 +510,14 @@ async def capture(config):
                     "button", name="Review creation (3)", exact=True
                 ).click()
                 await panel.locator("#review-title").wait_for()
-                await expect(panel.locator("#review-title")).to_have_text("Create 3 entities")
+                await expect(panel.locator("#review-title")).to_have_text(
+                    "Create 3 entities"
+                )
                 await screenshot("panel-bulk-create.png", full_page=False)
                 await panel.get_by_role("button", name="Create", exact=True).click()
-                await panel.locator("#review-title").wait_for(
-                    state="hidden"
-                )
+                await panel.locator("#review-title").wait_for(state="hidden")
                 assert await panel.locator(".error").count() == 0
-                await panel.locator("#review-title").wait_for(
-                    state="hidden"
-                )
+                await panel.locator("#review-title").wait_for(state="hidden")
                 assert await panel.locator(".error").count() == 0
                 await page.wait_for_function("""() => {
                     const visit = root => {
@@ -500,14 +528,28 @@ async def capture(config):
                     };
                     return visit(document);
                 }""")
-                await expect(panel.locator(".message")).to_contain_text("Created 3 entities.")
-                await panel.get_by_role("button", name="View entities", exact=True).click()
-                await expect(panel.locator("header h1")).to_have_text("Q-SYS · Entities")
+                await expect(panel.locator(".message")).to_contain_text(
+                    "Created 3 entities."
+                )
+                await panel.get_by_role(
+                    "button", name="View entities", exact=True
+                ).click()
+                await expect(panel.locator("header h1")).to_have_text(
+                    "Q-SYS · Entities"
+                )
                 await expect(panel.locator(".message")).to_have_count(0)
-                await expect(panel.get_by_role("button", name="View entities", exact=True)).to_have_count(0)
-                assert await panel.evaluate("el => {const tab=el.shadowRoot.querySelector('ha-tab-group-tab[active],.fallback-tabs [aria-selected=true]');return tab?.textContent.trim()==='Entities';}")
-                await expect(panel.get_by_role("button", name="Review edits (0)", exact=True)).to_be_disabled()
-                await expect(panel.get_by_role("button", name="Review deletion (0)", exact=True)).to_be_disabled()
+                await expect(
+                    panel.get_by_role("button", name="View entities", exact=True)
+                ).to_have_count(0)
+                assert await panel.evaluate(
+                    "el => {const tab=el.shadowRoot.querySelector('ha-tab-group-tab[active],.fallback-tabs [aria-selected=true]');return tab?.textContent.trim()==='Entities';}"
+                )
+                await expect(
+                    panel.get_by_role("button", name="Review edits (0)", exact=True)
+                ).to_be_disabled()
+                await expect(
+                    panel.get_by_role("button", name="Review deletion (0)", exact=True)
+                ).to_be_disabled()
                 assert (
                     await panel.get_by_role(
                         "columnheader", name="Status", exact=True
@@ -646,9 +688,7 @@ async def capture(config):
                 ).click()
                 await panel.locator("#review-title").wait_for()
                 await panel.get_by_role("button", name="Save", exact=True).click()
-                await panel.locator("#review-title").wait_for(
-                    state="hidden"
-                )
+                await panel.locator("#review-title").wait_for(state="hidden")
                 assert await panel.locator(".error").count() == 0
                 await panel.get_by_role(
                     "tab", name="QRC Protocol Monitor", exact=True
@@ -681,8 +721,10 @@ async def capture(config):
                 await panel.get_by_role(
                     "textbox", name="Filter protocol frames", exact=True
                 ).fill("ChangeGroup")
-                assert await panel.evaluate("""element => [...element.shadowRoot.querySelectorAll('#monitor-rows tr:not([hidden])')]
-                    .every(row=>row.qsysDirection==='sent'&&row.qsysSearchText.includes('changegroup'))""")
+                assert await panel.evaluate(
+                    """element => [...element.shadowRoot.querySelectorAll('#monitor-rows tr:not([hidden])')]
+                    .every(row=>row.qsysDirection==='sent'&&row.qsysSearchText.includes('changegroup'))"""
+                )
                 await panel.locator("#direction").select_option("")
                 await panel.get_by_role(
                     "textbox", name="Filter protocol frames", exact=True
@@ -701,23 +743,39 @@ async def capture(config):
                 await panel.get_by_role(
                     "button", name="Confirm and save", exact=True
                 ).click()
-                await panel.locator("#review-title").wait_for(
-                    state="hidden"
-                )
+                await panel.locator("#review-title").wait_for(state="hidden")
                 assert await panel.locator(".error").count() == 0
-                await expect(panel.locator("tbody tr[data-entity-row]")).to_have_count(0)
+                await expect(panel.locator("tbody tr[data-entity-row]")).to_have_count(
+                    0
+                )
                 await panel.locator("#show-migrated").check()
-                await expect(panel.locator("tbody tr[data-entity-row]")).to_have_count(1)
-                await expect(panel.locator("tbody tr[data-entity-row]")).to_contain_text("ui + yaml")
+                await expect(panel.locator("tbody tr[data-entity-row]")).to_have_count(
+                    1
+                )
+                await expect(
+                    panel.locator("tbody tr[data-entity-row]")
+                ).to_contain_text("ui + yaml")
                 await panel.locator("#all").check()
                 await panel.locator("#show-migrated").uncheck()
-                await expect(panel.locator("tbody tr[data-entity-row]")).to_have_count(0)
-                await expect(panel.get_by_role("button", name="Review migration (0)", exact=True)).to_be_disabled()
-                await expect(panel.locator(".message")).to_contain_text("Migrated 1 entity.")
-                await panel.get_by_role("button", name="View entities", exact=True).click()
-                await expect(panel.locator("header h1")).to_have_text("Q-SYS · Entities")
+                await expect(panel.locator("tbody tr[data-entity-row]")).to_have_count(
+                    0
+                )
+                await expect(
+                    panel.get_by_role("button", name="Review migration (0)", exact=True)
+                ).to_be_disabled()
+                await expect(panel.locator(".message")).to_contain_text(
+                    "Migrated 1 entity."
+                )
+                await panel.get_by_role(
+                    "button", name="View entities", exact=True
+                ).click()
+                await expect(panel.locator("header h1")).to_have_text(
+                    "Q-SYS · Entities"
+                )
                 await expect(panel.locator(".message")).to_have_count(0)
-                await expect(panel.get_by_role("button", name="View entities", exact=True)).to_have_count(0)
+                await expect(
+                    panel.get_by_role("button", name="View entities", exact=True)
+                ).to_have_count(0)
                 await panel.get_by_role("tab", name="Dashboard", exact=True).click()
                 await panel.get_by_role(
                     "button", name="Export YAML", exact=False
@@ -777,6 +835,70 @@ async def capture(config):
                     "button", name="Discard changes", exact=True
                 ).click()
 
+                # Create two legacy media players, then opt both in through one bulk edit.
+                await panel.get_by_role(
+                    "tab", name="Components / Controls", exact=True
+                ).click()
+                for component in ("Room Gain", "Music Player"):
+                    await panel.locator(f'[data-component="{component}"]').check()
+                    checkbox = panel.get_by_role(
+                        "checkbox",
+                        name=f"Select {component} / Component media player",
+                        exact=True,
+                    )
+                    row = panel.locator(
+                        f'tr:has(input[aria-label="Select {component} / Component media player"])'
+                    )
+                    await expect(row.locator("[data-volume-mode]")).to_have_value("db")
+                    await row.locator("[data-volume-mode]").select_option("legacy")
+                    await checkbox.check()
+                await panel.get_by_role(
+                    "button", name="Review creation (2)", exact=True
+                ).click()
+                await panel.get_by_role("button", name="Create", exact=True).click()
+                await panel.locator("#review-title").wait_for(state="hidden")
+                await panel.get_by_role(
+                    "button", name="View entities", exact=True
+                ).click()
+                media_indices = await panel.evaluate(
+                    "el => el.inventory.flatMap((r,i)=>r.source==='ui'&&r.mapping.platform==='media_player'?[i]:[])"
+                )
+                assert len(media_indices) == 2
+                for index in media_indices:
+                    await panel.locator(f'[data-select="{index}"]').check()
+                await panel.locator("#edit-field").select_option("volume_mode")
+                await expect(panel.locator("#edit-value")).to_have_value("db")
+                await expect(panel.locator("#edit-min-db")).to_have_value("-60")
+                await expect(panel.locator("#edit-max-db")).to_have_value("0")
+                assert not await panel.evaluate("el => el.hasUnsaved()")
+                await screenshot("panel-volume-range.png")
+                await panel.locator("#edit-min-db").fill("-55")
+                await panel.locator("#edit-max-db").fill("-3")
+                assert await panel.evaluate("el => el.hasUnsaved()")
+                await panel.get_by_role(
+                    "button", name="Review edits (2)", exact=True
+                ).click()
+                await expect(panel.locator("section.review")).to_contain_text(
+                    "-55 to -3 dB"
+                )
+                assert (
+                    await panel.evaluate("el => JSON.stringify(el.pending.patch)")
+                    == '{"volume_mode":"db","min_db":-55,"max_db":-3}'
+                )
+                await panel.get_by_role("button", name="Save", exact=True).click()
+                await panel.locator("#review-title").wait_for(state="hidden")
+                assert not await panel.evaluate("el => el.hasUnsaved()")
+                assert await panel.evaluate(
+                    "el => el.inventory.filter(r=>r.source==='ui'&&r.mapping.platform==='media_player').every(r=>r.mapping.settings.volume_mode==='db'&&r.mapping.settings.min_db===-55&&r.mapping.settings.max_db===-3)"
+                )
+                exported = await panel.evaluate(
+                    "async el => (await el.api('export')).document"
+                )
+                assert exported.count("volume_mode: db") == 2
+                assert exported.count("min_db: -55.0") == 2
+                assert exported.count("max_db: -3.0") == 2
+                await panel.locator("#edit-field").select_option("name")
+
                 await panel.locator("#all").check()
                 await panel.get_by_role(
                     "button", name="Review deletion", exact=False
@@ -785,9 +907,7 @@ async def capture(config):
                     "Deleting this UI mapping reactivates", exact=False
                 ).wait_for()
                 await panel.get_by_role("button", name="Delete", exact=True).click()
-                await panel.locator("#review-title").wait_for(
-                    state="hidden"
-                )
+                await panel.locator("#review-title").wait_for(state="hidden")
                 assert await panel.locator(".error").count() == 0
                 assert (
                     await panel.get_by_role(

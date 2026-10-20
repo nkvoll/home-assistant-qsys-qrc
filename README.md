@@ -226,6 +226,88 @@ via Home Assistant YAML cannot be edited or deleted here until migrated.
 
 ![Entities and bulk editing](examples/screenshots/panel-entities.png)
 
+#### Volume listening range
+
+New UI media-player mappings default to **dB range → percentage**, with a
+listening range of `min_db: -60` to `max_db: 0`. This applies to gain blocks,
+URL receivers (both channel gains), and audio file players. For nonzero volume,
+`dB = min_db + volume_level × (max_db - min_db)`, where Home Assistant's
+`volume_level` is 0–1. With the default range:
+
+| Slider | Q-SYS gain |
+| --- | --- |
+| 0% | The control's actual minimum gain |
+| 1% | −59.4 dB |
+| 50% | −30 dB |
+| 90% | −6 dB |
+| 100% | 0 dB |
+
+Zero uses each channel's available minimum, independently of mute switches.
+The integration sends QRC `Value` in dB and reads it back through the inverse
+mapping. External changes update the slider; gain outside the listening range
+only clamps the displayed percentage. Setup, reload, and changing mapping
+settings never write gain values. The next volume command uses the new range.
+`media_player.volume_set`, individual sliders, and automations sending the same
+0–1 `volume_level` to several speakers all use each entity's configured range.
+
+The listening range must be finite and increasing and fit **every** controlled
+channel's actual Q-SYS `ValueMin` / `ValueMax`, including gain blocks with custom
+limits. Missing limits or an invalid range prevent using dB-range mode; the UI
+reports this during review. Adjust the offered −60…0 dB range if the control's
+limits are narrower. The integration does not guess gain limits or probe them
+by writing values.
+
+**Upgrade existing mappings:** existing UI media players are automatically saved
+with explicit `volume_mode: legacy`, preserving their Position-based behavior
+and entity IDs. In **Entities**, select the media players to upgrade, choose
+**Volume mapping / listening range**, select **dB range → percentage**, review
+or adjust the two dB bounds, then **Review edits → Save**. This is one bulk edit
+for all selected players. The existing gain is unchanged; the slider may display
+a different percentage. YAML-only entities must be migrated to UI ownership
+before mass-editing, or edited directly in YAML.
+
+![Bulk volume range settings](examples/screenshots/panel-volume-range.png)
+
+Existing YAML mappings with omitted volume settings retain legacy behavior.
+For new YAML mappings, explicitly set `min_db` and `max_db` to opt in, or use
+`volume_mode: db` with the default −60…0 bounds:
+
+```yaml
+qsys_qrc:
+  cores:
+    my_core:
+      platforms:
+        media_player:
+          - component: living_room_gain
+            min_db: -60
+            max_db: 0
+        number:
+          - component: bedroom_gain
+            control: gain
+            volume_mode: db
+            min_db: -60
+            max_db: 0
+            step: 0.1
+          - component: studio_gain
+            control: gain
+            # Raw QRC Value in dB; no percentage conversion.
+            min: -80
+            max: 12
+            unit_of_measurement: dB
+```
+
+Number entities can opt into **dB range → percentage** during creation or bulk
+editing. This forces a 0–100% slider and `%` unit; `min_db` / `max_db` are listening
+bounds, separate from the existing number UI `min` / `max`. It requires dB gain
+metadata and actual gain limits. Top-level Named Controls often lack that
+metadata; use the component's gain control in that case.
+
+`volume_mode: legacy` keeps a number's existing raw `Value`, generic
+`use_position`, position limits, and templates. In dB-range mode, position
+settings are retained but inactive; `change_template` receives the converted
+percentage, and `value_template` transforms the percentage before conversion
+to dB. Both UI-managed modes and bounds survive YAML import/export.
+
 #### QRC Protocol Monitor
 
 Click **Start capture** to record sent and received JSON-RPC frames on this
